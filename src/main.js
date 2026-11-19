@@ -881,9 +881,9 @@ function updateDayNight(dt) {
     sun = Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
   }
 
-  moon.intensity = .35 + 1.8 * (1 - sun);
-  hemi.intensity = .35 + .95 * sun;
-  ambient.intensity = .25 + .55 * sun;
+  moon.intensity = .5 + 1.7 * (1 - sun);
+hemi.intensity = .75 + .9 * sun;
+ambient.intensity = .45 + .4 * sun;
 
   const daylight = new THREE.Color(0x101a2b).lerp(
     new THREE.Color(0x8795a7),
