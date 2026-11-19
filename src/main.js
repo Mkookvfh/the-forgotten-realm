@@ -1137,7 +1137,7 @@ function updateWorld(dt) {
       enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
     }
   }
-
+}
 
 // ---------- Graphics Settings ----------
 function applySettings() {
