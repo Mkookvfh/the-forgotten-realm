@@ -18,14 +18,23 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 mount.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0x9ba9c4, 0x17130f, 1.15));
-const moon = new THREE.DirectionalLight(0xc3d5ff, 2.0);
+
+scene.add(new THREE.HemisphereLight(0xb7c9e8, 0x17130f, 1.35));
+
+const moon = new THREE.DirectionalLight(0xc3d5ff, 2.2);
 moon.position.set(-18, 28, 12);
 moon.castShadow = true;
+
 moon.shadow.mapSize.set(1024, 1024);
-moon.shadow.camera.left = -28; moon.shadow.camera.right = 28;
-moon.shadow.camera.top = 28; moon.shadow.camera.bottom = -28;
+moon.shadow.camera.left = -28;
+moon.shadow.camera.right = 28;
+moon.shadow.camera.top = 28;
+moon.shadow.camera.bottom = -28;
+moon.shadow.bias = -0.0002;
+moon.shadow.normalBias = 0.03;
+
 scene.add(moon);
+
 
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x242a28, roughness: 1 });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), groundMat);
