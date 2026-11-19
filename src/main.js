@@ -741,7 +741,7 @@ function updateDayNight(dt) {
   scene.fog.color.copy(daylight);
 
   const label = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
-  ui.clock.textContent = label;
+  if (ui.clock) ui.clock.textContent = label;
 
   const timeButton = $('#time-toggle');
   if (timeButton) {
