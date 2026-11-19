@@ -3,8 +3,8 @@ import './style.css';
 
 const mount = document.querySelector('#game');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x090d16);
-scene.fog = new THREE.FogExp2(0x111824, 0.022);
+scene.background = new THREE.Color(0x111a25);
+scene.fog = new THREE.FogExp2(0x182332, 0.012);
 
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 180);
 camera.position.set(0, 5, 9);
@@ -14,6 +14,8 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
 mount.appendChild(renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0x9ba9c4, 0x17130f, 1.15));
