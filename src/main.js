@@ -42,7 +42,21 @@ const skyMaterial = new THREE.ShaderMaterial({
         28.0
       );
 
-      color += vec3(0.35, 0.40, 0.55) * glow;
+      // Moon glow
+color += vec3(0.35, 0.40, 0.55) * glow;
+
+// Visible moon disc
+float moonDisc = smoothstep(
+  0.9992,
+  0.9997,
+  dot(normalize(vDirection), moonDirection)
+);
+
+color = mix(
+  color,
+  vec3(0.88, 0.91, 1.0),
+  moonDisc
+);
 
       gl_FragColor = vec4(color, 1.0);
     }
