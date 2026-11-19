@@ -663,7 +663,10 @@ addEventListener('keyup', (e) => {
 
 addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) clearInputs();
+  if (document.hidden) {
+    saveGame(false);
+    clearInputs();
+  }
 });
 
 // Mobile joystick
@@ -805,12 +808,13 @@ canvas.addEventListener('wheel', (e) => {
 let verticalVelocity = 0;
 let grounded = true;
 let attackCooldown = 0;
+let autoSaveTimer = 0;
 
 const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 
-function saveGame() {
+function saveGame(showMessage = true) {
   const payload = {
     version: 1,
     player: [player.position.x, player.position.y, player.position.z],
@@ -820,7 +824,7 @@ function saveGame() {
 
   try {
     localStorage.setItem('forgotten-realm-save-v1', JSON.stringify(payload));
-    toast('บันทึกเกมแล้ว');
+    if (showMessage) toast('บันทึกเกมแล้ว');
   } catch (error) {
     console.error(error);
     toast('ไม่สามารถบันทึกได้ในอุปกรณ์นี้');
@@ -1213,6 +1217,13 @@ function applySettings() {
 
 // ---------- Main Update ----------
 function update(dt) {
+    autoSaveTimer += dt;
+
+  if (autoSaveTimer >= 30) {
+    saveGame(false);
+    autoSaveTimer = 0;
+  }
+  
   let mx = input.x;
   let my = input.y;
 
