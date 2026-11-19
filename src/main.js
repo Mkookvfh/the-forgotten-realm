@@ -174,6 +174,10 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
+const groundDayColor = new THREE.Color(0x343a32);
+const groundNightColor = new THREE.Color(0x65705d);
+
+
 const mats = {
   stone: new THREE.MeshStandardMaterial({ color: 0x454747, roughness: 1 }),
   bark: new THREE.MeshStandardMaterial({ color: 0x33251c, roughness: 1 }),
@@ -988,6 +992,15 @@ sunLight.intensity = 2.2 * sun;
 hemi.intensity = 1.05 + 0.9 * sun;
 ambient.intensity = 0.62 + 0.23 * sun;
 moonGlow.intensity = 0.65 * (1 - sun);
+  
+  // Use only one directional shadow light at a time
+  moon.castShadow = sun < 0.5;
+  sunLight.castShadow = sun >= 0.5;
+
+  // Keep ground visible at night
+  ground.material.color.copy(groundNightColor)
+    .lerp(groundDayColor, sun);
+  
 
 
   const daylight = new THREE.Color(0x101a2b).lerp(
@@ -1004,8 +1017,8 @@ fireflyMaterial.opacity = 0.75 * (1 - sun);
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
 scene.fog.density = THREE.MathUtils.lerp(
-  0.0045,
-  0.008,
+  0.0035,
+  0.0048,
   nightFog
 );
 
