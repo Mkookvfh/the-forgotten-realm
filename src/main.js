@@ -21,7 +21,7 @@ mount.appendChild(renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0xb7c9e8, 0x17130f, 1.35));
 
-scene.add(new THREE.AmbientLight(0x9db8df, 0.55));
+scene.add(new THREE.AmbientLight(0x9db8df, 0.85));
 
 const moon = new THREE.DirectionalLight(0xc3d5ff, 2.2);
 moon.position.set(-18, 28, 12);
