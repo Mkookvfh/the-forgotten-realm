@@ -1,231 +1,486 @@
 import * as THREE from 'three';
 import './style.css';
 
-const mount = document.querySelector('#game');
+// ---------- DOM + safe defaults ----------
+const $ = (selector) => document.querySelector(selector);
+const mount = $('#game');
+if (!mount) throw new Error('Missing #game mount element');
+
+const ui = {
+  hp: $('#hp-fill'), hpText: $('#hp-text'),
+  stamina: $('#stamina-fill'), staminaText: $('#stamina-text'),
+  level: $('#level-text'), crystals: $('#crystal-count'),
+  potions: $('#potion-count'), quest: $('#quest-text'),
+  clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
+  settings: $('#settings-panel')
+};
+const isTouch = matchMedia('(pointer: coarse)').matches;
+const settings = { quality: 'medium', sensitivity: 5, weather: true };
+const state = {
+  hp: 100, stamina: 100, crystals: 0, potions: 2, level: 1,
+  xp: 0, questStage: 0, dayTime: 0.72, weatherTime: 0,
+  weatherOn: true, dead: false
+};
+let toastTimer = 0;
+function toast(message) {
+  ui.toast.textContent = message;
+  ui.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2200);
+}
+function updateHud() {
+  ui.hp.style.width = `${Math.max(0, state.hp)}%`;
+  ui.hpText.textContent = `${Math.ceil(state.hp)} / 100`;
+  ui.stamina.style.width = `${Math.max(0, state.stamina)}%`;
+  ui.staminaText.textContent = `${Math.ceil(state.stamina)} / 100`;
+  ui.level.textContent = String(state.level);
+  ui.crystals.textContent = String(state.crystals);
+  ui.potions.textContent = String(state.potions);
+  ui.quest.textContent = state.questStage === 0
+    ? 'เดินทางไปยังหอคอยร้าง'
+    : state.questStage === 1
+      ? 'กำจัดผู้พิทักษ์ที่เฝ้าซากโบราณ'
+      : 'สำเร็จ! สำรวจดินแดนต่อไป';
+}
+function saveGame() {
+  const payload = {
+    player: [player.position.x, player.position.y, player.position.z],
+    state: { ...state }, settings: { ...settings }
+  };
+  try {
+    localStorage.setItem('forgotten-realm-save-v1', JSON.stringify(payload));
+    toast('บันทึกเกมแล้ว');
+  } catch (error) {
+    console.error(error);
+    toast('ไม่สามารถบันทึกได้ในอุปกรณ์นี้');
+  }
+}
+function loadGame() {
+  try {
+    const raw = localStorage.getItem('forgotten-realm-save-v1');
+    if (!raw) return toast('ยังไม่มีข้อมูลบันทึก');
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.player) || data.player.length !== 3 || !data.state) {
+      throw new Error('Invalid save format');
+    }
+    player.position.set(...data.player.map(Number));
+    Object.assign(state, data.state);
+    if (data.settings) Object.assign(settings, data.settings);
+    applySettings();
+    updateHud();
+    toast('โหลดเกมแล้ว');
+  } catch (error) {
+    console.error(error);
+    toast('ไฟล์บันทึกเสียหาย');
+  }
+}
+
+// ---------- Three.js scene ----------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x080d18);
-scene.fog = new THREE.FogExp2(0x182332, 0.009);
+scene.fog = new THREE.FogExp2(0x182332, 0.0085);
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 220);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.domElement.style.touchAction = 'none';
+renderer.domElement.setAttribute('aria-label', 'Game view');
+mount.appendChild(renderer.domElement);
 
-// Dark Fantasy Sky
-const skyGeometry = new THREE.SphereGeometry(150, 32, 32);
-
-const skyMaterial = new THREE.ShaderMaterial({
-  side: THREE.BackSide,
-  depthWrite: false,
-  fog: false,
-
-  vertexShader: `
-    varying vec3 vDirection;
-
-    void main() {
-      vDirection = normalize(position);
-      gl_Position = projectionMatrix *
-        modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-
-  fragmentShader: `
-    varying vec3 vDirection;
-
-    void main() {
-      float h = normalize(vDirection).y;
-
-      vec3 horizon = vec3(0.18, 0.22, 0.30);
-      vec3 zenith = vec3(0.015, 0.025, 0.065);
-
-      float gradient = smoothstep(-0.15, 0.75, h);
-      vec3 color = mix(horizon, zenith, gradient);
-
-      vec3 moonDirection = normalize(vec3(-0.4, 0.65, -0.5));
-      float glow = pow(
-        max(dot(normalize(vDirection), moonDirection), 0.0),
-        28.0
-      );
-
-      // Moon glow
-color += vec3(0.35, 0.40, 0.55) * glow;
-
-// Visible moon disc
-float moonDisc = smoothstep(
-  0.9992,
-  0.9997,
-  dot(normalize(vDirection), moonDirection)
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(180, 32, 24),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    vertexShader: `varying vec3 vDir; void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader: `
+      varying vec3 vDir;
+      void main(){
+        float h=normalize(vDir).y;
+        vec3 horizon=vec3(.16,.19,.27), zenith=vec3(.008,.014,.04);
+        vec3 col=mix(horizon,zenith,smoothstep(-.18,.8,h));
+        vec3 moonDir=normalize(vec3(-.4,.65,-.5));
+        float glow=pow(max(dot(normalize(vDir),moonDir),0.0),24.0);
+        col+=vec3(.25,.31,.48)*glow;
+        float disc=smoothstep(.9992,.9997,dot(normalize(vDir),moonDir));
+        col=mix(col,vec3(.88,.91,1.0),disc);
+        gl_FragColor=vec4(col,1.0);
+      }`
+  })
 );
-
-color = mix(
-  color,
-  vec3(0.88, 0.91, 1.0),
-  moonDisc
-);
-
-      gl_FragColor = vec4(color, 1.0);
-    }
-  `
-});
-
-const sky = new THREE.Mesh(skyGeometry, skyMaterial);
 sky.renderOrder = -1;
 scene.add(sky);
 
-const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 180);
-camera.position.set(0, 5, 9);
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  powerPreference: 'high-performance'
-});
-
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-
-renderer.info.autoReset = true;
-
-mount.appendChild(renderer.domElement);
-
-
-scene.add(new THREE.HemisphereLight(0xb7c9e8, 0x17130f, 1.35));
-
-scene.add(new THREE.AmbientLight(0x9db8df, 0.85));
-
-const moon = new THREE.DirectionalLight(0xc3d5ff, 2.2);
+const hemi = new THREE.HemisphereLight(0xb7c9e8, 0x17130f, 1.25);
+scene.add(hemi);
+const ambient = new THREE.AmbientLight(0x9db8df, 0.55);
+scene.add(ambient);
+const moon = new THREE.DirectionalLight(0xc3d5ff, 1.8);
 moon.position.set(-18, 28, 12);
 moon.castShadow = true;
-
 moon.shadow.mapSize.set(1024, 1024);
-moon.shadow.camera.left = -28;
-moon.shadow.camera.right = 28;
-moon.shadow.camera.top = 28;
-moon.shadow.camera.bottom = -28;
-moon.shadow.bias = -0.0002;
+Object.assign(moon.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32 });
 moon.shadow.normalBias = 0.03;
-
 scene.add(moon);
+const moonGlow = new THREE.PointLight(0x829bd4, 0.7, 55);
+moonGlow.position.set(-16, 12, -18);
+scene.add(moonGlow);
 
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(180, 180),
+  new THREE.MeshStandardMaterial({ color: 0x242a28, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
 
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x242a28, roughness: 1 });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), groundMat);
-ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-
-// Low-poly broken stone path
-const pathMat = new THREE.MeshStandardMaterial({ color: 0x373a3a, roughness: 1 });
-for (let i = 0; i < 18; i++) {
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 1.5), pathMat);
-  slab.position.set(Math.sin(i * .32) * 1.4, .04, -i * 3.1);
-  slab.rotation.y = Math.sin(i) * .12;
-  slab.receiveShadow = true; slab.castShadow = true; scene.add(slab);
+const mats = {
+  stone: new THREE.MeshStandardMaterial({ color: 0x373a3a, roughness: 1 }),
+  bark: new THREE.MeshStandardMaterial({ color: 0x211d1b, roughness: 1 }),
+  leaves: new THREE.MeshStandardMaterial({ color: 0x182522, roughness: 1 }),
+  ruin: new THREE.MeshStandardMaterial({ color: 0x444448, roughness: 1 })
+};
+for (let i = 0; i < 24; i++) {
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 1.5), mats.stone);
+  slab.position.set(Math.sin(i * 0.32) * 1.4, 0.04, -i * 2.5);
+  slab.rotation.y = Math.sin(i) * 0.12;
+  slab.receiveShadow = slab.castShadow = true;
+  scene.add(slab);
 }
-
-const trunkMat = new THREE.MeshStandardMaterial({ color: 0x211d1b, roughness: 1 });
-const leafMat = new THREE.MeshStandardMaterial({ color: 0x182522, roughness: 1 });
-function makeTree(x, z, scale=1) {
-  const group = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.18*scale,.32*scale,3.2*scale,6), trunkMat);
-  trunk.position.y=1.6*scale; trunk.castShadow=true; group.add(trunk);
-  for(let j=0;j<3;j++){
-    const crown = new THREE.Mesh(new THREE.ConeGeometry((1.25-j*.18)*scale,2.4*scale,7),leafMat);
-    crown.position.set((j-1)*.28*scale, (3.1+j*.55)*scale, 0);
-    crown.rotation.z=(j-1)*.12; crown.castShadow=true; group.add(crown);
+function makeTree(x, z, scale = 1) {
+  const tree = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.18*scale,.32*scale,3.2*scale,6), mats.bark);
+  trunk.position.y = 1.6*scale;
+  trunk.castShadow = true;
+  tree.add(trunk);
+  for (let j=0;j<3;j++) {
+    const crown = new THREE.Mesh(new THREE.ConeGeometry((1.25-j*.18)*scale,2.4*scale,7),mats.leaves);
+    crown.position.set((j-1)*.25*scale,(3.1+j*.52)*scale,0);
+    crown.castShadow = true;
+    tree.add(crown);
   }
-  group.position.set(x,0,z); scene.add(group);
+  tree.position.set(x,0,z);
+  scene.add(tree);
 }
-for(let i=0;i<64;i++){
-  const z=8-(i*2.9);
-  makeTree(-7-Math.random()*9,z,0.7+Math.random()*.8);
-  makeTree(7+Math.random()*9,z-1.2,0.7+Math.random()*.9);
+let seed = 417;
+function random() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+for (let i=0;i<54;i++) {
+  const z=10-i*3.2;
+  makeTree(-7-random()*10,z,.7+random()*.8);
+  makeTree(7+random()*10,z-1,.7+random()*.8);
 }
 
-// Distant ruined tower landmark
-const stone = new THREE.MeshStandardMaterial({color:0x444448,roughness:1});
+// Tower landmark and interactable shrine
 const tower = new THREE.Group();
-const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.7,8,8),stone);
-base.position.y=4;base.castShadow=true;tower.add(base);
-const brokenTop = new THREE.Mesh(new THREE.ConeGeometry(2.1,2.8,8),new THREE.MeshStandardMaterial({color:0x242631}));
-brokenTop.position.y=9.1;tower.add(brokenTop);
-tower.position.set(0,0,-48);scene.add(tower);
+const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.7,8,8),mats.ruin);
+towerBase.position.y=4; towerBase.castShadow=true; tower.add(towerBase);
+const towerTop = new THREE.Mesh(new THREE.ConeGeometry(2.1,2.8,8),new THREE.MeshStandardMaterial({color:0x242631}));
+towerTop.position.y=9.1; tower.add(towerTop);
+tower.position.set(0,0,-48); scene.add(tower);
+const shrine = new THREE.Mesh(
+  new THREE.TorusGeometry(1.0,.12,8,20),
+  new THREE.MeshStandardMaterial({color:0x8a78bd,emissive:0x48326d,emissiveIntensity:1.2})
+);
+shrine.position.set(0,2,-43); scene.add(shrine);
 
-// Player placeholder
+// Player model
 const player = new THREE.Group();
-const bodyMat = new THREE.MeshStandardMaterial({color:0x3b4050,roughness:.85});
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),bodyMat);
-body.position.y=1.05;body.castShadow=true;player.add(body);
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),new THREE.MeshStandardMaterial({color:0x3b4050,roughness:.85}));
+body.position.y=1.05; body.castShadow=true; player.add(body);
 const hood = new THREE.Mesh(new THREE.SphereGeometry(.38,8,7),new THREE.MeshStandardMaterial({color:0x252b3b}));
-hood.position.set(0,1.85,-.04);hood.castShadow=true;player.add(hood);
-const eyeMat = new THREE.MeshStandardMaterial({
-  color: 0xffb347,
-  emissive: 0xff8c24,
-  emissiveIntensity: 2
-});
-const eyeGeo = new THREE.SphereGeometry(.045,8,8);
-const leftEye = new THREE.Mesh(eyeGeo,eyeMat);
-leftEye.position.set(-.12,1.87,.31);
-player.add(leftEye);
-const rightEye = new THREE.Mesh(eyeGeo,eyeMat);
-rightEye.position.set(.12,1.87,.31);
-player.add(rightEye);
-const cloak = new THREE.Mesh(new THREE.ConeGeometry(.58,1.2,7),new THREE.MeshStandardMaterial({color:0x303447,roughness:.9,side:THREE.DoubleSide}));
-cloak.position.set(0,.75,.16);cloak.rotation.x=Math.PI;player.add(cloak);
-player.position.set(0,0,3);scene.add(player);
-
-const keys = {};
-addEventListener('keydown',e=>{keys[e.code]=true;});
-addEventListener('keyup',e=>{keys[e.code]=false;});
-const input={x:0,y:0,run:false,jump:false};
-const stickZone=document.querySelector('#stick-zone'), stick=document.querySelector('#stick');
-let pointerId=null;
-stickZone.addEventListener('pointerdown',e=>{pointerId=e.pointerId;stickZone.setPointerCapture(pointerId);updateStick(e);});
-stickZone.addEventListener('pointermove',e=>{if(e.pointerId===pointerId)updateStick(e);});
-function resetStick(){pointerId=null;input.x=0;input.y=0;stick.style.transform='translate(0,0)';}
-stickZone.addEventListener('pointerup',resetStick);stickZone.addEventListener('pointercancel',resetStick);
-function updateStick(e){const r=stickZone.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const len=Math.hypot(dx,dy),max=34;if(len>max){dx=dx/len*max;dy=dy/len*max;}input.x=dx/max;input.y=dy/max;stick.style.transform=`translate(${dx}px,${dy}px)`;}
-const jumpBtn=document.querySelector('#jump'),runBtn=document.querySelector('#run');
-jumpBtn.addEventListener('pointerdown',()=>input.jump=true);
-jumpBtn.addEventListener('pointerup',()=>input.jump=false);
-jumpBtn.addEventListener('pointercancel',()=>input.jump=false);
-runBtn.addEventListener('pointerdown',()=>input.run=true);
-runBtn.addEventListener('pointerup',()=>input.run=false);
-runBtn.addEventListener('pointercancel',()=>input.run=false);
-
-let verticalVelocity=0, grounded=true;
-const clock=new THREE.Clock();
-function animate(){
-  requestAnimationFrame(animate);
-  const dt=Math.min(clock.getDelta(),.04);
-  let x=input.x, z=input.y;
-  if(keys.KeyA||keys.ArrowLeft)x-=1;
-  if(keys.KeyD||keys.ArrowRight)x+=1;
-  if(keys.KeyW||keys.ArrowUp)z-=1;
-  if(keys.KeyS||keys.ArrowDown)z+=1;
-  const moving=Math.hypot(x,z)>.08;
-  if(moving){
-    const len=Math.hypot(x,z);x/=len;z/=len;
-    const speed=(input.run||keys.ShiftLeft||keys.ShiftRight)?8.2:4.2;
-    player.position.x+=x*speed*dt;
-    player.position.z+=z*speed*dt;
-    player.rotation.y=Math.atan2(x,z)+Math.PI;
-    body.rotation.z=Math.sin(performance.now()*.012)*.045;
-  }
-  if((input.jump||keys.Space)&&grounded){verticalVelocity=7;grounded=false;}
-  verticalVelocity-=18*dt;player.position.y+=verticalVelocity*dt;
-  if(player.position.y<0){player.position.y=0;verticalVelocity=0;grounded=true;}
-  player.position.x=THREE.MathUtils.clamp(player.position.x,-32,32);
-  player.position.z=THREE.MathUtils.clamp(player.position.z,-80,12);
-
-  const desired=new THREE.Vector3(player.position.x,player.position.y+4.3,player.position.z+8.5);
-  camera.position.lerp(desired,1-Math.pow(.001,dt));
-  camera.lookAt(player.position.x,player.position.y+1.2,player.position.z-1.5);
-  sky.position.copy(camera.position);
-  renderer.render(scene,camera);
+hood.position.set(0,1.85,-.04); hood.castShadow=true; player.add(hood);
+const eyeMat = new THREE.MeshStandardMaterial({color:0xffb347,emissive:0xff8c24,emissiveIntensity:2});
+for (const x of [-.12,.12]) {
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(.045,8,8),eyeMat);
+  eye.position.set(x,1.87,.31); player.add(eye);
 }
-animate();
+const cloak = new THREE.Mesh(new THREE.ConeGeometry(.58,1.2,7),new THREE.MeshStandardMaterial({color:0x303447,roughness:.9,side:THREE.DoubleSide}));
+cloak.position.set(0,.75,.16); cloak.rotation.x=Math.PI; player.add(cloak);
+player.position.set(0,0,3); scene.add(player);
 
+// Collectibles
+const collectibles = [];
+const crystalMat = new THREE.MeshStandardMaterial({color:0x8b7bd1,emissive:0x4d3c9b,emissiveIntensity:1.6,roughness:.25});
+for (let i=0;i<8;i++) {
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.38),crystalMat);
+  crystal.position.set((i%2?1:-1)*(3.5+random()*2),.8,-8-i*6);
+  crystal.castShadow=true; scene.add(crystal);
+  collectibles.push(crystal);
+}
+
+// Enemies: simple patrol/chase guardians
+const enemies = [];
+const enemyMat = new THREE.MeshStandardMaterial({color:0x332a36,roughness:.8,emissive:0x230b22});
+for (let i=0;i<3;i++) {
+  const enemy = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.48,.65,4,7),enemyMat);
+  torso.position.y=.95; torso.castShadow=true; enemy.add(torso);
+  const eyes = new THREE.Mesh(new THREE.SphereGeometry(.09,8,8),new THREE.MeshBasicMaterial({color:0xff443e}));
+  eyes.position.set(0,1.55,.36); enemy.add(eyes);
+  enemy.position.set((i-1)*4,0,-30-i*6);
+  enemy.userData = { hp: 3, alive: true, homeX: enemy.position.x, homeZ: enemy.position.z, cooldown: 0 };
+  scene.add(enemy); enemies.push(enemy);
+}
+
+// Weather particles; capped for mobile
+const rainCount = isTouch ? 180 : 420;
+const rainPositions = new Float32Array(rainCount*3);
+for(let i=0;i<rainCount;i++){
+  rainPositions[i*3]=(random()-.5)*70;
+  rainPositions[i*3+1]=random()*24;
+  rainPositions[i*3+2]=(random()-.5)*70;
+}
+const rainGeometry = new THREE.BufferGeometry();
+rainGeometry.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
+const rain = new THREE.Points(rainGeometry,new THREE.PointsMaterial({color:0x9bb8dc,size:.055,transparent:true,opacity:.45}));
+scene.add(rain);
+
+// ---------- Controls ----------
+const keys = Object.create(null);
+const input = { x:0, y:0, run:false, jump:false, attack:false, interact:false };
+function clearInputs() {
+  for (const key of Object.keys(keys)) keys[key]=false;
+  input.x=0; input.y=0; input.run=false; input.jump=false; input.attack=false; input.interact=false;
+  const stick=$('#stick'); if(stick) stick.style.transform='translate(0,0)';
+}
+addEventListener('keydown',(e)=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if(!keys[e.code]) {
+    if(e.code==='Space') input.jump=true;
+    if(e.code==='KeyF') input.attack=true;
+    if(e.code==='KeyE') input.interact=true;
+    if(e.code==='KeyQ') usePotion();
+  }
+  keys[e.code]=true;
+});
+addEventListener('keyup',(e)=>{keys[e.code]=false;});
+addEventListener('blur',clearInputs);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInputs();});
+
+const stickZone=$('#stick-zone'), stick=$('#stick');
+let stickId=null;
+function moveStick(e){
+  const r=stickZone.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let dx=e.clientX-cx,dy=e.clientY-cy; const max=34,len=Math.hypot(dx,dy);
+  if(len>max){dx=dx/len*max;dy=dy/len*max;}
+  input.x=dx/max; input.y=dy/max; stick.style.transform=`translate(${dx}px,${dy}px)`;
+}
+function resetStick(e){if(e && e.pointerId!==stickId)return;stickId=null;input.x=0;input.y=0;stick.style.transform='translate(0,0)';}
+stickZone.addEventListener('pointerdown',(e)=>{e.preventDefault();stickId=e.pointerId;stickZone.setPointerCapture(e.pointerId);moveStick(e);});
+stickZone.addEventListener('pointermove',(e)=>{if(e.pointerId===stickId)moveStick(e);});
+stickZone.addEventListener('pointerup',resetStick);
+stickZone.addEventListener('pointercancel',resetStick);
+stickZone.addEventListener('lostpointercapture',resetStick);
+
+function bindHold(id, start, stop=()=>{}) {
+  const el=$(id);
+  el.addEventListener('pointerdown',(e)=>{e.preventDefault();start();el.setPointerCapture(e.pointerId);});
+  for(const ev of ['pointerup','pointercancel','lostpointercapture']) el.addEventListener(ev,stop);
+}
+bindHold('#run',()=>input.run=true,()=>input.run=false);
+bindHold('#jump',()=>input.jump=true,()=>input.jump=false);
+bindHold('#attack',()=>input.attack=true,()=>input.attack=false);
+bindHold('#interact',()=>input.interact=true,()=>input.interact=false);
+
+// Orbit camera: drag mouse or swipe on the open right side of touch screen
+let yaw=0, pitch=.22, distance=9.2, sensitivity=.005;
+let lookId=null,lastX=0,lastY=0;
+const canvas=renderer.domElement;
+canvas.addEventListener('pointerdown',(e)=>{
+  const validMouse=e.pointerType==='mouse' && e.button===0;
+  const validTouch=e.pointerType==='touch' && e.clientX>innerWidth*.38 && e.clientY<innerHeight-125;
+  if(!validMouse&&!validTouch)return;
+  lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);e.preventDefault();
+});
+canvas.addEventListener('pointermove',(e)=>{
+  if(e.pointerId!==lookId)return;
+  yaw-=(e.clientX-lastX)*sensitivity;
+  pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*sensitivity,-.12,.82);
+  lastX=e.clientX;lastY=e.clientY;
+});
+function endLook(e){if(e.pointerId===lookId)lookId=null;}
+canvas.addEventListener('pointerup',endLook);
+canvas.addEventListener('pointercancel',endLook);
+canvas.addEventListener('lostpointercapture',endLook);
+canvas.addEventListener('contextmenu',(e)=>e.preventDefault());
+canvas.addEventListener('wheel',(e)=>{distance=THREE.MathUtils.clamp(distance+Math.sign(e.deltaY)*.7,6,14);},{passive:true});
+
+// ---------- Gameplay ----------
+let verticalVelocity=0, grounded=true, attackCooldown=0;
+const clock=new THREE.Clock();
+const cameraTarget=new THREE.Vector3(), desiredCamera=new THREE.Vector3();
+function usePotion(){
+  if(state.potions<=0)return toast('ไม่มียาฟื้นฟู');
+  if(state.hp>=100)return toast('พลังชีวิตเต็มแล้ว');
+  state.potions--;state.hp=Math.min(100,state.hp+45);updateHud();toast('ใช้ยาฟื้นฟู +45 HP');
+}
+function gainXp(amount){
+  state.xp+=amount;
+  if(state.xp>=100){state.xp-=100;state.level++;toast(`เลเวลเพิ่มเป็น ${state.level}`);}
+}
+function attack(){
+  if(attackCooldown>0)return;
+  attackCooldown=.55;
+  let hit=false;
+  for(const enemy of enemies){
+    if(!enemy.userData.alive)continue;
+    const d=player.position.distanceTo(enemy.position);
+    if(d<3.0){
+      enemy.userData.hp--;hit=true;
+      enemy.scale.setScalar(.92);
+      setTimeout(()=>enemy.scale.setScalar(1),100);
+      if(enemy.userData.hp<=0){
+        enemy.userData.alive=false;scene.remove(enemy);state.crystals+=1;gainXp(35);toast('ผู้พิทักษ์พ่ายแพ้ · ได้ผลึก 1 ชิ้น');
+      } else toast('โจมตีโดนผู้พิทักษ์');
+      break;
+    }
+  }
+  if(!hit)toast('ไม่มีศัตรูอยู่ในระยะ');
+  updateHud();
+}
+function interact(){
+  if(player.position.distanceTo(shrine.position)<5){
+    if(state.questStage===0){state.questStage=1;toast('ภารกิจใหม่: กำจัดผู้พิทักษ์');}
+    else if(state.questStage===1 && enemies.every(e=>!e.userData.alive)){state.questStage=2;gainXp(100);state.potions++;toast('ภารกิจสำเร็จ · ได้รับยาฟื้นฟู');}
+    else toast('พลังบางอย่างยังปกป้องซากโบราณอยู่');
+    updateHud();return;
+  }
+  toast('ไม่มีสิ่งใดให้โต้ตอบใกล้ตัว');
+}
+function updateDayNight(dt){
+  state.dayTime=(state.dayTime+dt*.0035)%1;
+  const sun=Math.max(0,Math.sin(state.dayTime*Math.PI*2));
+  moon.intensity=.35+1.8*(1-sun);
+  hemi.intensity=.35+.95*sun;
+  ambient.intensity=.25+.55*sun;
+  const daylight=new THREE.Color(0x101a2b).lerp(new THREE.Color(0x8795a7),sun*.45);
+  scene.background.copy(daylight);
+  scene.fog.color.copy(daylight);
+  ui.clock.textContent=sun>.58?'DAY':sun>.2?'DUSK':'NIGHT';
+}
+function updateWeather(dt){
+  if(!settings.weather){rain.visible=false;return;}
+  rain.visible=true;
+  const p=rainGeometry.attributes.position;
+  for(let i=0;i<rainCount;i++){
+    p.array[i*3+1]-=dt*15;
+    p.array[i*3]-=dt*1.8;
+    if(p.array[i*3+1]<0){
+      p.array[i*3+1]=18+random()*8;
+      p.array[i*3]=(random()-.5)*70;
+      p.array[i*3+2]=(random()-.5)*70;
+    }
+  }
+  p.needsUpdate=true;
+}
+function updateWorld(dt){
+  for(const crystal of collectibles){
+    if(!crystal.visible)continue;
+    crystal.rotation.y+=dt*.8;
+    crystal.position.y=.8+Math.sin(performance.now()*.002+crystal.position.z)*.12;
+    if(player.position.distanceTo(crystal.position)<1.45){
+      crystal.visible=false;state.crystals++;gainXp(10);toast('เก็บผลึกวิญญาณ +1');updateHud();
+    }
+  }
+  for(const enemy of enemies){
+    if(!enemy.userData.alive)continue;
+    const data=enemy.userData, d=enemy.position.distanceTo(player.position);
+    if(d<12){
+      const direction=new THREE.Vector3().subVectors(player.position,enemy.position).setY(0).normalize();
+      enemy.position.addScaledVector(direction,dt*.8);
+      enemy.rotation.y=Math.atan2(direction.x,direction.z);
+      if(d<1.45 && data.cooldown<=0){
+        state.hp=Math.max(0,state.hp-8);data.cooldown=1.25;toast('ผู้พิทักษ์โจมตีคุณ');
+        if(state.hp<=0){state.hp=100;player.position.set(0,0,3);toast('คุณกลับมาที่จุดพัก');}
+        updateHud();
+      }
+    } else {
+      enemy.position.x=data.homeX+Math.sin(performance.now()*.0005+data.homeZ)*.8;
+    }
+    data.cooldown=Math.max(0,data.cooldown-dt);
+  }
+}
+function applySettings(){
+  sensitivity=Number(settings.sensitivity)*.001;
+  const ratio=settings.quality==='high'?Math.min(devicePixelRatio,2):settings.quality==='low'?1:Math.min(devicePixelRatio,1.5);
+  renderer.setPixelRatio(ratio);
+  renderer.shadowMap.enabled=settings.quality!=='low';
+  moon.shadow.mapSize.setScalar(settings.quality==='high'?1536:1024);
+  settings.weather=Boolean(settings.weather);
+  $('#quality').value=settings.quality;
+  $('#sensitivity').value=String(settings.sensitivity);
+  $('#rain-toggle').checked=settings.weather;
+}
+function update(dt){
+  let mx=input.x,my=input.y;
+  if(keys.KeyA||keys.ArrowLeft)mx-=1;
+  if(keys.KeyD||keys.ArrowRight)mx+=1;
+  if(keys.KeyW||keys.ArrowUp)my-=1;
+  if(keys.KeyS||keys.ArrowDown)my+=1;
+  const len=Math.hypot(mx,my),moving=len>.08;
+  if(moving){
+    mx/=Math.max(len,1);my/=Math.max(len,1);
+    const c=Math.cos(yaw),s=Math.sin(yaw);
+    const wx=mx*c+my*s,wz=-mx*s+my*c;
+    const wantsRun=input.run||keys.ShiftLeft||keys.ShiftRight;
+    const canRun=wantsRun&&state.stamina>1;
+    const speed=canRun?7.5:4.0;
+    player.position.x+=wx*speed*dt;
+    player.position.z+=wz*speed*dt;
+    player.rotation.y=Math.atan2(wx,wz);
+    body.rotation.z=Math.sin(performance.now()*.012)*.045;
+    if(canRun)state.stamina=Math.max(0,state.stamina-24*dt);
+  }else body.rotation.z=0;
+  if(!moving||!(input.run||keys.ShiftLeft||keys.ShiftRight))state.stamina=Math.min(100,state.stamina+15*dt);
+  if((input.jump||keys.Space)&&grounded){verticalVelocity=7;grounded=false;}
+  verticalVelocity-=18*dt;
+  player.position.y+=verticalVelocity*dt;
+  if(player.position.y<0){player.position.y=0;verticalVelocity=0;grounded=true;}
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-35,35);
+  player.position.z=THREE.MathUtils.clamp(player.position.z,-95,12);
+  if(input.attack||keys.KeyF){attack();input.attack=false;}
+  if(input.interact||keys.KeyE){interact();input.interact=false;}
+  attackCooldown=Math.max(0,attackCooldown-dt);
+  cameraTarget.set(player.position.x,player.position.y+1.25,player.position.z);
+  const horizontal=Math.cos(pitch)*distance;
+  desiredCamera.set(
+    cameraTarget.x+Math.sin(yaw)*horizontal,
+    cameraTarget.y+Math.sin(pitch)*distance,
+    cameraTarget.z+Math.cos(yaw)*horizontal
+  );
+  camera.position.lerp(desiredCamera,1-Math.pow(.001,dt));
+  camera.lookAt(cameraTarget);
+  sky.position.copy(camera.position);
+  moonGlow.position.set(player.position.x-16,12,player.position.z-18);
+  ui.hint.textContent=player.position.distanceTo(shrine.position)<5?'กด E / ใช้ เพื่อโต้ตอบ':'';
+  updateDayNight(dt);updateWeather(dt);updateWorld(dt);updateHud();
+}
+
+// Settings panel
+$('#settings-open').addEventListener('click',()=>ui.settings.classList.remove('hidden'));
+$('#settings-close').addEventListener('click',()=>ui.settings.classList.add('hidden'));
+$('#quality').addEventListener('change',(e)=>{settings.quality=e.target.value;applySettings();});
+$('#sensitivity').addEventListener('input',(e)=>{settings.sensitivity=Number(e.target.value);applySettings();});
+$('#rain-toggle').addEventListener('change',(e)=>{settings.weather=e.target.checked;applySettings();});
+$('#save-button').addEventListener('click',saveGame);
+$('#load-button').addEventListener('click',loadGame);
+
+// Responsive resize + render loop
 addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
+  const ratio=settings.quality==='high'?Math.min(devicePixelRatio,2):settings.quality==='low'?1:Math.min(devicePixelRatio,1.5);
+  renderer.setPixelRatio(ratio);
 });
+applySettings();updateHud();
+const animate=()=>{
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05);
+  update(dt);
+  renderer.render(scene,camera);
+};
+animate();
