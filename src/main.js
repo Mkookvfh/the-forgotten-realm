@@ -1,4 +1,4 @@
-
+/
 import * as THREE from 'three';
 import './style.css';
 
@@ -332,6 +332,14 @@ ruinGroup.add(ruinFloor);
 
 ruinGroup.position.set(13, 0, -48);
 scene.add(ruinGroup);
+
+for (let i = 0; i < 4; i++) {
+  obstacles.push({
+    x: 13 + (i % 2) * 7 - 3.5,
+    z: -48 + Math.floor(i / 2) * 7 - 3.5,
+    radius: 0.9
+  });
+}
 
 // ---------- Tower ----------
 const tower = new THREE.Group();
