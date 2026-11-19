@@ -127,6 +127,10 @@ Object.assign(moon.shadow.camera, {
 });
 moon.shadow.normalBias = 0.03;
 scene.add(moon);
+const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.2);
+sunLight.position.set(25, 35, -20);
+sunLight.castShadow = false;
+scene.add(sunLight);
 
 const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
 moonGlow.position.set(-16, 12, -18);
@@ -881,17 +885,19 @@ function updateDayNight(dt) {
     sun = Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
   }
 
-  moon.intensity = .5 + 1.7 * (1 - sun);
-hemi.intensity = .75 + .9 * sun;
-ambient.intensity = .45 + .4 * sun;
+  moon.intensity = 1.7 * (1 - sun);
+sunLight.intensity = 2.2 * sun;
+hemi.intensity = 0.75 + 0.9 * sun;
+ambient.intensity = 0.45 + 0.4 * sun;
 
   const daylight = new THREE.Color(0x101a2b).lerp(
-    new THREE.Color(0x8795a7),
-    sun * .45
-  );
+  new THREE.Color(0x87b8e8),
+  sun
+);
 
-  scene.background.copy(daylight);
-  scene.fog.color.copy(daylight);
+sky.visible = sun < 0.5;
+scene.background.copy(daylight);
+scene.fog.color.copy(daylight);
 
   const label = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
   if (ui.clock) ui.clock.textContent = label;
