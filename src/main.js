@@ -23,7 +23,8 @@ const state = {
   hp: 100, stamina: 100, crystals: 0, potions: 2,
   level: 1, xp: 0, questStage: 0,
   dayTime: 0.72, weatherTime: 0,
-  weatherOn: true, dead: false
+  weatherOn: true, dead: false,
+  discoveredRegions: []
 };
 
 let toastTimer = 0;
@@ -756,6 +757,9 @@ function loadGame() {
     state.crystals = Math.max(0, state.crystals);
     state.level = Math.max(1, state.level);
     state.questStage = THREE.MathUtils.clamp(state.questStage, 0, 2);
+    state.discoveredRegions = Array.isArray(data.state.discoveredRegions)
+  ? data.state.discoveredRegions.filter(id => typeof id === 'string')
+  : [];
 
     if (data.settings) {
       if (['low', 'medium', 'high'].includes(data.settings.quality)) {
@@ -924,8 +928,47 @@ function updateWeather(dt) {
   p.needsUpdate = true;
 }
 
+// ---------- World Discovery ----------
+const worldRegions = [
+  {
+    id: 'tower',
+    name: 'หอคอยแห่งผู้สูญหาย',
+    isInside: () => player.position.distanceTo(tower.position) < 10
+  },
+  {
+    id: 'ruins',
+    name: 'วิหารโบราณ',
+    isInside: () => player.position.distanceTo(ruinGroup.position) < 12
+  },
+  {
+    id: 'river',
+    name: 'ริมแม่น้ำโบราณ',
+    isInside: () => player.position.z < -65
+  },
+  {
+    id: 'forest',
+    name: 'ป่าต้องสาป',
+    isInside: () => Math.abs(player.position.x) > 8
+      && player.position.z >= -65
+  },
+  {
+    id: 'wilderness',
+    name: 'ทุ่งรกร้าง',
+    isInside: () => true
+  }
+];
+
+function updateRegionDiscovery() {
+  const region = worldRegions.find(area => area.isInside());
+  if (!region || state.discoveredRegions.includes(region.id)) return;
+
+  state.discoveredRegions.push(region.id);
+  toast(`ค้นพบพื้นที่ใหม่: ${region.name}`);
+}
+
 // ---------- World Update ----------
 function updateWorld(dt) {
+  updateRegionDiscovery();
   for (const crystal of collectibles) {
     if (!crystal.visible) continue;
 
