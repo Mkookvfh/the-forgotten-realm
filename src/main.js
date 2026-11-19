@@ -543,6 +543,45 @@ const rain = new THREE.Points(
 );
 scene.add(rain);
 
+
+// ---------- Fireflies ----------
+const fireflyCount = isTouch ? 24 : 55;
+const fireflyPositions = new Float32Array(fireflyCount * 3);
+const fireflyOffsets = [];
+
+for (let i = 0; i < fireflyCount; i++) {
+  fireflyOffsets.push({
+    x: (random() - 0.5) * 38,
+    y: 1.2 + random() * 5,
+    z: (random() - 0.5) * 38,
+    phase: random() * Math.PI * 2
+  });
+}
+
+const fireflyGeometry = new THREE.BufferGeometry();
+fireflyGeometry.setAttribute(
+  'position',
+  new THREE.BufferAttribute(fireflyPositions, 3)
+);
+
+const fireflyMaterial = new THREE.PointsMaterial({
+  color: 0xbaff91,
+  size: isTouch ? 0.13 : 0.16,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const fireflies = new THREE.Points(
+  fireflyGeometry,
+  fireflyMaterial
+);
+
+fireflies.visible = false;
+scene.add(fireflies);
+    
+
 // ---------- Controls ----------
 const keys = Object.create(null);
 
@@ -931,7 +970,8 @@ sky.visible = true;
 sky.material.uniforms.uSun.value = sun;
 scene.background.copy(daylight);
 scene.fog.color.copy(daylight);
-
+fireflies.visible = sun < 0.65;
+fireflyMaterial.opacity = 0.75 * (1 - sun);
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
 scene.fog.density = THREE.MathUtils.lerp(
@@ -957,6 +997,28 @@ function updateWeather(dt) {
     rain.visible = false;
     return;
   }
+
+  
+// ---------- Update Fireflies ----------
+function updateFireflies(dt) {
+  const p = fireflyGeometry.attributes.position;
+
+  for (let i = 0; i < fireflyCount; i++) {
+    const f = fireflyOffsets[i];
+    const t = clock.elapsedTime + f.phase;
+
+    p.array[i * 3] =
+      player.position.x + f.x + Math.sin(t * 0.7) * 0.7;
+
+    p.array[i * 3 + 1] =
+      f.y + Math.sin(t * 1.4) * 0.35;
+
+    p.array[i * 3 + 2] =
+      player.position.z + f.z + Math.cos(t * 0.6) * 0.7;
+  }
+
+  p.needsUpdate = true;
+}
 
   rain.visible = true;
   const p = rainGeometry.attributes.position;
@@ -1217,7 +1279,8 @@ if (canMoveTo(player.position.x, nextZ)) {
     : '';
 
   updateDayNight(dt);
-  updateWeather(dt);
+updateWeather(dt);
+updateFireflies(dt);
   updateWorld(dt);
   updateHud();
 }
