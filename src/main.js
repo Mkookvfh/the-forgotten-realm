@@ -81,6 +81,9 @@ mount.appendChild(renderer.domElement);
 const sky = new THREE.Mesh(
   new THREE.SphereGeometry(180, 32, 24),
   new THREE.ShaderMaterial({
+    uniforms: {
+      uSun: { value: 0 }
+    },
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
@@ -91,21 +94,34 @@ const sky = new THREE.Mesh(
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
-    fragmentShader: `
-      varying vec3 vDir;
-      void main() {
-        float h = normalize(vDir).y;
-        vec3 horizon = vec3(.16,.19,.27);
-        vec3 zenith = vec3(.008,.014,.04);
-        vec3 col = mix(horizon, zenith, smoothstep(-.18,.8,h));
-        vec3 moonDir = normalize(vec3(-.4,.65,-.5));
-        float glow = pow(max(dot(normalize(vDir),moonDir),0.0),24.0);
-        col += vec3(.25,.31,.48) * glow;
-        float disc = smoothstep(.9992,.9997,dot(normalize(vDir),moonDir));
-        col = mix(col,vec3(.88,.91,1.0),disc);
-        gl_FragColor = vec4(col,1.0);
-      }
-    `
+    /:fragmentShader: `
+  uniform float uSun;
+  varying vec3 vDir;
+
+  void main() {
+    float h = normalize(vDir).y;
+
+    vec3 nightHorizon = vec3(.16,.19,.27);
+    vec3 nightZenith = vec3(.008,.014,.04);
+
+    vec3 dayHorizon = vec3(.55,.72,.9);
+    vec3 dayZenith = vec3(.12,.42,.78);
+
+    vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
+    vec3 zenith = mix(nightZenith, dayZenith, uSun);
+
+    vec3 col = mix(horizon, zenith, smoothstep(-.18,.8,h));
+
+    vec3 moonDir = normalize(vec3(-.4,.65,-.5));
+    float glow = pow(max(dot(normalize(vDir),moonDir),0.0),24.0);
+    col += vec3(.25,.31,.48) * glow * (1.0-uSun);
+
+    float disc = smoothstep(.9992,.9997,dot(normalize(vDir),moonDir));
+    col = mix(col,vec3(.88,.91,1.0),disc * (1.0-uSun));
+
+    gl_FragColor = vec4(col,1.0);
+  }
+`
   })
 );
 sky.renderOrder = -1;
@@ -895,7 +911,8 @@ ambient.intensity = 0.45 + 0.4 * sun;
   sun
 );
 
-sky.visible = sun < 0.5;
+sky.visible = true;
+sky.material.uniforms.uSun.value = sun;
 scene.background.copy(daylight);
 scene.fog.color.copy(daylight);
 
