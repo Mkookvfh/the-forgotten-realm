@@ -1028,8 +1028,30 @@ function update(dt) {
     const canRun = wantsRun && state.stamina > 1;
     const speed = canRun ? 7.5 : 4.0;
 
-    player.position.x += wx * speed * dt;
-    player.position.z += wz * speed * dt;
+    const moveX = wx * speed * dt;
+const moveZ = wz * speed * dt;
+const playerRadius = 0.55;
+
+const canMoveTo = (x, z) => {
+  return obstacles.every(obstacle => {
+    const dx = x - obstacle.x;
+    const dz = z - obstacle.z;
+    const minDistance = playerRadius + obstacle.radius;
+
+    return dx * dx + dz * dz >= minDistance * minDistance;
+  });
+};
+
+const nextX = player.position.x + moveX;
+const nextZ = player.position.z + moveZ;
+
+if (canMoveTo(nextX, player.position.z)) {
+  player.position.x = nextX;
+}
+
+if (canMoveTo(player.position.x, nextZ)) {
+  player.position.z = nextZ;
+}
     player.rotation.y = Math.atan2(wx, wz);
 
     body.rotation.z = Math.sin(performance.now() * .012) * .045;
