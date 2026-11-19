@@ -94,7 +94,7 @@ const sky = new THREE.Mesh(
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
-    /:fragmentShader: `
+    fragmentShader: `
   uniform float uSun;
   varying vec3 vDir;
 
