@@ -197,6 +197,136 @@ for (let i = 0; i < 54; i++) {
   makeTree(7 + random() * 10, z - 1, .7 + random() * .8);
 }
 
+
+// ---------- Grass Details ----------
+const grassMaterial = new THREE.MeshStandardMaterial({
+  color: 0x354b35,
+  roughness: 1,
+  side: THREE.DoubleSide
+});
+
+const grassBlade = new THREE.PlaneGeometry(0.16, 0.7);
+const grassCount = isTouch ? 900 : 1800;
+const grass = new THREE.InstancedMesh(
+  grassBlade,
+  grassMaterial,
+  grassCount
+);
+
+const grassDummy = new THREE.Object3D();
+
+for (let i = 0; i < grassCount; i++) {
+  const x = (random() - 0.5) * 150;
+  const z = (random() - 0.5) * 150;
+
+  // เว้นพื้นที่ทางเดินตรงกลาง
+  if (Math.abs(x) < 2.5 && z > -65 && z < 12) {
+    grassDummy.position.set(x + 5, 0.32, z);
+  } else {
+    grassDummy.position.set(x, 0.32, z);
+  }
+
+  grassDummy.rotation.set(
+    0,
+    random() * Math.PI,
+    (random() - 0.5) * 0.25
+  );
+
+  const scale = 0.5 + random() * 1.1;
+  grassDummy.scale.set(scale, scale, scale);
+  grassDummy.updateMatrix();
+
+  grass.setMatrixAt(i, grassDummy.matrix);
+}
+
+grass.instanceMatrix.needsUpdate = true;
+grass.frustumCulled = true;
+scene.add(grass);
+
+// ---------- Mountains ----------
+const mountainMaterial = new THREE.MeshStandardMaterial({
+  color: 0x303640,
+  roughness: 1
+});
+
+for (let i = 0; i < 18; i++) {
+  const mountain = new THREE.Mesh(
+    new THREE.ConeGeometry(
+      7 + random() * 9,
+      15 + random() * 18,
+      7
+    ),
+    mountainMaterial
+  );
+
+  const side = i % 2 === 0 ? -1 : 1;
+  mountain.position.set(
+    side * (48 + random() * 28),
+    5,
+    20 - i * 8
+  );
+
+  mountain.rotation.y = random() * Math.PI;
+  mountain.castShadow = true;
+  mountain.receiveShadow = true;
+  scene.add(mountain);
+}
+
+// ---------- Ancient River ----------
+const riverCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-75, 0.08, -72),
+  new THREE.Vector3(-35, 0.08, -68),
+  new THREE.Vector3(0, 0.08, -74),
+  new THREE.Vector3(35, 0.08, -67),
+  new THREE.Vector3(75, 0.08, -73)
+]);
+
+const river = new THREE.Mesh(
+  new THREE.TubeGeometry(riverCurve, 80, 2.8, 8, false),
+  new THREE.MeshStandardMaterial({
+    color: 0x263f59,
+    roughness: 0.2,
+    metalness: 0.25,
+    transparent: true,
+    opacity: 0.88
+  })
+);
+
+scene.add(river);
+
+// ---------- Ancient Ruins ----------
+const ruinGroup = new THREE.Group();
+
+for (let i = 0; i < 4; i++) {
+  const pillar = new THREE.Mesh(
+    new THREE.BoxGeometry(1.1, 5, 1.1),
+    mats.ruin
+  );
+
+  pillar.position.set(
+    (i % 2) * 7 - 3.5,
+    2.5,
+    Math.floor(i / 2) * 7 - 3.5
+  );
+
+  pillar.rotation.z = (random() - 0.5) * 0.08;
+  pillar.castShadow = true;
+  pillar.receiveShadow = true;
+  ruinGroup.add(pillar);
+}
+
+const ruinFloor = new THREE.Mesh(
+  new THREE.BoxGeometry(10, 0.35, 10),
+  mats.stone
+);
+
+ruinFloor.position.y = 0.15;
+ruinFloor.receiveShadow = true;
+ruinGroup.add(ruinFloor);
+
+ruinGroup.position.set(13, 0, -48);
+scene.add(ruinGroup);
+
 // ---------- Tower ----------
 const tower = new THREE.Group();
 
