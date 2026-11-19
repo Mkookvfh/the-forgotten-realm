@@ -710,10 +710,23 @@ function interact() {
 }
 
 // ---------- Day and Night ----------
-function updateDayNight(dt) {
-  state.dayTime = (state.dayTime + dt * .0035) % 1;
 
-  const sun = Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
+let dayNightMode = 'auto';
+
+function updateDayNight(dt) {
+  if (dayNightMode === 'auto') {
+    state.dayTime = (state.dayTime + dt * .0035) % 1;
+  }
+
+  let sun;
+
+  if (dayNightMode === 'day') {
+    sun = 1;
+  } else if (dayNightMode === 'night') {
+    sun = 0;
+  } else {
+    sun = Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
+  }
 
   moon.intensity = .35 + 1.8 * (1 - sun);
   hemi.intensity = .35 + .95 * sun;
@@ -727,7 +740,15 @@ function updateDayNight(dt) {
   scene.background.copy(daylight);
   scene.fog.color.copy(daylight);
 
-  ui.clock.textContent = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
+  const label = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
+  ui.clock.textContent = label;
+
+  const timeButton = $('#time-toggle');
+  if (timeButton) {
+    timeButton.textContent =
+      dayNightMode === 'auto' ? '◷ AUTO' :
+      dayNightMode === 'day' ? '☀ SUN' : '☾ NIGHT';
+  }
 }
 
 // ---------- Weather ----------
@@ -941,6 +962,20 @@ function update(dt) {
 }
 
 // ---------- Settings UI ----------
+
+$('#time-toggle').addEventListener('click', () => {
+  if (dayNightMode === 'auto') {
+    dayNightMode = 'day';
+    toast('เปลี่ยนเป็นกลางวัน');
+  } else if (dayNightMode === 'day') {
+    dayNightMode = 'night';
+    toast('เปลี่ยนเป็นกลางคืน');
+  } else {
+    dayNightMode = 'auto';
+    toast('เปิดระบบเวลาอัตโนมัติ');
+  }
+});
+
 $('#settings-open').addEventListener('click', () => {
   ui.settings.classList.remove('hidden');
 });
