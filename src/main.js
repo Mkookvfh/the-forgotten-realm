@@ -81,10 +81,10 @@ tower.position.set(0,0,-48);scene.add(tower);
 
 // Player placeholder
 const player = new THREE.Group();
-const bodyMat = new THREE.MeshStandardMaterial({color:0x292b35,roughness:.8});
+const bodyMat = new THREE.MeshStandardMaterial({color:0x3b4050,roughness:.85});
 const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),bodyMat);
 body.position.y=1.05;body.castShadow=true;player.add(body);
-const hood = new THREE.Mesh(new THREE.SphereGeometry(.38,8,7),new THREE.MeshStandardMaterial({color:0x11131b}));
+const hood = new THREE.Mesh(new THREE.SphereGeometry(.38,8,7),new THREE.MeshStandardMaterial({color:0x252b3b}));
 hood.position.set(0,1.85,-.04);hood.castShadow=true;player.add(hood);
 const cloak = new THREE.Mesh(new THREE.ConeGeometry(.58,1.2,7),new THREE.MeshStandardMaterial({color:0x171923,side:THREE.DoubleSide}));
 cloak.position.set(0,.75,.16);cloak.rotation.x=Math.PI;player.add(cloak);
