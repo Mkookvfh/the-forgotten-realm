@@ -86,6 +86,18 @@ const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),bodyMat);
 body.position.y=1.05;body.castShadow=true;player.add(body);
 const hood = new THREE.Mesh(new THREE.SphereGeometry(.38,8,7),new THREE.MeshStandardMaterial({color:0x252b3b}));
 hood.position.set(0,1.85,-.04);hood.castShadow=true;player.add(hood);
+const eyeMat = new THREE.MeshStandardMaterial({
+  color: 0xffb347,
+  emissive: 0xff8c24,
+  emissiveIntensity: 2
+});
+const eyeGeo = new THREE.SphereGeometry(.045,8,8);
+const leftEye = new THREE.Mesh(eyeGeo,eyeMat);
+leftEye.position.set(-.12,1.87,.31);
+player.add(leftEye);
+const rightEye = new THREE.Mesh(eyeGeo,eyeMat);
+rightEye.position.set(.12,1.87,.31);
+player.add(rightEye);
 const cloak = new THREE.Mesh(new THREE.ConeGeometry(.58,1.2,7),new THREE.MeshStandardMaterial({color:0x303447,roughness:.9,side:THREE.DoubleSide}));
 cloak.position.set(0,.75,.16);cloak.rotation.x=Math.PI;player.add(cloak);
 player.position.set(0,0,3);scene.add(player);
