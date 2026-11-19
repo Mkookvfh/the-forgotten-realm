@@ -1097,22 +1097,26 @@ function updateWorld(dt) {
     }
   }
 
+  
   for (const enemy of enemies) {
     if (!enemy.userData.alive) continue;
 
     const data = enemy.userData;
-    const d = enemy.position.distanceTo(player.position);
+    const dx = player.position.x - enemy.position.x;
+    const dz = player.position.z - enemy.position.z;
+    const distance = Math.hypot(dx, dz);
 
-    if (d < 12) {
-      const direction = new THREE.Vector3()
-        .subVectors(player.position, enemy.position)
-        .setY(0)
-        .normalize();
+    data.cooldown = Math.max(0, data.cooldown - dt);
 
-      enemy.position.addScaledVector(direction, dt * .8);
+    if (distance < 12) {
+      // Chase player
+      const direction = new THREE.Vector3(dx, 0, dz).normalize();
+
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
 
-      if (d < 1.45 && data.cooldown <= 0) {
+      if (distance > 1.5) {
+        enemy.position.addScaledVector(direction, dt * 1.65);
+      } else if (data.cooldown <= 0) {
         state.hp = Math.max(0, state.hp - 8);
         data.cooldown = 1.25;
         toast('ผู้พิทักษ์โจมตีคุณ');
@@ -1126,13 +1130,13 @@ function updateWorld(dt) {
         updateHud();
       }
     } else {
-      enemy.position.x = data.homeX
-        + Math.sin(performance.now() * .0005 + data.homeZ) * .8;
-    }
+      // Patrol around home position
+      const t = performance.now() * 0.0005 + data.homeZ;
 
-    data.cooldown = Math.max(0, data.cooldown - dt);
+      enemy.position.x = data.homeX + Math.sin(t) * 1.2;
+      enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
+    }
   }
-}
 
 
 // ---------- Graphics Settings ----------
