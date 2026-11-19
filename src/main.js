@@ -503,13 +503,42 @@ for (let i = 0; i < 3; i++) {
   eyes.position.set(0, 1.55, .36);
   enemy.add(eyes);
 
+  // Enemy Health Bar
+  const healthBar = new THREE.Group();
+
+  const healthBack = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 0.12),
+    new THREE.MeshBasicMaterial({
+      color: 0x180d14,
+      transparent: true,
+      opacity: 0.85,
+      depthTest: true
+    })
+  );
+
+  const healthFill = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.92, 0.07),
+    new THREE.MeshBasicMaterial({
+      color: 0x42e66b,
+      depthTest: true
+    })
+  );
+
+  healthFill.position.z = 0.01;
+  healthBar.add(healthBack);
+  healthBar.add(healthFill);
+  healthBar.position.y = 2.05;
+  enemy.add(healthBar);
+
   enemy.position.set((i - 1) * 4, 0, -30 - i * 6);
   enemy.userData = {
     hp: 3,
     alive: true,
     homeX: enemy.position.x,
     homeZ: enemy.position.z,
-    cooldown: 0
+    cooldown: 0,
+healthBar: healthBar,
+healthFill: healthFill
   };
 
   scene.add(enemy);
@@ -1105,7 +1134,16 @@ function updateWorld(dt) {
     const dx = player.position.x - enemy.position.x;
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
+    
+    // Update enemy health bar
+    const hpRatio = Math.max(0, data.hp / 3);
 
+    data.healthFill.scale.x = hpRatio;
+    data.healthFill.position.x = -(1 - hpRatio) * 0.46;
+
+    data.healthBar.quaternion.copy(camera.quaternion);
+    data.healthBar.visible = distance < 14;
+    
     data.cooldown = Math.max(0, data.cooldown - dt);
 
     if (distance < 12) {
