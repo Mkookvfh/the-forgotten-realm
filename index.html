@@ -1,26 +1,62 @@
 <!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#090b12" />
-  <title>The Forgotten Realm</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="The Forgotten Realm - Dark Fantasy 3D Adventure">
+  <title>THE FORGOTTEN REALM</title>
 </head>
 <body>
   <div id="game"></div>
-  <div id="hud">
-    <div class="brand">THE FORGOTTEN REALM <span>• PROTOTYPE 0.1</span></div>
-    <div id="location">ASHEN WILDS</div>
-    <div id="hint">สำรวจดินแดนที่ถูกลืม</div>
-    <div id="controls">
-      <div id="stick-zone"><div id="stick"><div></div></div></div>
-      <div class="actions">
-        <button id="jump" aria-label="กระโดด">↑</button>
-        <button id="run" aria-label="วิ่ง">RUN</button>
+  <main id="hud">
+    <header class="topbar">
+      <div><strong>THE FORGOTTEN REALM</strong><small>ASHEN WILDS · PROTOTYPE 0.2</small></div>
+      <div class="top-actions">
+        <span id="clock">NIGHT</span>
+        <button id="settings-open" class="small-btn">ตั้งค่า</button>
       </div>
+    </header>
+
+    <section class="status">
+      <div class="stat"><label>HP</label><div class="meter"><i id="hp-fill"></i></div><b id="hp-text">100 / 100</b></div>
+      <div class="stat"><label>STA</label><div class="meter stamina"><i id="stamina-fill"></i></div><b id="stamina-text">100 / 100</b></div>
+      <div class="stat"><label>LEVEL</label><b id="level-text">1</b></div>
+    </section>
+
+    <div id="quest"><b>ภารกิจ · เสียงเรียกจากซากโบราณ</b><span id="quest-text">เดินทางไปยังหอคอยร้าง</span></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="interaction-hint"></div>
+
+    <section id="mobile-controls">
+      <div id="stick-zone" aria-label="จอยสติ๊กเดิน"><div id="stick"><i></i></div></div>
+      <div class="mobile-actions">
+        <button id="jump" aria-label="กระโดด">กระโดด</button>
+        <button id="attack" aria-label="โจมตี">โจมตี</button>
+        <button id="interact" aria-label="โต้ตอบ">ใช้</button>
+        <button id="run" aria-label="วิ่ง">วิ่ง</button>
+      </div>
+    </section>
+    <div id="desktop-help">WASD เดิน · Shift วิ่ง · Space กระโดด · คลิก/ลากเมาส์ หมุนกล้อง · F โจมตี · E โต้ตอบ · Q ใช้ยา</div>
+
+    <section id="settings-panel" class="panel hidden">
+      <div class="panel-head"><b>ตั้งค่าเกม</b><button id="settings-close" class="small-btn">ปิด</button></div>
+      <label>คุณภาพกราฟิก
+        <select id="quality"><option value="low">ประหยัดพลังงาน</option><option value="medium" selected>สมดุล</option><option value="high">สูง</option></select>
+      </label>
+      <label>ความไวกล้อง <input id="sensitivity" type="range" min="1" max="12" value="5"></label>
+      <label class="toggle"><input id="rain-toggle" type="checkbox" checked> เปิดสภาพอากาศ</label>
+      <button id="save-button" class="wide-btn">บันทึกเกม</button>
+      <button id="load-button" class="wide-btn secondary">โหลดเกม</button>
+      <p class="note">ข้อมูลบันทึกไว้ในเบราว์เซอร์/อุปกรณ์นี้</p>
+    </section>
+
+    <div id="inventory" class="panel inventory">
+      <b>กระเป๋า</b>
+      <span>ผลึกวิญญาณ: <strong id="crystal-count">0</strong></span>
+      <span>ยาฟื้นฟู: <strong id="potion-count">2</strong> <small>(กด Q)</small></span>
     </div>
-    <div id="desktop-help">WASD / ลูกศร: เดิน • Shift: วิ่ง • Space: กระโดด</div>
-  </div>
+  </main>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
