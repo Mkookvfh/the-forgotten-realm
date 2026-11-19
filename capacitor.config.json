@@ -1,0 +1,6 @@
+{
+  "appId": "com.forgottenrealm.game",
+  "appName": "The Forgotten Realm",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
