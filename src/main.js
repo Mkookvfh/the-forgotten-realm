@@ -135,17 +135,17 @@ scene.add(moonGlow);
 // ---------- Ground ----------
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(180, 180),
-  new THREE.MeshStandardMaterial({ color: 0x242a28, roughness: 1 })
+  new THREE.MeshStandardMaterial({ color: 0x343a32, roughness: 1 })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
 const mats = {
-  stone: new THREE.MeshStandardMaterial({ color: 0x373a3a, roughness: 1 }),
-  bark: new THREE.MeshStandardMaterial({ color: 0x211d1b, roughness: 1 }),
-  leaves: new THREE.MeshStandardMaterial({ color: 0x182522, roughness: 1 }),
-  ruin: new THREE.MeshStandardMaterial({ color: 0x444448, roughness: 1 })
+  stone: new THREE.MeshStandardMaterial({ color: 0x454747, roughness: 1 }),
+  bark: new THREE.MeshStandardMaterial({ color: 0x33251c, roughness: 1 }),
+  leaves: new THREE.MeshStandardMaterial({ color: 0x263b2b, roughness: 1 }),
+  ruin: new THREE.MeshStandardMaterial({ color: 0x55565a, roughness: 1 })
 };
 
 // ---------- Environment ----------
@@ -207,7 +207,7 @@ for (let i = 0; i < 92; i++) {
 
 // ---------- Grass Details ----------
 const grassMaterial = new THREE.MeshStandardMaterial({
-  color: 0x354b35,
+  color: 0x496b3d,
   roughness: 1,
   side: THREE.DoubleSide
 });
@@ -252,7 +252,7 @@ scene.add(grass);
 
 // ---------- Mountains ----------
 const mountainMaterial = new THREE.MeshStandardMaterial({
-  color: 0x303640,
+  color: 0x414957,
   roughness: 1
 });
 
