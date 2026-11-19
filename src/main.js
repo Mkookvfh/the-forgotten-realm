@@ -159,7 +159,7 @@ for (let i = 0; i < 24; i++) {
   slab.castShadow = true;
   scene.add(slab);
 }
-
+const obstacles = [];
 function makeTree(x, z, scale = 1) {
   const tree = new THREE.Group();
 
@@ -182,7 +182,13 @@ function makeTree(x, z, scale = 1) {
   }
 
   tree.position.set(x, 0, z);
-  scene.add(tree);
+scene.add(tree);
+
+obstacles.push({
+  x,
+  z,
+  radius: 0.85 * scale
+});
 }
 
 let seed = 417;
@@ -346,6 +352,11 @@ towerTop.position.y = 9.1;
 tower.add(towerTop);
 tower.position.set(0, 0, -48);
 scene.add(tower);
+obstacles.push({
+  x: 0,
+  z: -48,
+  radius: 2.7
+});
 
 const shrine = new THREE.Mesh(
   new THREE.TorusGeometry(1.0, .12, 8, 20),
