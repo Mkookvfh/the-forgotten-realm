@@ -3,19 +3,75 @@ import './style.css';
 
 const mount = document.querySelector('#game');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111a25);
-scene.fog = new THREE.FogExp2(0x182332, 0.012);
+scene.background = new THREE.Color(0x080d18);
+scene.fog = new THREE.FogExp2(0x182332, 0.009);
+
+// Dark Fantasy Sky
+const skyGeometry = new THREE.SphereGeometry(150, 32, 32);
+
+const skyMaterial = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  depthWrite: false,
+  fog: false,
+
+  vertexShader: `
+    varying vec3 vDirection;
+
+    void main() {
+      vDirection = normalize(position);
+      gl_Position = projectionMatrix *
+        modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+
+  fragmentShader: `
+    varying vec3 vDirection;
+
+    void main() {
+      float h = normalize(vDirection).y;
+
+      vec3 horizon = vec3(0.18, 0.22, 0.30);
+      vec3 zenith = vec3(0.015, 0.025, 0.065);
+
+      float gradient = smoothstep(-0.15, 0.75, h);
+      vec3 color = mix(horizon, zenith, gradient);
+
+      vec3 moonDirection = normalize(vec3(-0.4, 0.65, -0.5));
+      float glow = pow(
+        max(dot(normalize(vDirection), moonDirection), 0.0),
+        28.0
+      );
+
+      color += vec3(0.35, 0.40, 0.55) * glow;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `
+});
+
+const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+sky.renderOrder = -1;
+scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 180);
 camera.position.set(0, 5, 9);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  powerPreference: 'high-performance'
+});
+
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.15;
+
+renderer.info.autoReset = true;
+
 mount.appendChild(renderer.domElement);
 
 
@@ -149,6 +205,7 @@ function animate(){
   const desired=new THREE.Vector3(player.position.x,player.position.y+4.3,player.position.z+8.5);
   camera.position.lerp(desired,1-Math.pow(.001,dt));
   camera.lookAt(player.position.x,player.position.y+1.2,player.position.z-1.5);
+  sky.position.copy(camera.position);
   renderer.render(scene,camera);
 }
 animate();
