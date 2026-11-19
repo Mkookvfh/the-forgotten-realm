@@ -999,6 +999,25 @@ function updateWeather(dt) {
   }
 
   
+
+
+  rain.visible = true;
+  const p = rainGeometry.attributes.position;
+
+  for (let i = 0; i < rainCount; i++) {
+    p.array[i * 3 + 1] -= dt * 15;
+    p.array[i * 3] -= dt * 1.8;
+
+    if (p.array[i * 3 + 1] < 0) {
+      p.array[i * 3 + 1] = 18 + random() * 8;
+      p.array[i * 3] = (random() - .5) * 70;
+      p.array[i * 3 + 2] = (random() - .5) * 70;
+    }
+  }
+
+  p.needsUpdate = true;
+}
+
 // ---------- Update Fireflies ----------
 function updateFireflies(dt) {
   const p = fireflyGeometry.attributes.position;
@@ -1015,23 +1034,6 @@ function updateFireflies(dt) {
 
     p.array[i * 3 + 2] =
       player.position.z + f.z + Math.cos(t * 0.6) * 0.7;
-  }
-
-  p.needsUpdate = true;
-}
-
-  rain.visible = true;
-  const p = rainGeometry.attributes.position;
-
-  for (let i = 0; i < rainCount; i++) {
-    p.array[i * 3 + 1] -= dt * 15;
-    p.array[i * 3] -= dt * 1.8;
-
-    if (p.array[i * 3 + 1] < 0) {
-      p.array[i * 3 + 1] = 18 + random() * 8;
-      p.array[i * 3] = (random() - .5) * 70;
-      p.array[i * 3 + 2] = (random() - .5) * 70;
-    }
   }
 
   p.needsUpdate = true;
