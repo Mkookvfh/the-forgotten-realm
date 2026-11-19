@@ -197,7 +197,7 @@ function random() {
   return (seed - 1) / 2147483646;
 }
 
-for (let i = 0; i < 54; i++) {
+for (let i = 0; i < 92; i++) {
   const z = 10 - i * 3.2;
   makeTree(-7 - random() * 10, z, .7 + random() * .8);
   makeTree(7 + random() * 10, z - 1, .7 + random() * .8);
