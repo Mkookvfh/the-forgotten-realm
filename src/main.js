@@ -55,7 +55,7 @@ function updateHud() {
 // ---------- Three.js scene ----------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x080d18);
-scene.fog = new THREE.FogExp2(0x182332, 0.0085);
+scene.fog = new THREE.FogExp2(0x202c3b, 0.006);
 
 const camera = new THREE.PerspectiveCamera(
   62, innerWidth / innerHeight, 0.1, 220
@@ -112,10 +112,10 @@ sky.renderOrder = -1;
 scene.add(sky);
 
 // ---------- Lighting ----------
-const hemi = new THREE.HemisphereLight(0xb7c9e8, 0x17130f, 1.25);
+const hemi = new THREE.HemisphereLight(0xc8d8f0, 0x24221d, 1.65);
 scene.add(hemi);
 
-const ambient = new THREE.AmbientLight(0x9db8df, 0.55);
+const ambient = new THREE.AmbientLight(0xb4c8e8, 0.78);
 scene.add(ambient);
 
 const moon = new THREE.DirectionalLight(0xc3d5ff, 1.8);
@@ -128,7 +128,7 @@ Object.assign(moon.shadow.camera, {
 moon.shadow.normalBias = 0.03;
 scene.add(moon);
 
-const moonGlow = new THREE.PointLight(0x829bd4, 0.7, 55);
+const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
 moonGlow.position.set(-16, 12, -18);
 scene.add(moonGlow);
 
