@@ -932,6 +932,14 @@ sky.material.uniforms.uSun.value = sun;
 scene.background.copy(daylight);
 scene.fog.color.copy(daylight);
 
+// Dynamic Dark Fantasy Fog
+const nightFog = 1 - sun;
+scene.fog.density = THREE.MathUtils.lerp(
+  0.0045,
+  0.008,
+  nightFog
+);
+
   const label = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
   if (ui.clock) ui.clock.textContent = label;
 
