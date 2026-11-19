@@ -143,9 +143,22 @@ Object.assign(moon.shadow.camera, {
 });
 moon.shadow.normalBias = 0.03;
 scene.add(moon);
+
 const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.2);
 sunLight.position.set(25, 35, -20);
-sunLight.castShadow = false;
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(1024, 1024);
+
+Object.assign(sunLight.shadow.camera, {
+  left: -45,
+  right: 45,
+  top: 45,
+  bottom: -45,
+  near: 0.5,
+  far: 120
+});
+
+sunLight.shadow.normalBias = 0.03;
 scene.add(sunLight);
 
 const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
