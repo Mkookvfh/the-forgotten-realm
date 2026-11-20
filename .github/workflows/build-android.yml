@@ -20,6 +20,12 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm install
+      - name: Convert 3D world to GLB
+        run: |
+          npx --yes obj2gltf@3.2.0 \
+            -i public/assets/world/open-world-dark-fantasy.obj \
+            -o public/assets/world/open-world-dark-fantasy.glb \
+            -b
       - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
