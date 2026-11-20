@@ -476,11 +476,11 @@ button {
   }
 
   .inventory {
-    bottom: 145px;
+    bottom: 195px;
   }
 
   #interaction-hint {
-    bottom: 135px;
+    bottom: 185px;
   }
 }
 
@@ -576,11 +576,11 @@ button {
   }
 
   .inventory {
-    bottom: 105px;
+    bottom: 155px;
   }
 
   #interaction-hint {
-    bottom: 105px;
+    bottom: 150px;
   }
 
   .status, #quest {

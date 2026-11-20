@@ -626,7 +626,8 @@ const input = {
   run: false,
   jumpPressed: false,
   attackPressed: false,
-  interactPressed: false
+  interactPressed: false,
+  dodgePressed: false
 };
 
 function clearInputs() {
@@ -638,6 +639,7 @@ function clearInputs() {
   input.jumpPressed = false;
   input.attackPressed = false;
   input.interactPressed = false;
+  input.dodgePressed = false;
 
   const stick = $('#stick');
   if (stick) stick.style.transform = 'translate(0,0)';
@@ -653,6 +655,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyF') input.attackPressed = true;
     if (e.code === 'KeyE') input.interactPressed = true;
     if (e.code === 'KeyQ') usePotion();
+    if (e.code === 'KeyC') input.dodgePressed = true;
   }
 
   keys[e.code] = true;
@@ -747,6 +750,10 @@ bindHold('#interact', () => {
   input.interactPressed = true;
 });
 
+bindHold('#dodge', () => {
+  input.dodgePressed = true;
+});
+
 // ---------- Camera ----------
 let yaw = 0;
 let pitch = .22;
@@ -809,6 +816,10 @@ canvas.addEventListener('wheel', (e) => {
 let verticalVelocity = 0;
 let grounded = true;
 let attackCooldown = 0;
+let dodgeCooldown = 0;
+let dodgeTimer = 0;
+let invulnerabilityTimer = 0;
+const dodgeDirection = new THREE.Vector3();
 let autoSaveTimer = 0;
 
 const clock = new THREE.Clock();
@@ -1241,7 +1252,7 @@ function updateWorld(dt) {
 
       if (distance > 1.5) {
         enemy.position.addScaledVector(direction, dt * 1.65);
-      } else if (data.cooldown <= 0) {
+      } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         state.hp = Math.max(0, state.hp - 8);
         data.cooldown = 1.25;
         toast('ผู้พิทักษ์โจมตีคุณ');
@@ -1305,7 +1316,56 @@ function update(dt) {
   const len = Math.hypot(mx, my);
   const moving = len > .08;
 
-  if (moving) {
+  // Dodge is a short burst and grants brief damage protection.
+  dodgeCooldown = Math.max(0, dodgeCooldown - dt);
+  dodgeTimer = Math.max(0, dodgeTimer - dt);
+  invulnerabilityTimer = Math.max(0, invulnerabilityTimer - dt);
+
+  if (input.dodgePressed) {
+    input.dodgePressed = false;
+
+    if (dodgeCooldown <= 0 && state.stamina >= 20) {
+      let dodgeX = mx;
+      let dodgeY = my;
+      const dodgeLength = Math.hypot(dodgeX, dodgeY);
+
+      if (dodgeLength > .08) {
+        dodgeX /= dodgeLength;
+        dodgeY /= dodgeLength;
+        const c = Math.cos(yaw);
+        const s = Math.sin(yaw);
+        dodgeDirection.set(dodgeX * c + dodgeY * s, 0, -dodgeX * s + dodgeY * c);
+      } else {
+        dodgeDirection.set(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+      }
+
+      dodgeDirection.normalize();
+      dodgeTimer = .24;
+      invulnerabilityTimer = .48;
+      dodgeCooldown = .85;
+      state.stamina = Math.max(0, state.stamina - 20);
+    } else if (state.stamina < 20) {
+      toast('พละกำลังไม่เพียงพอสำหรับหลบหลีก');
+    }
+  }
+
+  if (dodgeTimer > 0) {
+    const moveX = dodgeDirection.x * 8.5 * dt;
+    const moveZ = dodgeDirection.z * 8.5 * dt;
+    const canDodgeTo = (x, z) => obstacles.every(obstacle => {
+      const dx = x - obstacle.x;
+      const dz = z - obstacle.z;
+      const minDistance = .55 + obstacle.radius;
+      return dx * dx + dz * dz >= minDistance * minDistance;
+    });
+
+    const nextX = player.position.x + moveX;
+    const nextZ = player.position.z + moveZ;
+    if (canDodgeTo(nextX, player.position.z)) player.position.x = nextX;
+    if (canDodgeTo(player.position.x, nextZ)) player.position.z = nextZ;
+    player.rotation.y = Math.atan2(dodgeDirection.x, dodgeDirection.z);
+    body.rotation.z = Math.sin(performance.now() * .04) * .11;
+  } else if (moving) {
     mx /= Math.max(len, 1);
     my /= Math.max(len, 1);
 
@@ -1317,38 +1377,27 @@ function update(dt) {
     const wantsRun = input.run || keys.ShiftLeft || keys.ShiftRight;
     const canRun = wantsRun && state.stamina > 1;
     const speed = canRun ? 7.5 : 4.0;
-
     const moveX = wx * speed * dt;
-const moveZ = wz * speed * dt;
-const playerRadius = 0.55;
+    const moveZ = wz * speed * dt;
+    const playerRadius = 0.55;
 
-const canMoveTo = (x, z) => {
-  return obstacles.every(obstacle => {
-    const dx = x - obstacle.x;
-    const dz = z - obstacle.z;
-    const minDistance = playerRadius + obstacle.radius;
+    const canMoveTo = (x, z) => obstacles.every(obstacle => {
+      const dx = x - obstacle.x;
+      const dz = z - obstacle.z;
+      const minDistance = playerRadius + obstacle.radius;
+      return dx * dx + dz * dz >= minDistance * minDistance;
+    });
 
-    return dx * dx + dz * dz >= minDistance * minDistance;
-  });
-};
+    const nextX = player.position.x + moveX;
+    const nextZ = player.position.z + moveZ;
 
-const nextX = player.position.x + moveX;
-const nextZ = player.position.z + moveZ;
+    if (canMoveTo(nextX, player.position.z)) player.position.x = nextX;
+    if (canMoveTo(player.position.x, nextZ)) player.position.z = nextZ;
 
-if (canMoveTo(nextX, player.position.z)) {
-  player.position.x = nextX;
-}
-
-if (canMoveTo(player.position.x, nextZ)) {
-  player.position.z = nextZ;
-}
     player.rotation.y = Math.atan2(wx, wz);
-
     body.rotation.z = Math.sin(performance.now() * .012) * .045;
 
-    if (canRun) {
-      state.stamina = Math.max(0, state.stamina - 24 * dt);
-    }
+    if (canRun) state.stamina = Math.max(0, state.stamina - 24 * dt);
   } else {
     body.rotation.z = 0;
   }
@@ -1358,7 +1407,7 @@ if (canMoveTo(player.position.x, nextZ)) {
   }
 
   // Jump is triggered once per press, not continuously while held.
-  if (input.jumpPressed && grounded) {
+  if (input.jumpPressed && grounded && dodgeTimer <= 0) {
     verticalVelocity = 7;
     grounded = false;
   }
