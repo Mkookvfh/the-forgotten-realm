@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-            - name: Extract 3D world assets
+      - name: Extract 3D world assets
         run: |
           mkdir -p public/assets/world
-          unzip -o open-world-dark-fantasy-obj.zip -d public/assets/world
+          unzip -o open-world-dark-fantasy-obj.zip -d public/assets/world      
       - uses: actions/setup-node@v4
         with:
           node-version: 22
