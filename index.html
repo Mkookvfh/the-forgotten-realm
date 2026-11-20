@@ -15,7 +15,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · COMBAT UPDATE 0.4</small>
+        <small>ASHEN WILDS · COMPLETE UPDATE 0.4</small>
       </div>
 
       <div class="top-actions">
@@ -110,9 +110,34 @@
     </section>
 
     <section id="inventory" class="panel inventory">
-      <b>กระเป๋าสัมภาระ</b>
+      <b>กระเป๋าสัมภาระและอุปกรณ์</b>
       <span>✧ ผลึกวิญญาณ <strong id="crystal-count">0</strong></span>
       <span>✚ ยาฟื้นฟู <strong id="potion-count">2</strong> <small>(Q)</small></span>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">อาวุธที่สวมใส่: <strong id="equipped-weapon">ดาบ</strong></small>
+        <div class="equipment-buttons">
+          <button id="weapon-sword" type="button">ดาบ</button>
+          <button id="weapon-greatsword" type="button">ดาบใหญ่</button>
+          <button id="weapon-staff" type="button">คทาเวท</button>
+        </div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">เกราะที่สวมใส่: <strong id="equipped-armor">เกราะหนัง</strong></small>
+        <div class="equipment-buttons">
+          <button id="armor-leather" type="button">หนัง</button>
+          <button id="armor-iron" type="button">เหล็ก</button>
+          <button id="armor-shadow" type="button">เงา</button>
+        </div>
+      </div>
+
+      <div class="equipment-stats">
+        <span>พลังโจมตี <strong id="attack-stat">1</strong></span>
+        <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
+        <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
+      </div>
+      <button id="spend-skill-point" class="skill-button" type="button">ใช้แต้มเพิ่มพลังโจมตี +0.5</button>
     </section>
   </main>
 
