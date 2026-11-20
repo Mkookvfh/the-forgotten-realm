@@ -1487,14 +1487,31 @@ $('#time-toggle').addEventListener('click', () => {
   }
 });
 
-$('#settings-open').addEventListener('click', () => {
-  ui.settings.classList.remove('hidden');
+const inventoryOpenButton = $('#inventory-open');
+const inventoryCloseButton = $('#inventory-close');
+
+inventoryOpenButton.addEventListener('click', () => {
+  ui.settings.classList.add('hidden');
+
+  const willOpen = ui.inventory.classList.contains('hidden');
+
+  ui.inventory.classList.toggle('hidden', !willOpen);
+  inventoryOpenButton.setAttribute('aria-expanded', String(willOpen));
+});
+
+inventoryCloseButton.addEventListener('click', () => {
   ui.inventory.classList.add('hidden');
+  inventoryOpenButton.setAttribute('aria-expanded', 'false');
+});
+
+$('#settings-open').addEventListener('click', () => {
+  ui.inventory.classList.add('hidden');
+  inventoryOpenButton.setAttribute('aria-expanded', 'false');
+  ui.settings.classList.remove('hidden');
 });
 
 $('#settings-close').addEventListener('click', () => {
   ui.settings.classList.add('hidden');
-  ui.inventory.classList.remove('hidden');
 });
 
 $('#quality').addEventListener('change', (e) => {
