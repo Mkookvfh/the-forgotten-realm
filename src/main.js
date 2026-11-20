@@ -442,7 +442,7 @@ function drawPixelHero(ctx, ox, oy, direction, frame) {
     ctx.save();
     ctx.translate(ox + 32, oy);
     ctx.scale(-1, 1);
-    ox = -32;
+    ox = 0;
   }
 
   // ผ้าคลุม
