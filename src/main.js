@@ -13,7 +13,8 @@ const ui = {
   level: $('#level-text'), crystals: $('#crystal-count'),
   potions: $('#potion-count'), quest: $('#quest-text'),
   clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
-  settings: $('#settings-panel')
+    settings: $('#settings-panel'),
+  inventory: $('#inventory')
 };
 
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -1370,10 +1371,12 @@ $('#time-toggle').addEventListener('click', () => {
 
 $('#settings-open').addEventListener('click', () => {
   ui.settings.classList.remove('hidden');
+  ui.inventory.classList.add('hidden');
 });
 
 $('#settings-close').addEventListener('click', () => {
   ui.settings.classList.add('hidden');
+  ui.inventory.classList.remove('hidden');
 });
 
 $('#quality').addEventListener('change', (e) => {
