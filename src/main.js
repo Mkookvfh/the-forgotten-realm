@@ -1646,31 +1646,38 @@ playerSprite.position.y = 1.03 +
   }
   input.jumpPressed = false;
 
+  
   // ---------- Terrain Ground Physics ----------
-verticalVelocity -= 18 * dt;
-player.position.y += verticalVelocity * dt;
+  const wasGrounded = grounded;
 
-const terrainHeight = getTerrainHeight(
-  player.position.x,
-  player.position.z
-);
+  verticalVelocity -= 18 * dt;
+  player.position.y += verticalVelocity * dt;
 
-if (terrainHeight !== null) {
-  if (
-    verticalVelocity <= 0 &&
-    player.position.y <= terrainHeight + 0.2
-  ) {
-    player.position.y = terrainHeight;
+  const terrainHeight = getTerrainHeight(
+    player.position.x,
+    player.position.z
+  );
+
+  if (terrainHeight !== null) {
+    const followingGround =
+      wasGrounded && verticalVelocity <= 0;
+
+    const landing =
+      verticalVelocity <= 0 &&
+      player.position.y <= terrainHeight + 0.2;
+
+    if (followingGround || landing) {
+      player.position.y = terrainHeight;
+      verticalVelocity = 0;
+      grounded = true;
+    } else {
+      grounded = false;
+    }
+  } else if (player.position.y < 0) {
+    player.position.y = 0;
     verticalVelocity = 0;
     grounded = true;
-  } else {
-    grounded = false;
   }
-} else if (player.position.y < 0) {
-  player.position.y = 0;
-  verticalVelocity = 0;
-  grounded = true;
-}
 
   player.position.x = THREE.MathUtils.clamp(player.position.x, -35, 35);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -95, 12);
