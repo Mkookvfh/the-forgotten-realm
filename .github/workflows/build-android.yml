@@ -39,7 +39,7 @@ jobs:
 
               path = os.path.join(source, name)
 
-                  bpy.ops.import_scene.fbx(
+                                bpy.ops.import_scene.fbx(
                   filepath=path
               )
 
@@ -73,7 +73,7 @@ jobs:
           print("CRAFTPIX CONVERSION COMPLETE")
           PY
 
-              blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
+                        blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
 
       - name: Extract 3D world assets
         run: |
