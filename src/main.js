@@ -1,4 +1,4 @@
-
+/
 import * as THREE from 'three';
 import './style.css';
 
@@ -416,51 +416,142 @@ const shrine = new THREE.Mesh(
 shrine.position.set(0, 2, -43);
 scene.add(shrine);
 
-// ---------- Player ----------
-const player = new THREE.Group();
 
-const body = new THREE.Mesh(
-  new THREE.CapsuleGeometry(.42, .9, 4, 8),
-  new THREE.MeshStandardMaterial({ color: 0x3b4050, roughness: .85 })
-);
-body.position.y = 1.05;
-body.castShadow = true;
+// ---------- Pixel Art Player ----------
+const player = new THREE.Group();
+const body = new THREE.Group();
 player.add(body);
 
-const hood = new THREE.Mesh(
-  new THREE.SphereGeometry(.38, 8, 7),
-  new THREE.MeshStandardMaterial({ color: 0x252b3b })
-);
-hood.position.set(0, 1.85, -.04);
-hood.castShadow = true;
-player.add(hood);
+// สร้างภาพ Pixel Art 4 ทิศทาง 4 เฟรม
+const spriteCanvas = document.createElement('canvas');
+spriteCanvas.width = 128;
+spriteCanvas.height = 128;
 
-const eyeMat = new THREE.MeshStandardMaterial({
-  color: 0xffb347,
-  emissive: 0xff8c24,
-  emissiveIntensity: 2
-});
+const spriteCtx = spriteCanvas.getContext('2d');
 
-for (const x of [-.12, .12]) {
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 8), eyeMat);
-  eye.position.set(x, 1.87, .31);
-  player.add(eye);
+function drawPixelHero(ctx, ox, oy, direction, frame) {
+  const px = (x, y, w, h, color) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(ox + x, oy + y, w, h);
+  };
+
+  const step = frame === 1 ? -1 : frame === 3 ? 1 : 0;
+  const side = direction === 1 || direction === 3;
+
+  if (direction === 3) {
+    ctx.save();
+    ctx.translate(ox + 32, oy);
+    ctx.scale(-1, 1);
+    ox = -32;
+  }
+
+  // ผ้าคลุม
+  px(7, 14, 5, 12, '#70283d');
+  px(9, 20, 4, 9, '#9b3547');
+  px(20, 14, 5, 12, '#70283d');
+
+  // ขาและรองเท้า
+  px(11, 25, 4, 5, '#25283a');
+  px(18, 25, 4, 5, '#25283a');
+  px(10 + step, 29, 6, 2, '#171923');
+  px(18 - step, 29, 6, 2, '#171923');
+
+  // ลำตัวและเกราะ
+  px(10, 14, 13, 12, '#343b50');
+  px(12, 15, 9, 8, '#596078');
+  px(14, 17, 5, 7, '#252b3c');
+  px(15, 21, 3, 3, '#c19a55');
+
+  // แขน
+  px(7, 16, 4, 8, '#343b50');
+  px(22, 16, 4, 8, '#343b50');
+  px(7, 22, 4, 3, '#d5a47e');
+  px(22, 22, 4, 3, '#d5a47e');
+
+  // ศีรษะและฮู้ด
+  px(9, 3, 14, 4, '#171722');
+  px(6, 7, 20, 9, '#282638');
+  px(8, 5, 16, 3, '#3c354b');
+  px(8, 9, 16, 8, '#e4b18b');
+
+  // ผม
+  px(7, 7, 5, 5, '#211e2c');
+  px(11, 5, 5, 4, '#211e2c');
+  px(17, 6, 6, 4, '#211e2c');
+  px(22, 8, 4, 5, '#211e2c');
+
+  if (direction === 0) {
+    // ใบหน้าด้านหน้า
+    px(11, 11, 3, 2, '#20202b');
+    px(19, 11, 3, 2, '#20202b');
+    px(15, 14, 3, 1, '#a96e65');
+  } else if (side) {
+    // ใบหน้าด้านข้าง
+    px(19, 11, 3, 2, '#20202b');
+    px(23, 13, 2, 2, '#d99b79');
+  } else {
+    // ด้านหลัง
+    px(8, 10, 16, 6, '#292638');
+  }
+
+  // ขอบผ้าคลุมสีแดง
+  px(8, 25, 3, 4, '#a63d50');
+
+  if (direction === 3) {
+    ctx.restore();
+  }
 }
 
-const cloak = new THREE.Mesh(
-  new THREE.ConeGeometry(.58, 1.2, 7),
-  new THREE.MeshStandardMaterial({
-    color: 0x303447,
-    roughness: .9,
-    side: THREE.DoubleSide
+for (let direction = 0; direction < 4; direction++) {
+  for (let frame = 0; frame < 4; frame++) {
+    drawPixelHero(
+      spriteCtx,
+      frame * 32,
+      direction * 32,
+      direction,
+      frame
+    );
+  }
+}
+
+const playerTexture = new THREE.CanvasTexture(spriteCanvas);
+playerTexture.magFilter = THREE.NearestFilter;
+playerTexture.minFilter = THREE.NearestFilter;
+playerTexture.generateMipmaps = false;
+playerTexture.colorSpace = THREE.SRGBColorSpace;
+playerTexture.repeat.set(0.25, 0.25);
+playerTexture.offset.set(0, 0.75);
+
+const playerSprite = new THREE.Sprite(
+  new THREE.SpriteMaterial({
+    map: playerTexture,
+    transparent: true,
+    alphaTest: 0.05,
+    depthWrite: false
   })
 );
-cloak.position.set(0, .75, .16);
-cloak.rotation.x = Math.PI;
-player.add(cloak);
+
+playerSprite.scale.set(1.55, 2.05, 1);
+playerSprite.position.y = 1.03;
+body.add(playerSprite);
+
+// เงาใต้เท้า
+const playerShadow = new THREE.Mesh(
+  new THREE.CircleGeometry(0.48, 16),
+  new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false
+  })
+);
+playerShadow.rotation.x = -Math.PI / 2;
+playerShadow.position.y = 0.025;
+player.add(playerShadow);
 
 player.position.set(0, 0, 3);
 scene.add(player);
+
 
 // ---------- Collectibles ----------
 const collectibles = [];
@@ -814,6 +905,7 @@ canvas.addEventListener('wheel', (e) => {
 
 // ---------- Gameplay ----------
 let verticalVelocity = 0;
+let playerAnimTime = 0;
 let grounded = true;
 let attackCooldown = 0;
 let dodgeCooldown = 0;
@@ -1401,6 +1493,42 @@ function update(dt) {
   } else {
     body.rotation.z = 0;
   }
+
+  
+// Pixel Art direction and walking animation
+playerAnimTime += dt;
+
+const relativeFacing = Math.atan2(
+  Math.sin(player.rotation.y - yaw),
+  Math.cos(player.rotation.y - yaw)
+);
+
+let directionRow = 0;
+
+if (relativeFacing > Math.PI / 4 &&
+    relativeFacing < Math.PI * 3 / 4) {
+  directionRow = 1;
+} else if (
+  relativeFacing > -Math.PI * 3 / 4 &&
+  relativeFacing < -Math.PI / 4
+) {
+  directionRow = 3;
+} else if (Math.abs(relativeFacing) >= Math.PI * 3 / 4) {
+  directionRow = 2;
+}
+
+const isAnimating = moving || dodgeTimer > 0;
+const frame = isAnimating
+  ? Math.floor(playerAnimTime * 7) % 4
+  : 0;
+
+playerTexture.offset.set(
+  frame * 0.25,
+  (3 - directionRow) * 0.25
+);
+
+playerSprite.position.y = 1.03 +
+  (isAnimating ? 0 : Math.sin(playerAnimTime * 2) * 0.015);
 
   if (!moving || !(input.run || keys.ShiftLeft || keys.ShiftRight)) {
     state.stamina = Math.min(100, state.stamina + 15 * dt);
