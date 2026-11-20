@@ -442,14 +442,33 @@ button {
 }
 
 .inventory {
-  top: auto;
+  top: 130px;
   right: 18px;
-  bottom: 16px;
-  width: 190px;
+  bottom: auto;
+  width: min(310px, calc(100vw - 36px));
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
   display: grid;
-  gap: 7px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 14px;
   font-size: 11px;
+}
+
+.inventory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inventory-head b {
+  margin: 0;
+}
+
+.inventory-head .close-btn {
+  flex: 0 0 35px;
+  min-height: 35px;
+  padding: 6px;
 }
 
 .inventory b {
