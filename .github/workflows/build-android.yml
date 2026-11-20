@@ -1,25 +1,39 @@
+
 name: Build Android APK
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender unzip
 
       - name: Extract and convert Craftpix props
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p /tmp/craftpix
           mkdir -p public/assets/props
 
-          unzip -o public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/craftpix
+          ZIP_FILE="public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "::error::Craftpix ZIP file not found"
+            exit 1
+          fi
+
+          unzip -o "$ZIP_FILE" -d /tmp/craftpix
 
           cat > /tmp/convert-craftpix.py <<'PY'
           import bpy
@@ -31,9 +45,21 @@ jobs:
 
           os.makedirs(output, exist_ok=True)
 
-          for name in sorted(os.listdir(source)):
-              if not name.lower().endswith(".fbx"):
-                  continue
+          if not os.path.isdir(source):
+              raise RuntimeError("FBX folder not found")
+
+          files = sorted(
+              name for name in os.listdir(source)
+              if name.lower().endswith(".fbx")
+          )
+
+          if not files:
+              raise RuntimeError("No FBX files found")
+
+          converted = 0
+
+          for name in files:
+              print("PROCESSING:", name, flush=True)
 
               bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -47,9 +73,11 @@ jobs:
                   if img.source != 'FILE':
                       continue
 
-                  if not os.path.exists(bpy.path.abspath(img.filepath)):
+                  current_path = bpy.path.abspath(img.filepath)
+
+                  if not os.path.exists(current_path):
                       filename = os.path.basename(img.filepath)
-                      blender = os.path.join(texture_dir, filename)
+                      candidate = os.path.join(texture_dir, filename)
 
                       if os.path.exists(candidate):
                           img.filepath = candidate
@@ -68,40 +96,77 @@ jobs:
                   export_materials="EXPORT"
               )
 
-              print("CONVERTED:", name)
+              if not os.path.isfile(target):
+                  raise RuntimeError("GLB export failed: " + name)
 
-          print("CRAFTPIX CONVERSION COMPLETE")
+              print("CONVERTED:", name, flush=True)
+              converted += 1
+
+          print(
+              "CRAFTPIX CONVERSION COMPLETE:",
+              converted,
+              "models",
+              flush=True
+          )
           PY
 
-         blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
+          blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
+
+          FBX_COUNT=$(find /tmp/craftpix/FBX -maxdepth 1 -type f -iname '*.fbx' | wc -l)
+          GLB_COUNT=$(find public/assets/props -maxdepth 1 -type f -iname '*.glb' | wc -l)
+
+          echo "FBX files: $FBX_COUNT"
+          echo "GLB files: $GLB_COUNT"
+
+          if [ "$FBX_COUNT" -eq 0 ] || [ "$GLB_COUNT" -ne "$FBX_COUNT" ]; then
+            echo "::error::Craftpix conversion count mismatch"
+            exit 1
+          fi
 
       - name: Extract 3D world assets
         run: |
+          set -e
           mkdir -p public/assets/world
-          unzip -o open-world-dark-fantasy-obj.zip -d public/assets/world      
+          unzip -o open-world-dark-fantasy-obj.zip -d public/assets/world
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
-      - run: npm install
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Convert 3D world to GLB
         run: |
+          set -e
           npx --yes obj2gltf@3.2.0 \
             -i public/assets/world/open-world-dark-fantasy.obj \
             -o public/assets/world/open-world-dark-fantasy.glb \
             -b
-      - run: npm run build
-      - run: npx cap add android
-      - run: npx cap sync android
+
+      - name: Build web game
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Android
+        run: npx cap sync android
+
       - name: Build debug APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: the-forgotten-realm-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
