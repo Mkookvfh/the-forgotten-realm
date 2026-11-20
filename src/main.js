@@ -187,7 +187,7 @@ worldLoader.load(
     const importedWorld = gltf.scene;
 
     importedWorld.name = 'ImportedWorldGLB';
-    importedWorld.visible = false;
+    importedWorld.visible = true;
 
     importedWorld.updateMatrixWorld(true);
 
@@ -203,6 +203,7 @@ worldLoader.load(
     });
 
     scene.add(importedWorld);
+    ground.visible = false;
 
     console.log('GLB WORLD LOADED', {
       size: size.toArray(),
