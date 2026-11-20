@@ -599,14 +599,15 @@ player.position.set(0, 0, 3);
 scene.add(player);
 
 // ---------- Terrain Height Query ----------
-function getTerrainHeight(x, z) {
+
+function getTerrainHeight(x, z, referenceY) {
   if (!importedWorld || !importedWorldBounds) {
     return null;
   }
 
   const origin = new THREE.Vector3(
     x,
-    importedWorldBounds.max.y + 50,
+    referenceY + 0.35,
     z
   );
 
@@ -616,9 +617,7 @@ function getTerrainHeight(x, z) {
   );
 
   terrainRaycaster.near = 0;
-  terrainRaycaster.far =
-    importedWorldBounds.max.y -
-    importedWorldBounds.min.y + 100;
+  terrainRaycaster.far = 8;
 
   const hits = terrainRaycaster.intersectObject(
     importedWorld,
@@ -636,8 +635,10 @@ function getTerrainHeight(x, z) {
       )
     ).normalize();
 
-    // เลือกพื้นผิวที่หันขึ้นด้านบน
-    if (normal.y > 0.6) {
+    if (
+      normal.y > 0.6 &&
+      hit.point.y <= referenceY + 0.35
+    ) {
       return hit.point.y;
     }
   }
@@ -1647,6 +1648,7 @@ playerSprite.position.y = 1.03 +
   input.jumpPressed = false;
 
   
+  
   // ---------- Terrain Ground Physics ----------
   const wasGrounded = grounded;
 
@@ -1655,12 +1657,19 @@ playerSprite.position.y = 1.03 +
 
   const terrainHeight = getTerrainHeight(
     player.position.x,
-    player.position.z
+    player.position.z,
+    player.position.y
   );
 
   if (terrainHeight !== null) {
+    const groundDelta =
+      terrainHeight - player.position.y;
+
     const followingGround =
-      wasGrounded && verticalVelocity <= 0;
+      wasGrounded &&
+      verticalVelocity <= 0 &&
+      groundDelta >= -0.35 &&
+      groundDelta <= 0.35;
 
     const landing =
       verticalVelocity <= 0 &&
