@@ -914,6 +914,9 @@ function loadGame() {
           enemy.position.set(...saved.position);
         }
 
+        enemy.userData.homeX = enemy.position.x;
+enemy.userData.homeZ = enemy.position.z;
+
         enemy.userData.hp = THREE.MathUtils.clamp(
           Number(saved.hp) || 0, 0, 3
         );
