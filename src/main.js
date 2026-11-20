@@ -1510,9 +1510,22 @@ if (relativeFacing > Math.PI / 4 &&
   directionRow = 2;
 }
 
-const isAnimating = moving || dodgeTimer > 0;
+
+const isDodging = dodgeTimer > 0;
+const isRunning = moving &&
+  (input.run || keys.ShiftLeft || keys.ShiftRight) &&
+  state.stamina > 1;
+
+const isAnimating = moving || isDodging;
+
+const animationSpeed = isDodging
+  ? 14
+  : isRunning
+    ? 11
+    : 7;
+
 const frame = isAnimating
-  ? Math.floor(playerAnimTime * 7) % 4
+  ? Math.floor(playerAnimTime * animationSpeed) % 4
   : 0;
 
 playerTexture.offset.set(
