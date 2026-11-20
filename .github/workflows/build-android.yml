@@ -13,15 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender unzip
+          sudo apt-get install -y blender unzip python3-numpy
+
+          blender --background --python-expr "import numpy; print('NUMPY READY:', numpy.__version__)"
+
 
       - name: Extract and convert Craftpix props
         shell: bash
         run: |
-          set -euo pipefail
+          set -euo update
 
           mkdir -p /tmp/craftpix
           mkdir -p public/assets/props
