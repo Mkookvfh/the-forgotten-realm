@@ -176,6 +176,10 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
+// ---------- Terrain Height Detection ----------
+let importedWorld = null;
+let importedWorldBounds = null;
+const terrainRaycaster = new THREE.Raycaster();
 
 // ---------- Imported Open World GLB (Safe Test) ----------
 const worldLoader = new GLTFLoader();
@@ -184,7 +188,7 @@ worldLoader.load(
   `${import.meta.env.BASE_URL}assets/world/open-world-dark-fantasy.glb`,
 
   (gltf) => {
-    const importedWorld = gltf.scene;
+    importedWorld = gltf.scene;
 
     importedWorld.name = 'ImportedWorldGLB';
     importedWorld.visible = true;
@@ -192,6 +196,7 @@ worldLoader.load(
     importedWorld.updateMatrixWorld(true);
 
     const bounds = new THREE.Box3().setFromObject(importedWorld);
+    importedWorldBounds = bounds;
     const size = bounds.getSize(new THREE.Vector3());
 
     let meshCount = 0;
@@ -593,6 +598,52 @@ player.add(playerShadow);
 player.position.set(0, 0, 3);
 scene.add(player);
 
+// ---------- Terrain Height Query ----------
+function getTerrainHeight(x, z) {
+  if (!importedWorld || !importedWorldBounds) {
+    return null;
+  }
+
+  const origin = new THREE.Vector3(
+    x,
+    importedWorldBounds.max.y + 50,
+    z
+  );
+
+  terrainRaycaster.set(
+    origin,
+    new THREE.Vector3(0, -1, 0)
+  );
+
+  terrainRaycaster.near = 0;
+  terrainRaycaster.far =
+    importedWorldBounds.max.y -
+    importedWorldBounds.min.y + 100;
+
+  const hits = terrainRaycaster.intersectObject(
+    importedWorld,
+    true
+  );
+
+  for (const hit of hits) {
+    if (!hit.face) continue;
+
+    const normal = hit.face.normal.clone();
+
+    normal.applyMatrix3(
+      new THREE.Matrix3().getNormalMatrix(
+        hit.object.matrixWorld
+      )
+    ).normalize();
+
+    // เลือกพื้นผิวที่หันขึ้นด้านบน
+    if (normal.y > 0.6) {
+      return hit.point.y;
+    }
+  }
+
+  return null;
+}
 
 // ---------- Collectibles ----------
 const collectibles = [];
@@ -1595,14 +1646,31 @@ playerSprite.position.y = 1.03 +
   }
   input.jumpPressed = false;
 
-  verticalVelocity -= 18 * dt;
-  player.position.y += verticalVelocity * dt;
+  // ---------- Terrain Ground Physics ----------
+verticalVelocity -= 18 * dt;
+player.position.y += verticalVelocity * dt;
 
-  if (player.position.y < 0) {
-    player.position.y = 0;
+const terrainHeight = getTerrainHeight(
+  player.position.x,
+  player.position.z
+);
+
+if (terrainHeight !== null) {
+  if (
+    verticalVelocity <= 0 &&
+    player.position.y <= terrainHeight + 0.2
+  ) {
+    player.position.y = terrainHeight;
     verticalVelocity = 0;
     grounded = true;
+  } else {
+    grounded = false;
   }
+} else if (player.position.y < 0) {
+  player.position.y = 0;
+  verticalVelocity = 0;
+  grounded = true;
+}
 
   player.position.x = THREE.MathUtils.clamp(player.position.x, -35, 35);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -95, 12);
