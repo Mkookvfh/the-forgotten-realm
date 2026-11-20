@@ -438,12 +438,7 @@ function drawPixelHero(ctx, ox, oy, direction, frame) {
   const step = frame === 1 ? -1 : frame === 3 ? 1 : 0;
   const side = direction === 1 || direction === 3;
 
-  if (direction === 3) {
-    ctx.save();
-    ctx.translate(ox + 32, oy);
-    ctx.scale(-1, 1);
-    ox = 0;
-  }
+  
 
   // ผ้าคลุม
   px(7, 14, 5, 12, '#70283d');
@@ -497,9 +492,7 @@ function drawPixelHero(ctx, ox, oy, direction, frame) {
   // ขอบผ้าคลุมสีแดง
   px(8, 25, 3, 4, '#a63d50');
 
-  if (direction === 3) {
-    ctx.restore();
-  }
+  
 }
 
 for (let direction = 0; direction < 4; direction++) {
