@@ -8,6 +8,74 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Extract and convert Craftpix props
+        run: |
+          mkdir -p /tmp/craftpix
+          mkdir -p public/assets/props
+
+          unzip -o public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/craftpix
+
+          cat > /tmp/convert-craftpix.py <<'PY'
+          import bpy
+          import os
+
+          source = "/tmp/craftpix/FBX"
+          texture_dir = "/tmp/craftpix/Texture"
+          output = "public/assets/props"
+
+          os.makedirs(output, exist_ok=True)
+
+          for name in sorted(os.listdir(source)):
+              if not name.lower().endswith(".fbx"):
+                  continue
+
+              bpy.ops.wm.read_factory_settings(use_empty=True)
+
+              path = os.path.join(source, name)
+
+              bpy.ops.import_scene.fbx(
+                  filepath=path,
+                  use_image_search=True
+              )
+
+              for img in bpy.data.images:
+                  if img.source != 'FILE':
+                      continue
+
+                  if not os.path.exists(bpy.path.abspath(img.filepath)):
+                      filename = os.path.basename(img.filepath)
+                      candidate = os.path.join(texture_dir, filename)
+
+                      if os.path.exists(candidate):
+                          img.filepath = candidate
+                          img.reload()
+
+              bpy.ops.file.pack_all()
+
+              target = os.path.join(
+                  output,
+                  os.path.splitext(name)[0] + ".glb"
+              )
+
+              bpy.ops.export_scene.gltf(
+                  filepath=target,
+                  export_format="GLB",
+                  export_materials="EXPORT"
+              )
+
+              print("CONVERTED:", name)
+
+          print("CRAFTPIX CONVERSION COMPLETE")
+          PY
+
+          blender --background --python /tmp/convert-craftpix.py
+
       - name: Extract 3D world assets
         run: |
           mkdir -p public/assets/world
