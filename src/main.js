@@ -600,6 +600,7 @@ scene.add(player);
 
 // ---------- Terrain Height Query ----------
 
+
 function getTerrainHeight(x, z, referenceY) {
   if (!importedWorld || !importedWorldBounds) {
     return null;
@@ -607,7 +608,7 @@ function getTerrainHeight(x, z, referenceY) {
 
   const origin = new THREE.Vector3(
     x,
-    referenceY + 0.35,
+    importedWorldBounds.max.y + 50,
     z
   );
 
@@ -617,12 +618,17 @@ function getTerrainHeight(x, z, referenceY) {
   );
 
   terrainRaycaster.near = 0;
-  terrainRaycaster.far = 8;
+  terrainRaycaster.far =
+    importedWorldBounds.max.y -
+    importedWorldBounds.min.y + 100;
 
   const hits = terrainRaycaster.intersectObject(
     importedWorld,
     true
   );
+
+  let bestHeight = null;
+  let bestDistance = Infinity;
 
   for (const hit of hits) {
     if (!hit.face) continue;
@@ -635,15 +641,19 @@ function getTerrainHeight(x, z, referenceY) {
       )
     ).normalize();
 
-    if (
-      normal.y > 0.6 &&
-      hit.point.y <= referenceY + 0.35
-    ) {
-      return hit.point.y;
+    if (normal.y <= 0.6) continue;
+
+    const distance = Math.abs(
+      hit.point.y - referenceY
+    );
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestHeight = hit.point.y;
     }
   }
 
-  return null;
+  return bestHeight;
 }
 
 // ---------- Collectibles ----------
