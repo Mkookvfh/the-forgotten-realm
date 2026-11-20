@@ -39,7 +39,7 @@ jobs:
 
               path = os.path.join(source, name)
 
-                                bpy.ops.import_scene.fbx(
+              bpy.ops.import_scene.fbx(
                   filepath=path
               )
 
@@ -49,7 +49,7 @@ jobs:
 
                   if not os.path.exists(bpy.path.abspath(img.filepath)):
                       filename = os.path.basename(img.filepath)
-                      candidate = os.path.join(texture_dir, filename)
+                      blender = os.path.join(texture_dir, filename)
 
                       if os.path.exists(candidate):
                           img.filepath = candidate
@@ -73,7 +73,7 @@ jobs:
           print("CRAFTPIX CONVERSION COMPLETE")
           PY
 
-                        blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
+         blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
 
       - name: Extract 3D world assets
         run: |
