@@ -25,7 +25,9 @@ jobs:
       - name: Extract and convert Craftpix props
         shell: bash
         run: |
-          set -euo update
+          
+          set -euo pipefail
+
 
           mkdir -p /tmp/craftpix
           mkdir -p public/assets/props
