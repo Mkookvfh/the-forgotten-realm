@@ -815,17 +815,38 @@ const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 
+
 function saveGame(showMessage = true) {
   const payload = {
-    version: 1,
-    player: [player.position.x, player.position.y, player.position.z],
+    version: 2,
+    player: [
+      player.position.x,
+      player.position.y,
+      player.position.z
+    ],
     state: { ...state },
-    settings: { ...settings }
+    settings: { ...settings },
+
+    collectibles: collectibles.map(crystal => crystal.visible),
+
+    enemies: enemies.map(enemy => ({
+      position: [
+        enemy.position.x,
+        enemy.position.y,
+        enemy.position.z
+      ],
+      hp: enemy.userData.hp,
+      alive: enemy.userData.alive
+    }))
   };
 
   try {
-    localStorage.setItem('forgotten-realm-save-v1', JSON.stringify(payload));
-    if (showMessage) toast('บันทึกเกมแล้ว');
+    localStorage.setItem(
+      'forgotten-realm-save-v1',
+      JSON.stringify(payload)
+    );
+
+    if (showMessage) toast('บันทึกความคืบหน้าโลกแล้ว');
   } catch (error) {
     console.error(error);
     toast('ไม่สามารถบันทึกได้ในอุปกรณ์นี้');
@@ -870,6 +891,51 @@ function loadGame() {
     state.discoveredRegions = Array.isArray(data.state.discoveredRegions)
   ? data.state.discoveredRegions.filter(id => typeof id === 'string')
   : [];
+
+    
+    // Restore collected crystals
+    if (Array.isArray(data.collectibles)) {
+      collectibles.forEach((crystal, index) => {
+        crystal.visible = data.collectibles[index] !== false;
+      });
+    }
+
+    // Restore enemy health and positions
+    if (Array.isArray(data.enemies)) {
+      enemies.forEach((enemy, index) => {
+        const saved = data.enemies[index];
+        if (!saved) return;
+
+        if (
+          Array.isArray(saved.position) &&
+          saved.position.length === 3 &&
+          saved.position.every(Number.isFinite)
+        ) {
+          enemy.position.set(...saved.position);
+        }
+
+        enemy.userData.hp = THREE.MathUtils.clamp(
+          Number(saved.hp) || 0, 0, 3
+        );
+
+        enemy.userData.alive =
+          saved.alive !== false && enemy.userData.hp > 0;
+
+        enemy.userData.healthFill.scale.x =
+          enemy.userData.hp / 3;
+
+        enemy.userData.healthFill.position.x =
+          -(1 - enemy.userData.hp / 3) * 0.46;
+
+        if (enemy.userData.alive) {
+          scene.add(enemy);
+        } else {
+          scene.remove(enemy);
+        }
+
+        enemy.userData.cooldown = 0;
+      });
+    }
 
     if (data.settings) {
       if (['low', 'medium', 'high'].includes(data.settings.quality)) {
