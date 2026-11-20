@@ -340,6 +340,8 @@ button {
   backdrop-filter: blur(16px);
   pointer-events: auto;
   z-index: 10;
+  max-height: calc(100dvh - 130px);
+  overflow-y: auto;
 }
 
 .hidden {
