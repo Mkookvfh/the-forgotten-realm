@@ -22,6 +22,10 @@
         <button id="time-toggle" class="top-btn" type="button">
           ☾ NIGHT
         </button>
+        <button id="inventory-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="inventory">
+  🎒 กระเป๋า
+        </button>
         <button id="settings-open" class="top-btn settings-btn" type="button">
           ⚙ ตั้งค่า
         </button>
@@ -109,8 +113,12 @@
       <p class="note">ข้อมูลเกมบันทึกอยู่ในอุปกรณ์นี้</p>
     </section>
 
-    <section id="inventory" class="panel inventory">
-      <b>กระเป๋าสัมภาระและอุปกรณ์</b>
+    <section id="inventory" class="panel inventory hidden" aria-label="กระเป๋าสัมภาระ">
+  <div class="inventory-head">
+    <b>กระเป๋าสัมภาระและอุปกรณ์</b>
+    <button id="inventory-close" class="close-btn" type="button"
+      aria-label="ปิดกระเป๋า">✕</button>
+  </div>
       <span>✧ ผลึกวิญญาณ <strong id="crystal-count">0</strong></span>
       <span>✚ ยาฟื้นฟู <strong id="potion-count">2</strong> <small>(Q)</small></span>
 
