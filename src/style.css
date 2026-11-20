@@ -494,9 +494,7 @@ button {
     display: none;
   }
 
-  .inventory {
-    bottom: 195px;
-  }
+  
 
   #interaction-hint {
     bottom: 185px;
@@ -562,12 +560,7 @@ button {
     font-size: 9px;
   }
 
-  .inventory {
-    right: 10px;
-    width: 155px;
-    padding: 9px;
-    font-size: 9px;
-  }
+  
 
   .panel {
     top: 112px;
@@ -594,9 +587,7 @@ button {
     height: 42px;
   }
 
-  .inventory {
-    bottom: 155px;
-  }
+  
 
   #interaction-hint {
     bottom: 150px;
