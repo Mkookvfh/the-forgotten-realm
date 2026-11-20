@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import './style.css';
 
 // ---------- DOM ----------
@@ -175,6 +175,52 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
+
+
+// ---------- Imported Open World GLB (Safe Test) ----------
+const worldLoader = new GLTFLoader();
+
+worldLoader.load(
+  `${import.meta.env.BASE_URL}assets/world/open-world-dark-fantasy.glb`,
+
+  (gltf) => {
+    const importedWorld = gltf.scene;
+
+    importedWorld.name = 'ImportedWorldGLB';
+    importedWorld.visible = false;
+
+    importedWorld.updateMatrixWorld(true);
+
+    const bounds = new THREE.Box3().setFromObject(importedWorld);
+    const size = bounds.getSize(new THREE.Vector3());
+
+    let meshCount = 0;
+
+    importedWorld.traverse((object) => {
+      if (object.isMesh) {
+        meshCount++;
+      }
+    });
+
+    scene.add(importedWorld);
+
+    console.log('GLB WORLD LOADED', {
+      size: size.toArray(),
+      meshCount
+    });
+
+    toast(
+      `ตรวจพบแผนที่ GLB · ${Math.round(size.x)} × ${Math.round(size.z)}`
+    );
+  },
+
+  undefined,
+
+  (error) => {
+    console.error('GLB WORLD LOAD ERROR:', error);
+    toast('โหลดไฟล์แผนที่ GLB ไม่สำเร็จ');
+  }
+);
 
 const groundDayColor = new THREE.Color(0x343a32);
 const groundNightColor = new THREE.Color(0x65705d);
