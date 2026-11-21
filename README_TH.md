@@ -4,7 +4,7 @@
 
 ## ระบบที่รวมอยู่
 - ฉากป่ามืด ภูเขา แม่น้ำ ซากโบราณ หอคอย ถ้ำต้องสาป หมอก แสงกลางวัน/กลางคืน และฝน
-- แสงเงา หิ่งห้อย เอฟเฟกต์เวท และการปรับคุณภาพกราฟิกให้เหมาะกับมือถือ
+- แสงเงา หิ่งห้อย เอฟเฟกต์เวท, LOD สำหรับต้นไม้/หิน/ศัตรู, ลดจำนวนหญ้าตามคุณภาพ และจำกัด FPS ได้
 - ตัวละคร Sprite 4 ทิศทาง พร้อมแอนิเมชันเดิน วิ่ง หลบหลีก โจมตี และรับความเสียหาย
 - เดิน วิ่ง กระโดด หลบหลีก พร้อมกล้องติดตาม ปรับมุมและระยะกล้องได้
 - ระบบต่อสู้ ศัตรู AI หลายเฟส บอส 2 ตัว และสัตว์ป่า (กวางวิญญาณ/หมาป่ามืด)
@@ -18,7 +18,7 @@
 - ระบบเสียงบรรยากาศและเอฟเฟกต์ที่สร้างจาก WebAudio ไม่ต้องใช้ไฟล์เสียงภายนอก
 - บันทึก/โหลด 3 ช่อง พร้อมบันทึกอัตโนมัติทุก 30 วินาที
 - ปุ่มควบคุมสัมผัสสำหรับมือถือ และคีย์บอร์ด/เมาส์สำหรับคอมพิวเตอร์
-- GitHub Actions สำหรับ Deploy เว็บ และ Build Android Debug APK ผ่านคลาวด์
+- GitHub Actions สำหรับ Deploy เว็บ และ Build Android Release APK ผ่านคลาวด์
 
 ## การควบคุม
 - WASD/ลูกศร เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก
@@ -30,7 +30,7 @@
 - โมเดลตัวละคร ศัตรู อาวุธ และเกราะยังใช้รูปทรง Three.js พื้นฐาน
 - ยังไม่มีระบบ Multiplayer หรือเซิร์ฟเวอร์ร่วมเล่น
 - ยังไม่มีแอนิเมชันต่อสู้แบบโมเดลกระดูก ( skeletal animation )
-- Android workflow สร้าง Debug APK สำหรับทดสอบ ไม่ใช่ไฟล์ลง Play Store
+- Android workflow เซ็น Release APK ด้วย debug key สำหรับติดตั้งทดสอบในเครื่อง ไม่ใช่ signing key สำหรับ Play Store
 - แผนที่ GLB จะโหลดก็ต่อเมื่อเปิดเว็บด้วย `?glb` และมีไฟล์ `public/assets/world/open-world-dark-fantasy.glb` มิเช่นนั้นจะใช้ฉากต้นแบบ
 
 ## ทดสอบเว็บ
@@ -45,17 +45,23 @@ npm run dev
 npm run build
 ```
 
-## สร้าง Android Debug APK จาก GitHub (ทำได้ผ่านมือถือ)
+สร้าง Android Release APK สำหรับติดตั้งในเครื่อง:
+```bash
+npm run android:release
+```
+ไฟล์จะอยู่ที่ `android/app/build/outputs/apk/release/app-release.apk` คำสั่งนี้ต้องมี JDK 17 และ Android SDK ที่ตั้งค่า `ANDROID_HOME`/`ANDROID_SDK_ROOT` แล้ว รุ่น Release ในโปรเจกต์เซ็นด้วย debug key เพื่อการติดตั้งทดสอบในเครื่อง
+
+## สร้าง Android Release APK จาก GitHub
 1. อัปโหลดไฟล์และโฟลเดอร์ทั้งหมดใน repository โดยให้ `package.json` อยู่ที่ root
 2. Commit และ push ไปยัง branch `main`
 3. เปิดแท็บ **Actions**
 4. เลือก **Build Android APK**
 5. กด **Run workflow** หรือรอให้ workflow ทำงานหลัง push
-6. เปิด workflow run ที่เสร็จแล้วดาวน์โหลด artifact `the-forgotten-realm-debug-apk`
-7. แตกไฟล์ artifact แล้วติดตั้ง `app-debug.apk` เพื่อทดสอบ
+6. เปิด workflow run ที่เสร็จแล้วดาวน์โหลด artifact `the-forgotten-realm-release-apk`
+7. แตกไฟล์ artifact แล้วติดตั้ง `app-release.apk`
 
 ## หมายเหตุสำคัญ
 - อย่าลบไฟล์ `src/` หรือ `.github/workflows/`
 - บันทึกเกมเวอร์ชันเก่ายังโหลดได้ที่ช่อง 1 และจะได้รับทองเริ่มต้น 60
 - ระบบ NPC และสัตว์ป่าจะกลับไปตำแหน่งเริ่มต้นหลังโหลดเกม
-- APK ที่ได้จาก workflow เป็น Debug APK เท่านั้น ยังไม่ใช่ Signed Release APK สำหรับ Play Store
+- APK ที่ได้จาก workflow เป็น Release variant ที่เซ็นด้วย debug key สำหรับติดตั้งในเครื่อง ไม่ใช่ไฟล์สำหรับอัปโหลด Play Store

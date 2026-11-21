@@ -73,6 +73,7 @@
     <section id="quest" class="glass">
       <div class="quest-title">✦ ภารกิจปัจจุบัน</div>
       <span id="quest-text">เดินทางไปยังหอคอยร้าง</span>
+      <span id="side-quest-text" class="side-quest-tracker"></span>
     </section>
 
     <div id="toast" role="status" aria-live="polite"></div>
@@ -95,11 +96,12 @@
         <button id="run" type="button">วิ่ง</button>
         <button id="dodge" type="button">หลบหลีก</button>
         <button id="cast" type="button" disabled>✦ ร่ายเวท</button>
+        <button id="camp" type="button">⛺ ตั้งแคมป์</button>
       </div>
     </section>
 
     <div id="desktop-help">
-       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
+       WASD เดิน · Shift วิ่ง/ควบม้า · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/ขี่ม้า · G ตั้งแคมป์ · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
     </div>
 
     <section id="settings-panel" class="panel hidden">
@@ -119,11 +121,18 @@
           <option value="high">สูง</option>
         </select>
       </label>
+      <label class="toggle">
+        <input id="postfx-toggle" type="checkbox">
+        <span>เปิดเอฟเฟกต์ภาพ Cinematic (Bloom / Vignette)</span>
+      </label>
+      <small class="note">เอฟเฟกต์ใช้ทรัพยากรเพิ่ม และปิดอัตโนมัติเมื่อเลือกกราฟิกต่ำ</small>
+      <label><span>จำกัดเฟรมต่อวินาที</span><select id="fps-limit"><option value="auto">อัตโนมัติ</option><option value="30">30 FPS</option><option value="45">45 FPS</option><option value="60">60 FPS</option></select></label>
 
       <label>
         <span>ความไวกล้อง</span>
         <input id="sensitivity" type="range" min="1" max="12" value="5">
       </label>
+      <label><span>ตำแหน่งปุ่มควบคุมมือถือ</span><select id="mobile-layout"><option value="right">ปุ่มแอ็กชันด้านขวา</option><option value="left">ปุ่มแอ็กชันด้านซ้าย</option></select></label>
 
       <label class="toggle">
         <input id="rain-toggle" type="checkbox" checked>
@@ -133,6 +142,10 @@
       <label class="toggle">
         <input id="sound-toggle" type="checkbox" checked>
         <span>เปิดเสียงบรรยากาศและเอฟเฟกต์</span>
+      </label>
+      <label class="toggle">
+        <input id="music-toggle" type="checkbox" checked>
+        <span>เปิดดนตรีประกอบตามพื้นที่และการต่อสู้</span>
       </label>
 
       <label>
@@ -152,6 +165,13 @@
       <p class="note">บันทึกอัตโนมัติทุก 30 วินาทีในช่องที่เลือก</p>
     </section>
 
+    <section id="camp-panel" class="panel camp-panel hidden" aria-label="ตั้งแคมป์">
+      <div class="panel-head"><div><small>WILDERNESS CAMP</small><b>⛺ ค่ายพักแรม</b></div><button id="camp-close" class="close-btn" type="button">✕</button></div>
+      <p id="camp-status">กองไฟพร้อมสำหรับพักผ่อนและปรุงอาหาร</p>
+      <button id="camp-rest" class="wide-btn" type="button">พักผ่อนจนรุ่งเช้า</button>
+      <button id="camp-cook" class="wide-btn secondary" type="button">ปรุงอาหาร (เนื้อสด 1 + สมุนไพร 1)</button>
+    </section>
+
     <section id="inventory" class="panel inventory hidden" aria-label="กระเป๋าสัมภาระ">
   <div class="inventory-head">
     <b>กระเป๋าสัมภาระและอุปกรณ์</b>
@@ -168,6 +188,7 @@
           <button id="weapon-sword" type="button">ดาบ</button>
           <button id="weapon-greatsword" type="button">ดาบใหญ่</button>
           <button id="weapon-staff" type="button">คทาเวท</button>
+          <button id="weapon-axe" type="button">ขวาน</button><button id="weapon-bow" type="button">ธนู</button><button id="weapon-froststaff" type="button">คทาเหมันต์</button>
         </div>
       </div>
 
@@ -177,6 +198,7 @@
           <button id="armor-leather" type="button">หนัง</button>
           <button id="armor-iron" type="button">เหล็ก</button>
           <button id="armor-shadow" type="button">เงา</button>
+          <button id="armor-ranger" type="button">พราน</button><button id="armor-runerobe" type="button">ผ้าคลุมรูน</button>
         </div>
       </div>
 
@@ -184,6 +206,9 @@
         <span>พลังโจมตี <strong id="attack-stat">1</strong></span>
         <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
         <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
+      </div>
+      <div class="equipment-block"><small class="equipment-heading">สายอาชีพ</small>
+        <div class="equipment-buttons"><button type="button" data-class="warrior">นักรบ</button><button type="button" data-class="ranger">พราน</button><button type="button" data-class="mage">จอมเวท</button></div>
       </div>
       <div class="equipment-block">
         <small class="equipment-heading">🌳 ต้นไม้ทักษะ <small>(<span id="skill-points-tree">0</span> แต้ม)</small></small>
@@ -264,6 +289,7 @@
         <button id="dialogue-close" class="close-btn" type="button">✕</button>
       </div>
       <p id="dialogue-text"></p>
+      <div id="dialogue-choices" class="dialogue-choices"></div>
       <button id="dialogue-next" class="wide-btn" type="button">ถัดไป</button>
     </section>
   </main>
