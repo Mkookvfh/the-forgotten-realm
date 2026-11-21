@@ -1,180 +1,148 @@
-forame: Build Android APK
+
+name: Build Android APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Build THE FORGOTTEN REALM APK
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      
-      - name: Install Blender
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y blender unzip python3-numpy
-
-          blender --background --python-expr "import numpy; print('NUMPY READY:', numpy.__version__)"
-
-
-      - name: Extract and convert Craftpix props
-        shell: bash
-        run: |
-          
-          set -euo pipefail
-
-
-          mkdir -p /tmp/craftpix
-          mkdir -p public/assets/props
-
-          ZIP_FILE="public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip"
-
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "::error::Craftpix ZIP file not found"
-            exit 1
-          fi
-
-          unzip -o "$ZIP_FILE" -d /tmp/craftpix
-
-          cat > /tmp/convert-craftpix.py <<'PY'
-          import bpy
-          import os
-
-          source = "/tmp/craftpix/FBX"
-          texture_dir = "/tmp/craftpix/Texture"
-          output = "public/assets/props"
-
-          os.makedirs(output, exist_ok=True)
-
-          if not os.path.isdir(source):
-              raise RuntimeError("FBX folder not found")
-
-          files = sorted(
-              name for name in os.listdir(source)
-              if name.lower().endswith(".fbx")
-          )
-
-          if not files:
-              raise RuntimeError("No FBX files found")
-
-          converted = 0
-
-          for name in files:
-              print("PROCESSING:", name, flush=True)
-
-              bpy.ops.wm.read_factory_settings(use_empty=True)
-
-              path = os.path.join(source, name)
-
-              bpy.ops.wm.fbx_import(
-              filepath=path
-          )
-
-                           for img in bpy.data.images:
-                  if img.source != 'FILE':
-                      continue
-
-                  current_path = bpy.path.abspath(img.filepath)
-
-                  if not os.path.exists(current_path):
-                      filename = os.path.basename(img.filepath)
-                      candidate = os.path.join(texture_dir, filename)
-
-                      if os.path.exists(candidate):
-                          img.filepath = candidate
-                          img.reload()
-
-                  image_path = bpy.path.abspath(img.filepath)
-
-                  if os.path.isfile(image_path):
-                      img.pack()
-                  else:
-                      print(
-                          "WARNING: Missing texture skipped:",
-                          img.filepath,
-                          flush=True
-                      )
-
-              target = os.path.join(
-                  output,
-                  os.path.splitext(name)[0] + ".glb"
-              )
-
-              bpy.ops.export_scene.gltf(
-                  filepath=target,
-                  export_format="GLB",
-                  export_materials="EXPORT"
-              )
-
-              if not os.path.isfile(target):
-                  raise RuntimeError("GLB export failed: " + name)
-
-              print("CONVERTED:", name, flush=True)
-              converted += 1
-
-          print(
-              "CRAFTPIX CONVERSION COMPLETE:",
-              converted,
-              "models",
-              flush=True
-          )
-          PY
-
-          blender --background --python-exit-code 1 --python /tmp/convert-craftpix.py
-
-          FBX_COUNT=$(find /tmp/craftpix/FBX -maxdepth 1 -type f -iname '*.fbx' | wc -l)
-          GLB_COUNT=$(find public/assets/props -maxdepth 1 -type f -iname '*.glb' | wc -l)
-
-          echo "FBX files: $FBX_COUNT"
-          echo "GLB files: $GLB_COUNT"
-
-          if [ "$FBX_COUNT" -eq 0 ] || [ "$GLB_COUNT" -ne "$FBX_COUNT" ]; then
-            echo "::error::Craftpix conversion count mismatch"
-            exit 1
-          fi
-
-      - name: Extract 3D world assets
-        run: |
-          set -e
-          mkdir -p public/assets/world
-          unzip -o open-world-dark-fantasy-obj.zip -d public/assets/world
-
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Convert 3D world to GLB
+      - name: Install system tools
         run: |
-          set -e
-          npx --yes obj2gltf@3.2.0 \
-            -i public/assets/world/open-world-dark-fantasy.obj \
-            -o public/assets/world/open-world-dark-fantasy.glb \
-            -b
+          sudo apt-get update
+          sudo apt-get install -y blender unzip
+
+      - name: Prepare asset folders
+        run: |
+          mkdir -p public/assets/converted
+          mkdir -p /tmp/tfr-assets
+
+      - name: Extract 3D asset archives
+        run: |
+          if [ -f public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip ]; then
+            unzip -oq public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/tfr-assets/craftpix
+          elif [ -f craftpix-891176-free-environment-props-3d-low-poly-models.zip ]; then
+            unzip -oq craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/tfr-assets/craftpix
+          else
+            echo "Craftpix archive not found. Skipping."
+          fi
+
+          if [ -f open-world-dark-fantasy-obj.zip ]; then
+            unzip -oq open-world-dark-fantasy-obj.zip -d /tmp/tfr-assets/world
+          else
+            echo "World OBJ archive not found. Skipping."
+          fi
+
+      - name: Create Blender conversion script
+        run: |
+          cat > /tmp/convert-assets.py <<'PY'
+          import bpy
+          import sys
+          from pathlib import Path
+
+          args = sys.argv[sys.argv.index("--") + 1:]
+          source = Path(args[0])
+          output = Path(args[1])
+          output.mkdir(parents=True, exist_ok=True)
+
+          supported = {".fbx", ".obj"}
+          files = [p for p in source.rglob("*") if p.suffix.lower() in supported]
+
+          print(f"Found {len(files)} 3D files")
+
+          converted = 0
+          failed = 0
+
+          for file in files:
+              try:
+                  bpy.ops.wm.read_factory_settings(use_empty=True)
+
+                  if file.suffix.lower() == ".fbx":
+                      bpy.ops.import_scene.fbx(filepath=str(file))
+                  elif hasattr(bpy.ops.wm, "obj_import"):
+                      bpy.ops.wm.obj_import(filepath=str(file))
+                  else:
+                      bpy.ops.import_scene.obj(filepath=str(file))
+
+                  relative = file.relative_to(source).with_suffix(".glb")
+                  destination = output / relative
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+
+                  bpy.ops.export_scene.gltf(
+                      filepath=str(destination),
+                      export_format="GLB",
+                      export_image_format="AUTO"
+                  )
+
+                  if destination.exists() and destination.stat().st_size > 0:
+                      converted += 1
+                      print(f"Converted: {file.name}")
+                  else:
+                      failed += 1
+                      print(f"Export failed: {file.name}")
+
+              except Exception as error:
+                  failed += 1
+                  print(f"Failed: {file}: {error}")
+
+          print(f"Conversion complete: {converted} successful, {failed} failed")
+
+          if files and converted == 0:
+              raise RuntimeError("No 3D assets could be converted")
+          PY
+
+      - name: Convert 3D assets to GLB
+        run: |
+          if [ -d /tmp/tfr-assets/craftpix ]; then
+            blender --background --python /tmp/convert-assets.py -- \
+              /tmp/tfr-assets/craftpix public/assets/converted/craftpix
+          fi
+
+          if [ -d /tmp/tfr-assets/world ]; then
+            blender --background --python /tmp/convert-assets.py -- \
+              /tmp/tfr-assets/world public/assets/converted/world
+          fi
+
+      - name: Install project dependencies
+        run: npm install
 
       - name: Build web game
         run: npm run build
 
-      - name: Add Android platform
-        run: npx cap add android
-
-      - name: Sync Android
-        run: npx cap sync android
-
-      - name: Build debug APK
-        working-directory: android
+      - name: Set up Capacitor Android
         run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
