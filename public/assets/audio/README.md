@@ -11,6 +11,3 @@ All files are stored locally and streamed only when their biome or weather layer
 - `dungeon-wind.ogg` — “Howling wind”, Tvabutzku1234; CC0 1.0. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Howling_wind.ogg)
 - `night-insects.ogg` — “Grasshoppers”, Mysid; public domain. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Grasshoppers.ogg)
 - `owl.ogg` — “Owlcall”, L. Shyamal; CC BY-SA 4.0. Included unmodified. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Owlcall.ogg) · [License](https://creativecommons.org/licenses/by-sa/4.0/)
-- 
-
-
