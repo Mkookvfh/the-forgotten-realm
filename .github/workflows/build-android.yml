@@ -120,7 +120,9 @@ jobs:
           ls -lh public/assets/world/open-world-dark-fantasy.glb
 
       - name: Install project dependencies
-        run: npm ci
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
 
       - name: Build web game
         run: npm run build
