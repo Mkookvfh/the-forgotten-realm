@@ -15,12 +15,17 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.5</small>
+        <small>ASHEN WILDS · UPDATE 0.6</small>
       </div>
 
       <div class="top-actions">
+        <span id="clock" class="clock">NIGHT</span>
         <button id="time-toggle" class="top-btn" type="button">
           ☾ NIGHT
+        </button>
+        <button id="shop-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="shop-panel">
+  🏪 ตลาด
         </button>
         <button id="quest-open" class="top-btn" type="button"
   aria-expanded="false" aria-controls="quest-panel">
@@ -94,7 +99,7 @@
     </section>
 
     <div id="desktop-help">
-       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · M แผนที่
+       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
     </div>
 
     <section id="settings-panel" class="panel hidden">
@@ -125,12 +130,26 @@
         <span>เปิดสภาพอากาศ / ฝน</span>
       </label>
 
+      <label class="toggle">
+        <input id="sound-toggle" type="checkbox" checked>
+        <span>เปิดเสียงบรรยากาศและเอฟเฟกต์</span>
+      </label>
+
+      <label>
+        <span>ช่องบันทึก</span>
+        <select id="save-slot">
+          <option value="1">ช่อง 1</option>
+          <option value="2">ช่อง 2</option>
+          <option value="3">ช่อง 3</option>
+        </select>
+      </label>
+
       <div class="settings-actions">
         <button id="save-button" class="wide-btn" type="button">บันทึกเกม</button>
         <button id="load-button" class="wide-btn secondary" type="button">โหลดเกม</button>
       </div>
 
-      <p class="note">ข้อมูลเกมบันทึกอยู่ในอุปกรณ์นี้</p>
+      <p class="note">บันทึกอัตโนมัติทุก 30 วินาทีในช่องที่เลือก</p>
     </section>
 
     <section id="inventory" class="panel inventory hidden" aria-label="กระเป๋าสัมภาระ">
@@ -141,6 +160,7 @@
   </div>
       <span>✧ ผลึกวิญญาณ <strong id="crystal-count">0</strong></span>
       <span>✚ ยาฟื้นฟู <strong id="potion-count">2</strong> <small>(Q)</small></span>
+      <span>◈ ทอง <strong id="gold-count">60</strong></span>
 
       <div class="equipment-block">
         <small class="equipment-heading">อาวุธที่สวมใส่: <strong id="equipped-weapon">ดาบ</strong></small>
@@ -187,6 +207,22 @@
           <button id="spell-heal" data-spell="heal" type="button" disabled>รักษา</button>
         </div>
       </div>
+    </section>
+
+    <section id="shop-panel" class="panel shop-panel hidden" aria-label="ร้านค้าเร่ร่อน">
+      <div class="panel-head">
+        <div>
+          <small>WANDERING MERCHANT</small>
+          <b>🏪 ร้านค้าเร่ร่อน</b>
+        </div>
+        <button id="shop-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div class="shop-gold">ทองของคุณ: <strong id="shop-gold">60</strong></div>
+      <small class="equipment-heading">ซื้อสินค้า</small>
+      <div id="shop-buy" class="shop-list"></div>
+      <small class="equipment-heading">ขายของในกระเป๋า</small>
+      <div id="shop-sell" class="shop-list"></div>
+      <p class="note">กด B เพื่อเปิด/ปิดร้านค้า</p>
     </section>
 
     <section id="quest-panel" class="panel quest-panel hidden" aria-label="บันทึกภารกิจ">
