@@ -675,12 +675,12 @@ export function createSystems(ctx) {
 
     container.innerHTML = RECIPES.map((recipe) => {
       const cost = Object.entries(recipe.cost)
-        .map(([id, amount]) => `${MATERIAL_INFO[id].name}×${amount}`)
+        .map(([id, amount]) => `${MATERIAL_INFO[id]?.name ?? id}×${amount}`)
         .join(' · ');
       const disabled = recipeOwned(recipe) || !canCraft(recipe) ? ' disabled' : '';
       const label = recipeOwned(recipe) ? 'มีแล้ว' : recipe.name;
       const rarity = recipe.rarity
-        ? ` <em class="rarity ${recipe.rarity}">[${RARITY[recipe.rarity].name}]</em>`
+        ? ` <em class="rarity ${recipe.rarity}">[${RARITY[recipe.rarity]?.name ?? recipe.rarity].name}]</em>`
         : '';
       return (
         `<button type="button" class="craft-btn" data-recipe="${recipe.id}"${disabled}>` +
