@@ -1164,5 +1164,28 @@ body {
     min-width: 40px;
     padding: 6px;
     font-size: 8px;
+
+
+/* UI PANEL VISIBILITY FIX */
+#hud {
+  z-index: 5;
+}
+
+#hud .panel {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+#hud .panel.hidden {
+  display: none !important;
+}
+
+#hud .panel:not(.hidden) {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+}
+
   }
 }
