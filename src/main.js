@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createSystems, RARITY } from './systems.js';
+import { createAudio } from './audio.js';
 import './style.css';
 
 // ---------- DOM ----------
@@ -15,12 +16,21 @@ const ui = {
   level: $('#level-text'), crystals: $('#crystal-count'),
   potions: $('#potion-count'), quest: $('#quest-text'),
   clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
-    settings: $('#settings-panel'),
-  inventory: $('#inventory')
+  settings: $('#settings-panel'), inventory: $('#inventory'),
+  shop: $('#shop-panel'), gold: $('#gold-count')
 };
 
 const isTouch = matchMedia('(pointer: coarse)').matches;
-const settings = { quality: 'medium', sensitivity: 5, weather: true };
+const settings = {
+  quality: 'medium',
+  sensitivity: 5,
+  weather: true,
+  sound: true,
+  dayNightMode: 'auto'
+};
+const audio = createAudio();
+let currentSlot = 1;
+let dayNightMode = 'auto';
 
 const weaponStats = {
   sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common' },
@@ -37,8 +47,9 @@ const armorStats = {
 };
 
 const state = {
-  hp: 100, stamina: 100, crystals: 0, potions: 2,
+  hp: 100, stamina: 100,   crystals: 0, potions: 2, gold: 60,
   level: 1, xp: 0, questStage: 0,
+
   weapon: 'sword', armor: 'leather',
   attackBonus: 0, skillPoints: 0,
   maxHp: 100, maxMana: 100,
@@ -48,7 +59,8 @@ const state = {
   quests: {},
   dayTime: 0.72, weatherTime: 0,
   weatherOn: true, dead: false,
-  discoveredRegions: []
+  discoveredRegions: [],
+  dungeonCleared: false
 };
 
 let toastTimer = 0;
@@ -60,6 +72,10 @@ function toast(message) {
   toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2200);
 }
 
+function getSaveKey(slot = currentSlot) {
+  return `forgotten-realm-save-v1-slot-${slot}`;
+}
+
 function updateHud() {
   ui.hp.style.width = `${Math.max(0, state.hp)}%`;
   ui.hpText.textContent = `${Math.ceil(state.hp)} / ${state.maxHp}`;
@@ -68,6 +84,7 @@ function updateHud() {
   ui.level.textContent = String(state.level);
   ui.crystals.textContent = String(state.crystals);
   ui.potions.textContent = String(state.potions);
+  if (ui.gold) ui.gold.textContent = String(state.gold);
 
   ui.quest.textContent = state.questStage === 0
     ? 'เดินทางไปยังหอคอยร้าง'
@@ -316,52 +333,42 @@ let importedWorld = null;
 let importedWorldBounds = null;
 const terrainRaycaster = new THREE.Raycaster();
 
-// ---------- Imported Open World GLB (Safe Test) ----------
-const worldLoader = new GLTFLoader();
+const glbRequested = new URLSearchParams(location.search).has('glb');
 
-worldLoader.load(
-  `${import.meta.env.BASE_URL}assets/world/open-world-dark-fantasy.glb`,
+if (glbRequested) {
+  const worldLoader = new GLTFLoader();
+  worldLoader.load(
+    `${import.meta.env.BASE_URL}assets/world/open-world-dark-fantasy.glb`,
 
-  (gltf) => {
-    importedWorld = gltf.scene;
+    (gltf) => {
+      importedWorld = gltf.scene;
+      importedWorld.name = 'ImportedWorldGLB';
+      importedWorld.visible = true;
+      importedWorld.updateMatrixWorld(true);
 
-    importedWorld.name = 'ImportedWorldGLB';
-    importedWorld.visible = true;
+      const bounds = new THREE.Box3().setFromObject(importedWorld);
+      importedWorldBounds = bounds;
+      const size = bounds.getSize(new THREE.Vector3());
 
-    importedWorld.updateMatrixWorld(true);
+      let meshCount = 0;
+      importedWorld.traverse((object) => {
+        if (object.isMesh) meshCount++;
+      });
 
-    const bounds = new THREE.Box3().setFromObject(importedWorld);
-    importedWorldBounds = bounds;
-    const size = bounds.getSize(new THREE.Vector3());
+      scene.add(importedWorld);
+      ground.visible = false;
 
-    let meshCount = 0;
+      toast(`ตรวจพบแผนที่ GLB · ${Math.round(size.x)} × ${Math.round(size.z)}`);
+    },
 
-    importedWorld.traverse((object) => {
-      if (object.isMesh) {
-        meshCount++;
-      }
-    });
+    undefined,
 
-    scene.add(importedWorld);
-    ground.visible = false;
-
-    console.log('GLB WORLD LOADED', {
-      size: size.toArray(),
-      meshCount
-    });
-
-    toast(
-      `ตรวจพบแผนที่ GLB · ${Math.round(size.x)} × ${Math.round(size.z)}`
-    );
-  },
-
-  undefined,
-
-  (error) => {
-    console.error('GLB WORLD LOAD ERROR:', error);
-    toast('โหลดไฟล์แผนที่ GLB ไม่สำเร็จ');
-  }
-);
+    (error) => {
+      console.error('GLB WORLD LOAD ERROR:', error);
+      toast('โหลดไฟล์แผนที่ GLB ไม่สำเร็จ ใช้แผนที่ต้นแบบแทน');
+    }
+  );
+}
 
 const groundDayColor = new THREE.Color(0x343a32);
 const groundNightColor = new THREE.Color(0x65705d);
@@ -604,6 +611,71 @@ const shrine = new THREE.Mesh(
 shrine.position.set(0, 2, -43);
 scene.add(shrine);
 
+const dungeonArena = new THREE.Group();
+const dungeonFloor = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9.6, .4, 12),
+  new THREE.MeshStandardMaterial({ color: 0x252b33, roughness: 1 })
+);
+dungeonFloor.position.y = .2;
+dungeonFloor.receiveShadow = true;
+dungeonArena.add(dungeonFloor);
+
+for (let i = 0; i < 8; i++) {
+  const angle = i / 8 * Math.PI * 2;
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(.65, .9, 4.5, 6),
+    mats.ruin
+  );
+  pillar.position.set(Math.cos(angle) * 8.2, 2.25, Math.sin(angle) * 8.2);
+  pillar.castShadow = true;
+  pillar.receiveShadow = true;
+  dungeonArena.add(pillar);
+  obstacles.push({
+    x: -28 + pillar.position.x,
+    z: -87 + pillar.position.z,
+    radius: .9
+  });
+}
+dungeonArena.position.set(-28, 0, -87);
+scene.add(dungeonArena);
+
+const dungeonPortal = new THREE.Group();
+const portalRing = new THREE.Mesh(
+  new THREE.TorusGeometry(1.8, .22, 10, 28),
+  new THREE.MeshStandardMaterial({
+    color: 0x9c6ad8,
+    emissive: 0x5e2aa0,
+    emissiveIntensity: 1.8,
+    roughness: .3
+  })
+);
+portalRing.position.y = 2.1;
+dungeonPortal.add(portalRing);
+
+const portalCore = new THREE.Mesh(
+  new THREE.CircleGeometry(1.62, 28),
+  new THREE.MeshBasicMaterial({
+    color: 0x1b0d2e,
+    transparent: true,
+    opacity: .82,
+    side: THREE.DoubleSide
+  })
+);
+portalCore.position.y = 2.1;
+dungeonPortal.add(portalCore);
+
+for (let i = 0; i < 4; i++) {
+  const stone = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(.8 + i * .12, 0),
+    mats.ruin
+  );
+  const angle = i / 4 * Math.PI * 2;
+  stone.position.set(Math.cos(angle) * 2.6, .45, Math.sin(angle) * 2.6);
+  stone.castShadow = true;
+  dungeonPortal.add(stone);
+}
+dungeonPortal.position.set(-24, 0, -77);
+scene.add(dungeonPortal);
 
 // ---------- Pixel Art Player ----------
 const player = new THREE.Group();
@@ -805,7 +877,11 @@ for (let i = 0; i < 8; i++) {
     new THREE.OctahedronGeometry(.38),
     crystalMat
   );
-  crystal.position.set((i % 2 ? 1 : -1) * (3.5 + random() * 2), .8, -8 - i * 6);
+  const crystalX = (i % 2 ? 1 : -1) * (3.5 + random() * 2);
+  const crystalZ = -8 - i * 6;
+  const crystalY = getTerrainHeight(crystalX, crystalZ, 0) ?? 0;
+  crystal.position.set(crystalX, crystalY + .8, crystalZ);
+  crystal.userData.baseY = crystalY;
   crystal.castShadow = true;
   scene.add(crystal);
   collectibles.push(crystal);
@@ -834,6 +910,21 @@ const enemyTypes = {
     name: 'เจ้าแห่งซากปรัก', hp: 20, damage: 16, speed: 1.25,
     aggro: 18, reach: 2.8, cooldown: 1.5, xp: 300,
     scale: 2.1, color: 0x3a2246, emissive: 0x3d0b52, eye: 0xff4fd8
+  },
+  dungeonBoss: {
+    name: 'ผู้คุมถ้ำต้องสาป', hp: 28, damage: 15, speed: 1.45,
+    aggro: 22, reach: 3, cooldown: 1.35, xp: 420,
+    scale: 2.3, color: 0x263347, emissive: 0x133a4f, eye: 0x8ce8ff
+  },
+  wolf: {
+    name: 'หมาป่ามืด', hp: 3, damage: 5, speed: 2.7,
+    aggro: 9, reach: 1.6, cooldown: 1.4, xp: 40,
+    scale: .9, color: 0x30343d, emissive: 0x10131c, eye: 0xffb35c
+  },
+  deer: {
+    name: 'กวางวิญญาณ', hp: 2, damage: 0, speed: 3.2,
+    aggro: 7, reach: 1, cooldown: 2, xp: 15,
+    scale: .7, color: 0x58715c, emissive: 0x1b2c1f, eye: 0xbaff91
   }
 };
 
@@ -862,8 +953,9 @@ function spawnEnemy(type, x, z) {
   eyes.position.set(0, 1.55, .36);
   enemy.add(eyes);
 
-  if (type === 'boss') {
-    const crown = new THREE.Mesh(
+  let crown = null;
+  if (type === 'boss' || type === 'dungeonBoss') {
+    crown = new THREE.Mesh(
       new THREE.ConeGeometry(.42, .8, 6),
       new THREE.MeshStandardMaterial({
         color: 0xc992f0,
@@ -898,7 +990,8 @@ function spawnEnemy(type, x, z) {
   healthBar.position.y = 2.05;
   enemy.add(healthBar);
 
-  enemy.position.set(x, 0, z);
+  const y = getTerrainHeight(x, z, 0) ?? 0;
+  enemy.position.set(x, y, z);
   enemy.scale.setScalar(stats.scale);
   enemy.userData = {
     type,
@@ -909,9 +1002,16 @@ function spawnEnemy(type, x, z) {
     alive: true,
     homeX: x,
     homeZ: z,
+    baseY: y,
+    baseScale: stats.scale,
     cooldown: 0,
+    phase: 1,
+    phaseMultiplier: 1,
+    crown,
     healthBar,
-    healthFill
+    healthFill,
+    kind: ['wolf', 'deer'].includes(type) ? 'animal' : 'enemy',
+    dungeon: false
   };
 
   scene.add(enemy);
@@ -928,10 +1028,29 @@ const enemySpawns = [
   ['wraith', -10, -52],
   ['brute', 10, -50],
   ['brute', 15, -58],
-  ['boss', 0, -86]
+  ['boss', 0, -86],
+  ['wolf', -14, -22],
+  ['wolf', 14, -34],
+  ['deer', -19, -9],
+  ['deer', 18, -17]
 ];
 
 for (const [type, x, z] of enemySpawns) spawnEnemy(type, x, z);
+
+const dungeonSpawns = [
+  ['wraith', -32, -83],
+  ['wraith', -24, -83],
+  ['brute', -28, -92],
+  ['dungeonBoss', -28, -88]
+];
+
+const dungeonEnemies = dungeonSpawns.map(([type, x, z]) => {
+  const enemy = spawnEnemy(type, x, z);
+  enemy.userData.dungeon = true;
+  enemy.userData.alive = false;
+  scene.remove(enemy);
+  return enemy;
+});
 
 // ---------- Update 0.5 Systems ----------
 const systems = createSystems({
@@ -944,16 +1063,21 @@ const systems = createSystems({
   updateHud,
   refreshEquipmentUI,
   defeatEnemy,
+  getTerrainHeight,
+  audio,
   staticLandmarks: [
     { position: tower.position, color: '#c9a86a', size: 4.5, name: 'หอคอย', region: 'tower' },
     { position: ruinGroup.position, color: '#9d9fb4', size: 4, name: 'ซากวิหาร', region: 'ruins' },
-    { position: shrine.position, color: '#d6a8f0', size: 3.5, name: 'ศาลเจ้า', region: 'tower' }
+    { position: shrine.position, color: '#d6a8f0', size: 3.5, name: 'ศาลเจ้า', region: 'tower' },
+    { position: dungeonPortal.position, color: '#b57ce8', size: 5, name: 'ประตูถ้ำต้องสาป', region: 'dungeon' },
+    { position: new THREE.Vector3(-28, 0, -87), color: '#7cd9e8', size: 4, name: 'ถ้ำต้องสาป', region: 'dungeon' }
   ],
   regions: [
     { id: 'tower', name: 'หอคอยแห่งผู้สูญหาย', center: tower.position, radius: 10 },
     { id: 'ruins', name: 'วิหารโบราณ', center: ruinGroup.position, radius: 12 },
     { id: 'river', name: 'ริมแม่น้ำโบราณ', center: new THREE.Vector3(0, 0, -72), radius: 18 },
     { id: 'forest', name: 'ป่าต้องสาป', center: new THREE.Vector3(-12, 0, -30), radius: 20 },
+    { id: 'dungeon', name: 'ถ้ำต้องสาป', center: new THREE.Vector3(-28, 0, -87), radius: 14 },
     { id: 'wilderness', name: 'ทุ่งรกร้าง', center: new THREE.Vector3(0, 0, 0), radius: 25 }
   ]
 });
@@ -1024,6 +1148,8 @@ fireflies.visible = false;
 scene.add(fireflies);
     
 
+addEventListener('pointerdown', () => audio.unlock(), { once: true });
+
 // ---------- Controls ----------
 const keys = Object.create(null);
 
@@ -1054,6 +1180,8 @@ function clearInputs() {
 }
 
 addEventListener('keydown', (e) => {
+  audio.unlock();
+
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
     e.preventDefault();
   }
@@ -1065,7 +1193,9 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyQ') usePotion();
     if (e.code === 'KeyC') input.dodgePressed = true;
     if (e.code === 'KeyR') systems.castSpell();
+    if (e.code === 'KeyB') systems.toggleShop();
     if (e.code === 'KeyM') toggleMapPanel();
+    if (e.code === 'Escape') closePanels();
   }
 
   keys[e.code] = true;
@@ -1234,17 +1364,25 @@ let attackCooldown = 0;
 let dodgeCooldown = 0;
 let dodgeTimer = 0;
 let invulnerabilityTimer = 0;
+let attackAnimTimer = 0;
+let hurtAnimTimer = 0;
 const dodgeDirection = new THREE.Vector3();
 let autoSaveTimer = 0;
+let dungeonActive = false;
 
 const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 
 
-function saveGame(showMessage = true) {
+function saveGame(showMessage = true, slot = currentSlot) {
+  if (typeof showMessage !== 'boolean') showMessage = true;
+  currentSlot = slot;
+
   const payload = {
-    version: 5,
+    version: 6,
+    slot,
+    dungeonActive,
     player: [
       player.position.x,
       player.position.y,
@@ -1253,9 +1391,7 @@ function saveGame(showMessage = true) {
     state: { ...state },
     settings: { ...settings },
     systems: systems.serializeWorld(),
-
     collectibles: collectibles.map(crystal => crystal.visible),
-
     enemies: enemies.map(enemy => ({
       type: enemy.userData.type,
       position: [
@@ -1269,22 +1405,21 @@ function saveGame(showMessage = true) {
   };
 
   try {
-    localStorage.setItem(
-      'forgotten-realm-save-v1',
-      JSON.stringify(payload)
-    );
-
-    if (showMessage) toast('บันทึกความคืบหน้าโลกแล้ว');
+    const serialized = JSON.stringify(payload);
+    localStorage.setItem(getSaveKey(slot), serialized);
+    if (slot === 1) localStorage.setItem('forgotten-realm-save-v1', serialized);
+    if (showMessage) toast(`บันทึกความคืบหน้าช่อง ${slot} แล้ว`);
   } catch (error) {
     console.error(error);
     toast('ไม่สามารถบันทึกได้ในอุปกรณ์นี้');
   }
 }
 
-function loadGame() {
+function loadGame(slot = currentSlot) {
   try {
-    const raw = localStorage.getItem('forgotten-realm-save-v1');
-    if (!raw) return toast('ยังไม่มีข้อมูลบันทึก');
+    const raw = localStorage.getItem(getSaveKey(slot)) ||
+      (slot === 1 ? localStorage.getItem('forgotten-realm-save-v1') : null);
+    if (!raw) return toast(`ยังไม่มีข้อมูลบันทึกช่อง ${slot}`);
 
     const data = JSON.parse(raw);
 
@@ -1297,10 +1432,12 @@ function loadGame() {
       throw new Error('Invalid save format');
     }
 
+    currentSlot = slot;
     player.position.set(...data.player);
+    dungeonActive = Boolean(data.dungeonActive);
 
     const numberFields = [
-      'hp', 'stamina', 'crystals', 'potions',
+      'hp', 'stamina', 'crystals', 'potions', 'gold',
       'level', 'xp', 'questStage', 'dayTime'
     ];
 
@@ -1310,11 +1447,14 @@ function loadGame() {
       }
     }
 
+    state.dungeonCleared = Boolean(data.state.dungeonCleared);
+
     systems.restoreState();
     systems.deserializeWorld(data.systems);
 
     state.hp = THREE.MathUtils.clamp(state.hp, 0, state.maxHp);
     state.stamina = THREE.MathUtils.clamp(state.stamina, 0, 100);
+    state.gold = Math.max(0, Math.floor(state.gold));
     state.weapon = weaponStats[data.state.weapon] ? data.state.weapon : 'sword';
     state.armor = armorStats[data.state.armor] ? data.state.armor : 'leather';
     state.attackBonus = THREE.MathUtils.clamp(
@@ -1326,18 +1466,15 @@ function loadGame() {
     state.level = Math.max(1, state.level);
     state.questStage = THREE.MathUtils.clamp(state.questStage, 0, 2);
     state.discoveredRegions = Array.isArray(data.state.discoveredRegions)
-  ? data.state.discoveredRegions.filter(id => typeof id === 'string')
-  : [];
+      ? data.state.discoveredRegions.filter(id => typeof id === 'string')
+      : [];
 
-    
-    // Restore collected crystals
     if (Array.isArray(data.collectibles)) {
       collectibles.forEach((crystal, index) => {
         crystal.visible = data.collectibles[index] !== false;
       });
     }
 
-    // Restore enemy health and positions
     if (Array.isArray(data.enemies)) {
       enemies.forEach((enemy, index) => {
         const saved = data.enemies[index];
@@ -1353,7 +1490,7 @@ function loadGame() {
         }
 
         enemy.userData.homeX = enemy.position.x;
-enemy.userData.homeZ = enemy.position.z;
+        enemy.userData.homeZ = enemy.position.z;
 
         const maxHp = enemy.userData.maxHp;
         enemy.userData.hp = THREE.MathUtils.clamp(
@@ -1376,6 +1513,8 @@ enemy.userData.homeZ = enemy.position.z;
         }
 
         enemy.userData.cooldown = 0;
+        enemy.userData.phase = 1;
+        enemy.userData.phaseMultiplier = 1;
       });
     }
 
@@ -1389,7 +1528,15 @@ enemy.userData.homeZ = enemy.position.z;
         );
       }
       settings.weather = Boolean(data.settings.weather);
+      settings.sound = Boolean(data.settings.sound);
+      if (['auto', 'day', 'night'].includes(data.settings.dayNightMode)) {
+        settings.dayNightMode = data.settings.dayNightMode;
+      }
     }
+
+    dayNightMode = settings.dayNightMode || 'auto';
+    const slotSelect = $('#save-slot');
+    if (slotSelect) slotSelect.value = String(slot);
 
     applySettings();
     updateHud();
@@ -1397,7 +1544,8 @@ enemy.userData.homeZ = enemy.position.z;
     refreshSkillUI();
     systems.refreshInventoryUI();
     systems.refreshQuestUI();
-    toast('โหลดเกมแล้ว');
+    systems.renderShop();
+    toast(`โหลดเกมช่อง ${slot} แล้ว`);
   } catch (error) {
     console.error(error);
     toast('ข้อมูลบันทึกเสียหายหรือไม่ถูกต้อง');
@@ -1410,6 +1558,7 @@ function usePotion() {
 
   state.potions--;
   state.hp = Math.min(state.maxHp, state.hp + 45);
+  audio.play('potion');
   updateHud();
   toast('ใช้ยาฟื้นฟู +45 HP');
 }
@@ -1421,24 +1570,55 @@ function gainXp(amount) {
     state.xp -= 100;
     state.level++;
     state.skillPoints++;
+    audio.play('level');
     refreshEquipmentUI();
     refreshSkillUI();
     toast(`เลเวลเพิ่มเป็น ${state.level} · ได้แต้มทักษะ 1`);
   }
 }
 
+function completeDungeonIfReady() {
+  if (!dungeonActive) return;
+  if (!dungeonEnemies.every(enemy => !enemy.userData.alive)) return;
+
+  dungeonActive = false;
+  state.dungeonCleared = true;
+  state.crystals += 6;
+  state.gold += 180;
+  gainXp(250);
+
+  const exitY = getTerrainHeight(-24, -70, 0) ?? 0;
+  player.position.set(-24, exitY, -70);
+  audio.play('quest');
+  toast('ถ้ำต้องสาปสงบแล้ว · ได้ผลึก 6 · ทอง 180');
+  updateHud();
+}
+
 function defeatEnemy(enemy) {
   if (!enemy.userData.alive) return;
 
+  const type = enemy.userData.type;
   enemy.userData.hp = 0;
   enemy.userData.alive = false;
   scene.remove(enemy);
 
-  const crystals = enemy.userData.type === 'boss' ? 5 : 1;
+  const crystals = type === 'boss' ? 5
+    : type === 'dungeonBoss' ? 6
+      : type === 'deer' ? 0 : 1;
+  const gold = type === 'deer' ? 8
+    : type === 'wolf' ? 14
+      : type === 'boss' ? 120
+        : type === 'dungeonBoss' ? 200 : 20;
+
   state.crystals += crystals;
+  state.gold += gold;
   gainXp(enemy.userData.stats.xp);
   systems.onEnemyKilled(enemy);
-  toast(`${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} ชิ้น`);
+  audio.play(type === 'boss' || type === 'dungeonBoss' ? 'boss' : 'hit');
+  toast(
+    `${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} · ทอง ${gold}`
+  );
+  completeDungeonIfReady();
   updateHud();
 }
 
@@ -1447,19 +1627,24 @@ function attack() {
 
   const weapon = weaponStats[state.weapon] || weaponStats.sword;
   attackCooldown = weapon.cooldown;
+  attackAnimTimer = .24;
+  audio.play('attack');
   let hit = false;
 
   for (const enemy of enemies) {
     if (!enemy.userData.alive) continue;
 
-    const d = player.position.distanceTo(enemy.position);
+    const dx = player.position.x - enemy.position.x;
+    const dz = player.position.z - enemy.position.z;
+    const d = Math.hypot(dx, dz);
 
     if (d < weapon.range) {
       enemy.userData.hp -= weapon.damage + state.attackBonus;
       hit = true;
-      enemy.scale.setScalar(.92);
+      const baseScale = enemy.userData.baseScale || 1;
+      enemy.scale.setScalar(baseScale * .92);
 
-      setTimeout(() => enemy.scale.setScalar(1), 100);
+      setTimeout(() => enemy.scale.setScalar(baseScale), 100);
 
       if (enemy.userData.hp <= 0) {
         defeatEnemy(enemy);
@@ -1475,8 +1660,52 @@ function attack() {
   updateHud();
 }
 
+function setDungeonEnemies(active) {
+  for (const enemy of dungeonEnemies) {
+    enemy.userData.hp = active ? enemy.userData.maxHp : 0;
+    enemy.userData.alive = active;
+    enemy.userData.cooldown = 0;
+    enemy.userData.phase = 1;
+    enemy.userData.phaseMultiplier = 1;
+    enemy.userData.healthFill.scale.x = active ? 1 : 0;
+    enemy.userData.healthFill.position.x = 0;
+    enemy.position.set(
+      enemy.userData.homeX,
+      enemy.userData.baseY,
+      enemy.userData.homeZ
+    );
+
+    if (active) scene.add(enemy);
+    else scene.remove(enemy);
+  }
+}
+
+function enterDungeon() {
+  dungeonActive = true;
+  setDungeonEnemies(true);
+
+  const arenaY = getTerrainHeight(-28, -90, 0) ?? 0;
+  player.position.set(-28, arenaY, -90);
+  audio.play('boss');
+  toast('คุณเข้าสู่ถ้ำต้องสาป · กำจัดผู้คุมถ้ำให้หมด');
+}
+
 function interact() {
   if (systems.interact()) return;
+
+  const portalDistance = Math.hypot(
+    player.position.x - dungeonPortal.position.x,
+    player.position.z - dungeonPortal.position.z
+  );
+
+  if (portalDistance < 5) {
+    if (dungeonActive) {
+      toast('กำจัดสิ่งมีชีวิตในถ้ำให้หมดก่อนออกไป');
+    } else {
+      enterDungeon();
+    }
+    return;
+  }
 
   if (player.position.distanceTo(shrine.position) < 5) {
     if (state.questStage === 0) {
@@ -1484,7 +1713,8 @@ function interact() {
       toast('ภารกิจใหม่: กำจัดผู้พิทักษ์');
     } else if (
       state.questStage === 1 &&
-      enemies.every(e => !e.userData.alive)
+      enemies.filter(e => e.userData.type === 'guardian')
+        .every(e => !e.userData.alive)
     ) {
       state.questStage = 2;
       gainXp(100);
@@ -1502,8 +1732,6 @@ function interact() {
 }
 
 // ---------- Day and Night ----------
-
-let dayNightMode = 'auto';
 
 function updateDayNight(dt) {
   if (dayNightMode === 'auto') {
@@ -1639,6 +1867,14 @@ const worldRegions = [
       && player.position.z >= -65
   },
   {
+    id: 'dungeon',
+    name: 'ถ้ำต้องสาป',
+    isInside: () => Math.hypot(
+      player.position.x + 28,
+      player.position.z + 87
+    ) < 13
+  },
+  {
     id: 'wilderness',
     name: 'ทุ่งรกร้าง',
     isInside: () => true
@@ -1653,14 +1889,36 @@ function updateRegionDiscovery() {
   toast(`ค้นพบพื้นที่ใหม่: ${region.name}`);
 }
 
-// ---------- World Update ----------
+function updateBossPhase(data) {
+  const ratio = Math.max(0, data.hp / data.maxHp);
+  const phase = ratio > .65 ? 1 : ratio > .3 ? 2 : 3;
+  if (phase === data.phase) return;
+
+  data.phase = phase;
+  data.phaseMultiplier = phase === 1 ? 1 : phase === 2 ? 1.18 : 1.42;
+  data.healthFill.material.color.setHex(
+    phase === 3 ? 0xff3030 : phase === 2 ? 0xff9a3d : 0xff4fd8
+  );
+  if (data.crown) data.crown.material.emissiveIntensity = 1.4 + phase * .6;
+
+  if (phase > 1) {
+    toast(`${data.name} เข้าเฟส ${phase} · โจมตีรุนแรงขึ้น`);
+    audio.play('boss');
+  }
+}
+
 function updateWorld(dt) {
   updateRegionDiscovery();
+
+  portalRing.rotation.z += dt * .35;
+  portalCore.material.opacity = .72 + Math.sin(clock.elapsedTime * 2) * .12;
+  shrine.rotation.y += dt * .4;
+
   for (const crystal of collectibles) {
     if (!crystal.visible) continue;
 
     crystal.rotation.y += dt * .8;
-    crystal.position.y = .8 + Math.sin(
+    crystal.position.y = (crystal.userData.baseY || 0) + .8 + Math.sin(
       performance.now() * .002 + crystal.position.z
     ) * .12;
 
@@ -1668,12 +1926,12 @@ function updateWorld(dt) {
       crystal.visible = false;
       state.crystals++;
       gainXp(10);
+      audio.play('pickup');
       toast('เก็บผลึกวิญญาณ +1');
       updateHud();
     }
   }
 
-  
   for (const enemy of enemies) {
     if (!enemy.userData.alive) continue;
 
@@ -1682,6 +1940,12 @@ function updateWorld(dt) {
     const dx = player.position.x - enemy.position.x;
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
+    const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
+
+    if (isBoss) updateBossPhase(data);
+
+    const speed = stats.speed * data.phaseMultiplier;
+    const attackDamage = stats.damage * data.phaseMultiplier;
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
     data.healthFill.scale.x = hpRatio;
@@ -1692,22 +1956,40 @@ function updateWorld(dt) {
 
     data.cooldown = Math.max(0, data.cooldown - dt);
 
-    if (distance < stats.aggro) {
+    if (data.kind === 'animal' && data.type === 'deer') {
+      if (distance < stats.aggro) {
+        const away = new THREE.Vector3(-dx, 0, -dz).normalize();
+        enemy.position.addScaledVector(away, dt * speed);
+        enemy.rotation.y = Math.atan2(away.x, away.z);
+      } else {
+        const t = performance.now() * 0.0004 + data.homeZ;
+        enemy.position.x = data.homeX + Math.sin(t) * 1.6;
+        enemy.position.z = data.homeZ + Math.cos(t * .7) * 1.2;
+      }
+    } else if (distance < stats.aggro) {
       const direction = new THREE.Vector3(dx, 0, dz).normalize();
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
 
       if (distance > stats.reach) {
-        enemy.position.addScaledVector(direction, dt * stats.speed);
+        enemy.position.addScaledVector(direction, dt * speed);
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         const armor = armorStats[state.armor] || armorStats.leather;
-        const incomingDamage = stats.damage * (1 - armor.reduction);
+        const incomingDamage = attackDamage * (1 - armor.reduction);
         state.hp = Math.max(0, state.hp - incomingDamage);
         data.cooldown = stats.cooldown;
+        hurtAnimTimer = .3;
+        audio.play('hit');
         toast(`${data.name}โจมตีคุณ`);
 
         if (state.hp <= 0) {
           state.hp = state.maxHp;
-          player.position.set(0, 0, 3);
+          const respawnY = getTerrainHeight(0, 3, 0) ?? 0;
+          player.position.set(0, respawnY, 3);
+          if (dungeonActive) {
+            dungeonActive = false;
+            state.dungeonCleared = true;
+            setDungeonEnemies(false);
+          }
           toast('คุณกลับมาที่จุดพัก');
         }
 
@@ -1718,6 +2000,13 @@ function updateWorld(dt) {
       enemy.position.x = data.homeX + Math.sin(t) * 1.2;
       enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
     }
+
+    const terrainY = getTerrainHeight(
+      enemy.position.x,
+      enemy.position.z,
+      data.baseY
+    );
+    enemy.position.y = terrainY === null ? data.baseY : terrainY;
   }
 }
 
@@ -1736,10 +2025,16 @@ function applySettings() {
   moon.shadow.mapSize.setScalar(settings.quality === 'high' ? 1536 : 1024);
 
   settings.weather = Boolean(settings.weather);
+  settings.sound = Boolean(settings.sound);
+
+  audio.setEnabled(settings.sound);
+  audio.setWeather(settings.weather);
 
   $('#quality').value = settings.quality;
   $('#sensitivity').value = String(settings.sensitivity);
   $('#rain-toggle').checked = settings.weather;
+  const soundToggle = $('#sound-toggle');
+  if (soundToggle) soundToggle.checked = settings.sound;
 }
 
 // ---------- Main Update ----------
@@ -1766,6 +2061,8 @@ function update(dt) {
   dodgeCooldown = Math.max(0, dodgeCooldown - dt);
   dodgeTimer = Math.max(0, dodgeTimer - dt);
   invulnerabilityTimer = Math.max(0, invulnerabilityTimer - dt);
+  attackAnimTimer = Math.max(0, attackAnimTimer - dt);
+  hurtAnimTimer = Math.max(0, hurtAnimTimer - dt);
 
   if (input.dodgePressed) {
     input.dodgePressed = false;
@@ -1885,9 +2182,11 @@ const animationSpeed = isDodging
     ? 11
     : 7;
 
-const frame = isAnimating
-  ? Math.floor(playerAnimTime * animationSpeed) % 4
-  : 0;
+const frame = attackAnimTimer > 0
+  ? 1
+  : isAnimating
+    ? Math.floor(playerAnimTime * animationSpeed) % 4
+    : 0;
 
 playerTexture.offset.set(
   frame * 0.25,
@@ -1896,6 +2195,16 @@ playerTexture.offset.set(
 
 playerSprite.position.y = 1.03 +
   (isAnimating ? 0 : Math.sin(playerAnimTime * 2) * 0.015);
+
+const attackGlow = attackAnimTimer / .24;
+const hurtGlow = hurtAnimTimer / .3;
+playerSprite.material.color.setRGB(
+  1 + hurtGlow * .5,
+  1 - hurtGlow * .4,
+  1 - hurtGlow * .4
+);
+playerSprite.scale.set(1.55 + attackGlow * .16, 2.05, 1);
+body.rotation.x = -attackGlow * .22;
 
   if (!moving || !(input.run || keys.ShiftLeft || keys.ShiftRight)) {
     state.stamina = Math.min(100, state.stamina + 15 * dt);
@@ -1988,15 +2297,27 @@ playerSprite.position.y = 1.03 +
     player.position.z - 18
   );
 
-  ui.hint.textContent = player.position.distanceTo(shrine.position) < 5
-    ? 'กด E / ใช้ เพื่อโต้ตอบ'
-    : '';
+  ui.hint.textContent = '';
 
   updateDayNight(dt);
-updateWeather(dt);
+  updateWeather(dt);
   updateFireflies(dt);
   updateWorld(dt);
   systems.update(dt, yaw);
+
+  const portalHintDistance = Math.hypot(
+    player.position.x - dungeonPortal.position.x,
+    player.position.z - dungeonPortal.position.z
+  );
+
+  if (portalHintDistance < 5) {
+    ui.hint.textContent = dungeonActive
+      ? 'กำจัดสิ่งมีชีวิตในถ้ำให้หมดก่อนออกไป'
+      : 'กด E / ใช้เพื่อเข้าถ้ำต้องสาป';
+  } else if (player.position.distanceTo(shrine.position) < 5) {
+    ui.hint.textContent = 'กด E / ใช้ เพื่อโต้ตอบ';
+  }
+
   updateHud();
 }
 
@@ -2013,6 +2334,7 @@ $('#time-toggle').addEventListener('click', () => {
     dayNightMode = 'auto';
     toast('เปิดระบบเวลาอัตโนมัติ');
   }
+  settings.dayNightMode = dayNightMode;
 });
 
 const inventoryOpenButton = $('#inventory-open');
@@ -2036,6 +2358,7 @@ function closePanels(except = null) {
     mapOpenButton.setAttribute('aria-expanded', 'false');
   }
   if (except !== 'settings') ui.settings.classList.add('hidden');
+  if (except !== 'shop') systems.closeShop();
 }
 
 inventoryOpenButton.addEventListener('click', () => {
@@ -2097,8 +2420,29 @@ $('#rain-toggle').addEventListener('change', (e) => {
   applySettings();
 });
 
-$('#save-button').addEventListener('click', saveGame);
-$('#load-button').addEventListener('click', loadGame);
+$('#sound-toggle').addEventListener('change', (e) => {
+  settings.sound = e.target.checked;
+  applySettings();
+  if (settings.sound) audio.play('pickup');
+});
+
+const saveSlotSelect = $('#save-slot');
+if (saveSlotSelect) {
+  saveSlotSelect.addEventListener('change', (e) => {
+    currentSlot = THREE.MathUtils.clamp(
+      Math.round(Number(e.target.value)) || 1, 1, 3
+    );
+    toast(`เลือกช่องบันทึก ${currentSlot}`);
+  });
+}
+
+$('#shop-open').addEventListener('click', () => {
+  const opening = !ui.shop.classList.contains('hidden');
+  closePanels(opening ? 'shop' : null);
+});
+
+$('#save-button').addEventListener('click', () => saveGame(true, currentSlot));
+$('#load-button').addEventListener('click', () => loadGame(currentSlot));
 
 for (const id of Object.keys(weaponStats)) {
   const button = $(`#weapon-${id}`);
@@ -2145,6 +2489,8 @@ if (window.visualViewport) {
 }
 
 // ---------- Start ----------
+dayNightMode = settings.dayNightMode || 'auto';
+if (saveSlotSelect) saveSlotSelect.value = String(currentSlot);
 applySettings();
 updateHud();
 refreshEquipmentUI();

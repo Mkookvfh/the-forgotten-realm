@@ -35,6 +35,21 @@ export const SPELLS = {
   heal: { name: 'การรักษา', cost: 25, power: 35, range: 0 }
 };
 
+export const SHOP_ITEMS = [
+  { id: 'potion', name: 'ยาฟื้นฟู', price: 25 },
+  { id: 'herb', name: 'สมุนไพร', price: 12 },
+  { id: 'wood', name: 'ไม้โบราณ', price: 20 },
+  { id: 'ore', name: 'แร่เหล็ก', price: 40 },
+  { id: 'bone', name: 'กระดูกผู้พิทักษ์', price: 28 },
+  { id: 'darkShard', name: 'เศษเงามืด', price: 60 },
+  { id: 'essence', name: 'แก่นวิญญาณ', price: 55 },
+  { id: 'stoneHeart', name: 'หัวใจศิลา', price: 90 },
+  { id: 'iron', name: 'เกราะเหล็ก', price: 180 },
+  { id: 'shadow', name: 'เกราะเงา', price: 320 },
+  { id: 'voidblade', name: 'ดาบเงาว่าง', price: 900, rarity: 'epic' },
+  { id: 'dragonplate', name: 'เกราะมังกรร้าง', price: 1000, rarity: 'epic' }
+];
+
 export const SIDE_QUESTS = {
   herb: {
     title: 'สมุนไพรเพื่อชีวิต',
@@ -67,6 +82,19 @@ const LOOT_TABLE = {
     { id: 'bossRelic', chance: 1, min: 1, max: 2 },
     { id: 'stoneHeart', chance: 1, min: 2, max: 3 },
     { id: 'darkShard', chance: 1, min: 3, max: 5 }
+  ],
+  dungeonBoss: [
+    { id: 'bossRelic', chance: 1, min: 2, max: 3 },
+    { id: 'essence', chance: 1, min: 3, max: 5 },
+    { id: 'darkShard', chance: 1, min: 4, max: 6 }
+  ],
+  wolf: [
+    { id: 'bone', chance: .9, min: 1, max: 2 },
+    { id: 'darkShard', chance: .25, min: 1, max: 1 }
+  ],
+  deer: [
+    { id: 'herb', chance: 1, min: 1, max: 2 },
+    { id: 'wood', chance: .6, min: 1, max: 1 }
   ]
 };
 
@@ -91,9 +119,15 @@ const NPC_DATA = [
     position: [5.5, 0, 1],
     color: 0x7486b8,
     quest: 'herb',
+    schedule: [
+      { from: 0, to: 0.45, position: [5.5, 0, 1] },
+      { from: 0.45, to: 0.75, position: [1.5, 0, -43] },
+      { from: 0.75, to: 1, position: [5.5, 0, 1] }
+    ],
     lines: [
       'เจ้าเดินเข้ามาในดินแดนที่แม้แต่ความทรงจำยังลืมไปแล้ว...',
-      'สมุนไพรในป่ายังมีชีวิต เก็บมาให้ข้า 5 ชิ้นเถิด ข้าจะตอบแทนด้วยยาฟื้นฟู'
+      'สมุนไพรในป่ายังมีชีวิต เก็บมาให้ข้า 5 ชิ้นเถิด ข้าจะตอบแทนด้วยยาฟื้นฟู',
+      'เมื่อฟ้าสาง ข้าจะไปยืนสวดที่ศาลเจ้า ตามหาข้าได้ที่นั่น'
     ]
   },
   {
@@ -103,9 +137,33 @@ const NPC_DATA = [
     position: [9, 0, -44],
     color: 0xa8784a,
     quest: 'hunt',
+    schedule: [
+      { from: 0, to: 0.35, position: [9, 0, -44] },
+      { from: 0.35, to: 0.7, position: [15, 0, -56] },
+      { from: 0.7, to: 1, position: [9, 0, -44] }
+    ],
     lines: [
       'เฮ้ นักร่อนเร่! เหล็กและกระดูกที่เจ้าเก็บมาได้ ฉันเปลี่ยนเป็นอาวุธให้ได้',
-      'ฆ่าผู้พิทักษ์ซะ 3 ตัว แล้วเอาแร่มาให้ฉัน แล้วฉันจะสอนวิธีคราฟต์ให้'
+      'ฆ่าผู้พิทักษ์ซะ 3 ตัว แล้วเอาแร่มาให้ฉัน แล้วฉันจะสอนวิธีคราฟต์ให้',
+      'ตอนเย็นฉันย้ายเตาไปใกล้เหมืองแร่ อย่าลืมแวะไปหา'
+    ]
+  },
+  {
+    id: 'merchant',
+    name: 'พ่อค้าในหมอก',
+    nameColor: '#9ad6c2',
+    position: [12, 0, 4],
+    color: 0x4d8f7e,
+    shop: true,
+    schedule: [
+      { from: 0, to: 0.4, position: [12, 0, 4] },
+      { from: 0.4, to: 0.72, position: [18, 0, -66] },
+      { from: 0.72, to: 1, position: [12, 0, 4] }
+    ],
+    lines: [
+      'ทองไม่มีวันเน่าในดินแดนนี้ ของวิญญาณนั่นต่างหากที่เน่าได้',
+      'ของข้าล้วนมาจากผู้ที่เดินทางไม่ถึงปลายทาง ซื้อไปเถิด อย่าถามที่มา',
+      'กด B เมื่อใดก็ได้เพื่อเปิดร้านของข้า แม้ข้าจะเดินทางไปยังแม่น้ำ'
     ]
   }
 ];
@@ -119,8 +177,15 @@ const NODE_POSITIONS = {
 export function createSystems(ctx) {
   const {
     scene, player, state, toast, gainXp, updateHud,
-    refreshEquipmentUI, defeatEnemy, enemies, staticLandmarks, regions
+    refreshEquipmentUI, defeatEnemy, enemies, staticLandmarks, regions,
+    getTerrainHeight, audio
   } = ctx;
+
+  function surfaceY(x, z, baseY = 0) {
+    if (typeof getTerrainHeight !== 'function') return baseY;
+    const height = getTerrainHeight(x, z, baseY);
+    return Number.isFinite(height) ? height : baseY;
+  }
 
   const $ = (selector) => document.querySelector(selector);
 
@@ -129,12 +194,14 @@ export function createSystems(ctx) {
   const effects = [];
   const npcs = [];
   let dialogue = null;
+  let shopOpen = false;
   let minimapContext = null;
 
   function initState() {
     if (!state.inventory || typeof state.inventory !== 'object') {
       state.inventory = { sword: 1, leather: 1 };
     }
+    if (!Number.isFinite(state.gold)) state.gold = 60;
     if (typeof state.mana !== 'number') state.mana = 100;
     if (typeof state.maxMana !== 'number') state.maxMana = 100;
     if (typeof state.maxHp !== 'number') state.maxHp = 100;
@@ -207,14 +274,15 @@ export function createSystems(ctx) {
 
   function spawnNode(type, x, z) {
     const mesh = makeNodeMesh(type);
-    mesh.position.set(x, 0, z);
+    const y = surfaceY(x, z, 0);
+    mesh.position.set(x, y, z);
     mesh.userData = {
       kind: 'resource',
       type,
       amount: 2,
       maxAmount: 2,
       respawn: 0,
-      baseY: 0
+      baseY: y
     };
     scene.add(mesh);
     nodes.push(mesh);
@@ -244,11 +312,11 @@ export function createSystems(ctx) {
 
   function spawnDrop(type, position, spread = .8, rarity = rarityOf(type)) {
     const mesh = makeDropMesh(type, rarity);
-    mesh.position.set(
-      position.x + (Math.random() - .5) * spread,
-      .6,
-      position.z + (Math.random() - .5) * spread
-    );
+    const x = position.x + (Math.random() - .5) * spread;
+    const z = position.z + (Math.random() - .5) * spread;
+    const y = surfaceY(x, z, position.y || 0) + .6;
+    mesh.position.set(x, y, z);
+    mesh.userData.baseY = y;
     scene.add(mesh);
     drops.push(mesh);
   }
@@ -280,11 +348,13 @@ export function createSystems(ctx) {
     mark.position.y = .06;
     group.add(mark);
 
-    group.position.set(data.position[0], data.position[1], data.position[2]);
+    const y = surfaceY(data.position[0], data.position[2], data.position[1]);
+    group.position.set(data.position[0], y, data.position[2]);
     group.userData = {
       kind: 'npc',
       npcId: data.id,
-      baseY: 0
+      baseY: y,
+      target: new THREE.Vector3(data.position[0], y, data.position[2])
     };
     scene.add(group);
     return group;
@@ -333,6 +403,7 @@ export function createSystems(ctx) {
       if (reward.ore) addItem('ore', reward.ore);
       if (reward.xp) gainXp(reward.xp);
 
+      if (audio) audio.play('quest');
       toast(`ภารกิจรอบสำเร็จ: ${quest.title}`);
       updateHud();
     }
@@ -397,6 +468,7 @@ export function createSystems(ctx) {
       if (!state.activeSpell) state.activeSpell = recipe.give.spell;
     }
 
+    if (audio) audio.play('craft');
     toast(`คราฟต์สำเร็จ: ${recipe.name}`);
     refreshInventoryUI();
   }
@@ -416,6 +488,7 @@ export function createSystems(ctx) {
     if (state.mana < spell.cost) return toast('มนตรากำลังไม่เพียงพอ');
 
     state.mana -= spell.cost;
+    if (audio) audio.play('spell');
 
     const arcana = Math.max(0, Number(state.skills && state.skills.arcana) || 0);
     const power = Math.round(spell.power * (1 + arcana * .1));
@@ -660,6 +733,99 @@ export function createSystems(ctx) {
     return false;
   }
 
+  function renderShop() {
+    const gold = Math.max(0, Math.floor(state.gold || 0));
+    const buyContainer = $('#shop-buy');
+    const sellContainer = $('#shop-sell');
+    const goldLabel = $('#shop-gold');
+    if (goldLabel) goldLabel.textContent = String(gold);
+
+    if (buyContainer) {
+      buyContainer.innerHTML = SHOP_ITEMS.map((item) => {
+        const owned = item.id !== 'potion' && owns(item.id) &&
+          !['herb', 'ore', 'wood', 'bone', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
+        const disabled = gold < item.price || owned ? ' disabled' : '';
+        const label = owned ? 'มีแล้ว' : item.name;
+        const rarity = item.rarity
+          ? ` <em class="rarity ${item.rarity}">[${RARITY[item.rarity].name}]</em>`
+          : '';
+        return (
+          `<button type="button" data-buy="${item.id}"${disabled}>` +
+          `<span>${label}${rarity}</span><strong>${item.price} ◈</strong></button>`
+        );
+      }).join('');
+    }
+
+    if (sellContainer) {
+      const sellable = SHOP_ITEMS.filter((item) =>
+        MATERIAL_INFO[item.id] && getCount(item.id) > 0
+      );
+      sellContainer.innerHTML = sellable.length
+        ? sellable.map((item) => (
+            `<button type="button" data-sell="${item.id}">` +
+            `<span>${item.name} ×${getCount(item.id)}</span>` +
+            `<strong>+${Math.max(1, Math.floor(item.price * .5))} ◈</strong></button>`
+          )).join('')
+        : '<small>ไม่มีวัตถุดิบสำหรับขาย</small>';
+    }
+
+    const hudGold = $('#gold-count');
+    if (hudGold) hudGold.textContent = String(gold);
+  }
+
+  function buyItem(id) {
+    const item = SHOP_ITEMS.find((entry) => entry.id === id);
+    if (!item) return;
+    if (state.gold < item.price) return toast('ทองไม่เพียงพอ');
+
+    state.gold -= item.price;
+    if (id === 'potion') state.potions++;
+    else addItem(id, 1);
+
+    if (audio) audio.play('coin');
+    toast(`ซื้อ${item.name}แล้ว`);
+    updateHud();
+    renderShop();
+    refreshInventoryUI();
+  }
+
+  function sellItem(id) {
+    const item = SHOP_ITEMS.find((entry) => entry.id === id);
+    if (!item || !MATERIAL_INFO[id] || getCount(id) <= 0) return;
+
+    const value = Math.max(1, Math.floor(item.price * .5));
+    state.inventory[id] = getCount(id) - 1;
+    state.gold += value;
+
+    if (audio) audio.play('coin');
+    toast(`ขาย${item.name} ได้ ${value} ทอง`);
+    updateHud();
+    renderShop();
+    refreshInventoryUI();
+  }
+
+  function openShop() {
+    shopOpen = true;
+    const panel = $('#shop-panel');
+    if (panel) panel.classList.remove('hidden');
+    const button = $('#shop-open');
+    if (button) button.setAttribute('aria-expanded', 'true');
+    renderShop();
+  }
+
+  function closeShop() {
+    shopOpen = false;
+    const panel = $('#shop-panel');
+    if (panel) panel.classList.add('hidden');
+    const button = $('#shop-open');
+    if (button) button.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleShop() {
+    if (shopOpen) closeShop();
+    else openShop();
+  }
+
   function updateMinimap(yaw) {
     const canvas = $('#minimap');
     if (!canvas) return;
@@ -869,7 +1035,37 @@ export function createSystems(ctx) {
     }
   }
 
+  function updateNpcSchedules(dt) {
+    const time = Number(state.dayTime) || 0;
+
+    for (const npc of npcs) {
+      const data = NPC_DATA.find((entry) => entry.id === npc.userData.npcId);
+      if (!data || !Array.isArray(data.schedule)) continue;
+
+      const stop = data.schedule.find((entry) =>
+        time >= entry.from && time < entry.to
+      ) || data.schedule[0];
+
+      const goal = npc.userData.target;
+      goal.set(stop.position[0], surfaceY(stop.position[0], stop.position[2], stop.position[1]), stop.position[2]);
+
+      const dx = goal.x - npc.position.x;
+      const dz = goal.z - npc.position.z;
+      const distance = Math.hypot(dx, dz);
+
+      if (distance > .35) {
+        const step = Math.min(distance, dt * .85);
+        npc.position.x += dx / distance * step;
+        npc.position.z += dz / distance * step;
+        npc.position.y = surfaceY(npc.position.x, npc.position.z, goal.y);
+        npc.rotation.y = Math.atan2(dx, dz);
+      }
+    }
+  }
+
   function update(dt, yaw) {
+    updateNpcSchedules(dt);
+
     const maxMana = state.maxMana || 100;
     state.mana = Math.min(maxMana, state.mana + 3 * dt);
 
@@ -900,6 +1096,7 @@ export function createSystems(ctx) {
         addItem(drop.userData.type, 1);
         const rarity = drop.userData.rarity || 'common';
         const tag = rarity === 'common' ? '' : `[${RARITY[rarity].name}] `;
+        if (audio) audio.play('pickup');
         toast(`เก็บ${tag}${MATERIAL_INFO[drop.userData.type].name} +1`);
         scene.remove(drop);
         drop.geometry.dispose();
@@ -932,7 +1129,9 @@ export function createSystems(ctx) {
 
       for (const npc of npcs) {
         if (player.position.distanceTo(npc.position) < 4) {
-          text = 'กด E / ใช้ เพื่อสนทนา';
+          text = npc.userData.npcId === 'merchant'
+            ? 'กด E คุย · B เปิดร้านค้า'
+            : 'กด E / ใช้ เพื่อสนทนา';
           break;
         }
       }
@@ -1021,6 +1220,7 @@ export function createSystems(ctx) {
       if (Number.isFinite(amount) && amount > 0) inventory[id] = amount;
     }
     state.inventory = inventory;
+    state.gold = Math.max(0, Math.floor(Number(state.gold) || 0));
     if (!state.inventory.sword) state.inventory.sword = 1;
     if (!state.inventory.leather) state.inventory.leather = 1;
 
@@ -1081,6 +1281,7 @@ export function createSystems(ctx) {
 
       if (questAvailable(npc)) acceptQuest(npc.quest);
       closeDialogue();
+      if (npc.shop) openShop();
     });
   }
 
@@ -1103,7 +1304,29 @@ export function createSystems(ctx) {
     });
   }
 
+  const shopBuyContainer = $('#shop-buy');
+  if (shopBuyContainer) {
+    shopBuyContainer.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-buy]');
+      if (button && !button.disabled) buyItem(button.dataset.buy);
+    });
+  }
+
+  const shopSellContainer = $('#shop-sell');
+  if (shopSellContainer) {
+    shopSellContainer.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-sell]');
+      if (button) sellItem(button.dataset.sell);
+    });
+  }
+
+  const shopOpenButton = $('#shop-open');
+  if (shopOpenButton) shopOpenButton.addEventListener('click', toggleShop);
+  const shopCloseButton = $('#shop-close');
+  if (shopCloseButton) shopCloseButton.addEventListener('click', closeShop);
+
   refreshInventoryUI();
+  renderShop();
   refreshQuestUI();
 
   return {
@@ -1121,6 +1344,10 @@ export function createSystems(ctx) {
     drawWorldMap,
     refreshInventoryUI,
     refreshQuestUI,
-    closeDialogue
+    closeDialogue,
+    openShop,
+    closeShop,
+    toggleShop,
+    renderShop
   };
 }

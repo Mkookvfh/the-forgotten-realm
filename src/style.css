@@ -1041,3 +1041,63 @@ body {
     padding: 12px;
   }
 }
+
+.clock {
+  min-width: 48px;
+  padding: 6px 8px;
+  border: 1px solid #c5ad7955;
+  border-radius: 9px;
+  background: #080b12d9;
+  color: #f0d69a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.shop-panel {
+  width: min(330px, calc(100vw - 36px));
+}
+
+.shop-gold {
+  margin-bottom: 10px;
+  color: #c9b991;
+  font-size: 11px;
+}
+
+.shop-list {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 12px;
+}
+
+.shop-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #ffffff2b;
+  border-radius: 8px;
+  background: #283244;
+  color: #f0eadf;
+  font-size: 10px;
+  text-align: left;
+}
+
+.shop-list button strong {
+  color: #f0d69a;
+}
+
+.shop-list button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 650px) {
+  .clock {
+    min-width: 40px;
+    padding: 6px;
+    font-size: 8px;
+  }
+}
