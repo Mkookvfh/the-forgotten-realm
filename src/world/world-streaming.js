@@ -1,9 +1,10 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { chunkKey } from './world-config.js';
 
-export function getStreamingRadius(quality = 'medium', isTouch = false, cameraFar = 220, chunkSize = 60) {
-  const budget = quality === 'low' ? 1 : quality === 'high' ? 3 : 2;
-  const visible = Math.max(1, Math.floor(cameraFar * (isTouch ? .62 : .8) / chunkSize));
+export function getStreamingRadius(quality = 'medium', isTouch = false, cameraFar = 220, chunkSize = 250) {
+  const base = isTouch ? 375 : 750;
+  const visible = Math.max(1, Math.ceil(Math.max(base, cameraFar) / chunkSize));
+  const budget = quality === 'low' ? (isTouch ? 1 : 2) : quality === 'high' ? 4 : 3;
   return Math.max(1, Math.min(budget, visible));
 }
 

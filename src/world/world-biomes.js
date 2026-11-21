@@ -77,23 +77,23 @@ function legacyWeight(x, z) {
 }
 
 export function terrainHeightAt(x, z, zone = getZoneAt(x, z)) {
-  const { base, amplitude, ridges, valleys } = zone.terrain;
+  const { base, amplitude, ridges, valleys, terrainScale = 1 } = zone.terrain;
   const seed = zone.center.x * .013 + zone.center.z * .007;
-  const rolling = fbm(x * .008 + 40, z * .008 - 20, seed, 4) * 2 - 1;
-  const detail = fbm(x * .031, z * .031, seed + 91, 3) * 2 - 1;
-  const ridge = 1 - Math.abs(fbm(x * .012 - 13, z * .012 + 7, seed + 41, 3) * 2 - 1);
-  const valleyAxis = z - (zone.center.z + Math.sin(x * .011 + seed) * 24);
-  const valley = Math.exp(-Math.pow(valleyAxis / 46, 2));
+  const rolling = fbm((x * .008 + 40) / terrainScale, (z * .008 - 20) / terrainScale, seed, 4) * 2 - 1;
+  const detail = fbm(x * .031 / terrainScale, z * .031 / terrainScale, seed + 91, 3) * 2 - 1;
+  const ridge = 1 - Math.abs(fbm((x * .012 - 13) / terrainScale, (z * .012 + 7) / terrainScale, seed + 41, 3) * 2 - 1);
+  const valleyAxis = z - (zone.center.z + Math.sin(x * .011 / terrainScale + seed) * 24 * terrainScale);
+  const valley = Math.exp(-Math.pow(valleyAxis / (46 * terrainScale), 2));
   let height = base + rolling * amplitude + detail * amplitude * .18 +
     Math.pow(ridge, 2.4) * ridges - valley * valleys;
 
   if (zone.features.includes('volcano')) {
-    const cone = Math.exp(-Math.pow(Math.hypot(x - zone.center.x - 42, z - zone.center.z + 30) / 72, 2));
+    const cone = Math.exp(-Math.pow(Math.hypot(x - zone.center.x - 42 * terrainScale, z - zone.center.z + 30 * terrainScale) / (72 * terrainScale), 2));
     height += cone * 28;
   }
   if (zone.features.includes('chasm')) {
-    const chasmAxis = x - (zone.center.x + Math.sin(z * .018) * 34);
-    height -= Math.exp(-Math.pow(chasmAxis / 22, 2)) * 20;
+    const chasmAxis = x - (zone.center.x + Math.sin(z * .018 / terrainScale) * 34 * terrainScale);
+    height -= Math.exp(-Math.pow(chasmAxis / (22 * terrainScale), 2)) * 20;
   }
   if (zone.features.includes('swamp')) {
     height -= Math.max(0, 2.5 - Math.abs(valleyAxis) * .05) * 1.8;
@@ -107,7 +107,7 @@ export function terrainHeightAt(x, z, zone = getZoneAt(x, z)) {
 }
 
 export function surfaceNormalY(x, z, zone = getZoneAt(x, z)) {
-  const step = 2;
+  const step = 6;
   const dx = terrainHeightAt(x + step, z, zone) - terrainHeightAt(x - step, z, zone);
   const dz = terrainHeightAt(x, z + step, zone) - terrainHeightAt(x, z - step, zone);
   return 1 / Math.sqrt(1 + (dx / (step * 2)) ** 2 + (dz / (step * 2)) ** 2);

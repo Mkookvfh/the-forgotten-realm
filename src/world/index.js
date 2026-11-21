@@ -2,11 +2,15 @@ export { createWorld, ChunkManager } from './chunk-manager.js';
 export {
   CHUNK_SIZE,
   CHUNK_SEGMENTS,
-  ZONE_SIZE,
+  WORLD_UNIT_METERS,
+  ZONE_COLUMNS,
+  ZONE_ROWS,
   START_ZONE_ID,
   ZONES,
   WORLD_BOUNDS,
   WORLD_SIZE,
+  WORLD_SIZE_METERS,
+  CHUNK_COUNT,
   LEGACY_BOUNDS,
   LEGACY_GROUND_BOUNDS,
   getZoneAt,
@@ -15,6 +19,7 @@ export {
   worldToChunk,
   chunkKey,
   chunkBounds,
+  chunkBoundsContained,
   isInsideLegacyArea,
   getStartSpawn
 } from './world-config.js';

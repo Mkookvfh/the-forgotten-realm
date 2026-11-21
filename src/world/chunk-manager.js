@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import {
-  CHUNK_SIZE, WORLD_BOUNDS, LEGACY_GROUND_BOUNDS, ZONES, chunkKey, chunkBounds,
-  chunkBoundsOverlap, worldToChunk, getZoneAt, getZoneById
+  CHUNK_SIZE, WORLD_BOUNDS, WORLD_SIZE, WORLD_SIZE_METERS, CHUNK_COUNT,
+  LEGACY_GROUND_BOUNDS, ZONES, chunkKey, chunkBounds, chunkBoundsOverlap,
+  chunkBoundsContained, worldToChunk, getZoneAt, getZoneById
 } from './world-config.js';
 import { biomeStyle, hash2, surfaceNormalY } from './world-biomes.js';
 import { TerrainManager } from './terrain-manager.js';
@@ -86,6 +87,19 @@ export class ChunkManager {
     return { minX: bounds.min.x, maxX: bounds.max.x, minZ: bounds.min.z, maxZ: bounds.max.z };
   }
 
+  hasValidImportedCoverage(bounds) {
+    const probe = this.collision.probe;
+    const inset = CHUNK_SIZE * .15;
+    const samples = [
+      [bounds.centerX, bounds.centerZ],
+      [bounds.minX + inset, bounds.minZ + inset],
+      [bounds.maxX - inset, bounds.minZ + inset],
+      [bounds.minX + inset, bounds.maxZ - inset],
+      [bounds.maxX - inset, bounds.maxZ - inset]
+    ];
+    return samples.every(([x, z]) => probe.heightAt(x, z, 0) !== null);
+  }
+
   setQuality(quality) {
     if (this.quality === quality) return;
     this.quality = quality;
@@ -160,9 +174,14 @@ export class ChunkManager {
     chunk.group.name = `Chunk_${zone.id}_${cx}_${cz}`;
 
     const importedRect = this.importedRect();
-    const covered = Boolean(importedRect && chunkBoundsOverlap(bounds, importedRect));
-    chunk.terrain = this.terrainManager.buildChunk(chunk, zone, covered);
-    if (!covered) this.populateChunk(chunk);
+    const fullyCovered = Boolean(importedRect && chunkBoundsContained(importedRect, bounds));
+    chunk.terrain = this.terrainManager.buildChunk(chunk, zone, false);
+    this.populateChunk(chunk);
+
+    if (fullyCovered && this.hasValidImportedCoverage(bounds)) {
+      chunk.terrain.mesh.visible = false;
+      if (chunk.terrain.water) chunk.terrain.water.visible = false;
+    }
 
     this.scene.add(chunk.group);
     this.loaded.set(key, chunk);
@@ -170,10 +189,11 @@ export class ChunkManager {
 
     this.assets.load(cx, cz, zone).then(root => {
       if (!root || !this.loaded.has(key) || this.loaded.get(key) !== chunk) return;
+      chunk.group.traverse(object => {
+        if (object !== chunk.group && object.isMesh) object.visible = false;
+      });
       chunk.assetRoot = root;
       chunk.group.add(root);
-      if (chunk.terrain.mesh) chunk.terrain.mesh.visible = false;
-      if (chunk.terrain.water) chunk.terrain.water.visible = false;
       const assetBounds = new THREE.Box3().setFromObject(root);
       chunk.assetProbe = createImportedTerrainProbe({
         getWorld: () => chunk.assetRoot,
@@ -190,11 +210,12 @@ export class ChunkManager {
     const style = biomeStyle(zone.biome);
     const materials = this.getGroundMaterials(zone.biome);
     const density = (QUALITY_SCALE[this.quality] || .8) * (this.isTouch ? .7 : 1);
+    const areaScale = Math.min(6, (CHUNK_SIZE * CHUNK_SIZE) / 3600);
     const rand = (index, salt = 0) => hash2(chunk.cx * 97 + index * 13, chunk.cz * 131 + index * 7, salt + 31);
     const legacyOverlap = chunkBoundsOverlap(chunk.bounds, LEGACY_GROUND_BOUNDS);
-    const treeCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.trees * density));
-    const rockCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.rocks * density));
-    const floraCount = Math.max(2, Math.round(style.vegetation * density * (legacyOverlap ? .25 : 1)));
+    const treeCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.trees * density * areaScale));
+    const rockCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.rocks * density * areaScale));
+    const floraCount = Math.max(2, Math.round(style.vegetation * density * areaScale * (legacyOverlap ? .25 : 1)));
     const offset = CHUNK_SIZE / 2 - 3;
     const positionOf = (index, salt) => ({
       x: chunk.bounds.centerX + (rand(index, salt) * 2 - 1) * offset,
@@ -373,14 +394,9 @@ export class ChunkManager {
       name: zone.name,
       discoveredId: zone.id,
       center: new THREE.Vector3(zone.center.x, 0, zone.center.z),
-      radius: CHUNK_SIZE * 1.7,
+      radius: Math.min(zone.bounds.maxX - zone.bounds.minX, zone.bounds.maxZ - zone.bounds.minZ) / 4,
       color: `#${new THREE.Color(zone.palette.accent).getHexString()}`,
-      bounds: {
-        minX: zone.center.x - 160,
-        maxX: zone.center.x + 160,
-        minZ: zone.center.z - 160,
-        maxZ: zone.center.z + 160
-      }
+      bounds: { ...zone.bounds }
     }));
   }
 
@@ -394,38 +410,56 @@ export class ChunkManager {
     }));
   }
 
+  zonePoint(id, dx, dz) {
+    const zone = getZoneById(id);
+    return [zone.center.x + dx, zone.center.z + dz];
+  }
+
   getEnemySpawns() {
+    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
     return [
-      ['wraith', -300, -84], ['wolf', -342, -58],
-      ['brute', 298, -88], ['wraith', 344, -56],
-      ['brute', 300, -402], ['guardian', 348, -378],
-      ['wraith', -298, -404], ['wolf', -344, -376],
-      ['wraith', 8, -402], ['guardian', -32, -380], ['brute', 36, -420]
+      ['wraith', ...at('cursed-forest', -120, -60)],
+      ['wolf', ...at('cursed-forest', -180, 120)],
+      ['brute', ...at('frostfang', -100, -60)],
+      ['wraith', ...at('frostfang', 140, 90)],
+      ['brute', ...at('ember-wastes', -90, -100)],
+      ['guardian', ...at('ember-wastes', 200, 140)],
+      ['wraith', ...at('dreadmoor', 100, -90)],
+      ['wolf', ...at('dreadmoor', -180, 100)],
+      ['wraith', ...at('forgotten-abyss', 120, -60)],
+      ['guardian', ...at('forgotten-abyss', -180, 90)],
+      ['brute', ...at('forgotten-abyss', 200, -180)]
     ];
   }
 
   getResourceNodes() {
+    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
     return {
-      herb: [[-306, -70], [-338, -92], [-292, -104], [-350, -40]],
-      wood: [[-312, -30], [-348, -76], [-286, -52], [-330, -110]],
-      ore: [[308, -96], [344, -70], [292, -110], [352, -42]],
-      stoneHeart: [[304, -412], [350, -386], [286, -438], [360, -420]],
-      essence: [[-304, -418], [-348, -388], [-288, -444], [-356, -430]],
-      darkShard: [[12, -410], [-30, -386], [30, -446], [-52, -424]],
-      bone: [[-296, -396], [-340, -356], [312, -360], [-18, -364]]
+      herb: [at('cursed-forest', -80, -40), at('cursed-forest', -160, 90), at('cursed-forest', -240, -110), at('cursed-forest', -60, 160)],
+      wood: [at('cursed-forest', -110, 40), at('cursed-forest', -210, -70), at('cursed-forest', -40, -150), at('cursed-forest', -270, 60)],
+      ore: [at('frostfang', -70, -120), at('frostfang', 160, -50), at('frostfang', -190, 90), at('frostfang', 100, 180)],
+      stoneHeart: [at('ember-wastes', -100, -130), at('ember-wastes', 190, -70), at('ember-wastes', -210, 120), at('ember-wastes', 80, 210)],
+      essence: [at('dreadmoor', 90, -110), at('dreadmoor', -170, -60), at('dreadmoor', 180, 130), at('dreadmoor', -80, 200)],
+      darkShard: [at('forgotten-abyss', 140, -90), at('forgotten-abyss', -190, 80), at('forgotten-abyss', 220, -200), at('forgotten-abyss', -260, -160)],
+      bone: [at('dreadmoor', 150, 60), at('dreadmoor', -230, -140), at('ember-wastes', 120, 120), at('forgotten-abyss', -60, 180)]
     };
   }
 
   getExtraNpcs() {
+    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
+    const frostHome = at('frostfang', -100, 60);
+    const frostWalk = at('frostfang', -20, -80);
+    const abyssHome = at('forgotten-abyss', 120, 60);
+    const abyssWalk = at('forgotten-abyss', -100, -120);
     return [
       {
         id: 'frost_hermit',
         name: 'ฤๅษีน้ำแข็ง',
-        position: [306, 0, -70],
+        position: [frostHome[0], 0, frostHome[1]],
         color: 0xa9d8e8,
         schedule: [
-          { from: 0, to: .5, position: [306, 0, -70] },
-          { from: .5, to: 1, position: [330, 0, -92] }
+          { from: 0, to: .5, position: [frostHome[0], 0, frostHome[1]] },
+          { from: .5, to: 1, position: [frostWalk[0], 0, frostWalk[1]] }
         ],
         lines: [
           'น้ำแข็งเก็บความทรงจำไว้ได้นานกว่าหิน จงเดินให้ช้าลงเพื่อฟังมัน',
@@ -438,11 +472,11 @@ export class ChunkManager {
       {
         id: 'abyss_scribe',
         name: 'นักจดบันทึกแห่งเหว',
-        position: [8, 0, -392],
+        position: [abyssHome[0], 0, abyssHome[1]],
         color: 0xb57ce8,
         schedule: [
-          { from: 0, to: .6, position: [8, 0, -392] },
-          { from: .6, to: 1, position: [-24, 0, -418] }
+          { from: 0, to: .6, position: [abyssHome[0], 0, abyssHome[1]] },
+          { from: .6, to: 1, position: [abyssWalk[0], 0, abyssWalk[1]] }
         ],
         lines: [
           'ฉันจดชื่อทุกคนที่หายไปในเหว แต่อีกไม่นานฉันก็ต้องจดชื่อฉันเอง',
@@ -463,7 +497,10 @@ export class ChunkManager {
       pending: this.pending.length,
       meshes,
       colliderCells: this.collision.spatial.cells.size,
-      radius: this.radius
+      radius: this.radius,
+      worldSize: { ...WORLD_SIZE },
+      worldSizeMeters: { ...WORLD_SIZE_METERS },
+      chunkCount: { ...CHUNK_COUNT }
     };
   }
 
