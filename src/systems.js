@@ -15,19 +15,27 @@ export const MATERIAL_INFO = {
   darkShard: { name: 'เศษเงามืด', color: 0x9c72d4 },
   essence: { name: 'แก่นวิญญาณ', color: 0x74c9d6 },
   stoneHeart: { name: 'หัวใจศิลา', color: 0xd28b5c },
-  bossRelic: { name: 'เศษชิ้นส่วนโบราณ', color: 0xe2b45c }
+  bossRelic: { name: 'เศษชิ้นส่วนโบราณ', color: 0xe2b45c },
+  meat: { name: 'เนื้อสด', color: 0xd48c7e }
 };
 
 export const RECIPES = [
   { id: 'potion', name: 'ยาฟื้นฟู', cost: { herb: 3 }, give: { potions: 1 }, repeatable: true },
   { id: 'greatsword', name: 'ดาบใหญ่', cost: { ore: 3, bone: 2 }, give: { item: 'greatsword' } },
   { id: 'staff', name: 'คทาเวท', cost: { wood: 2, darkShard: 2 }, give: { item: 'staff' } },
+  { id: 'axe', name: 'ขวานศึก', cost: { ore: 4, wood: 2 }, give: { item: 'axe' }, rarity: 'uncommon' },
+  { id: 'bow', name: 'ธนูวิญญาณ', cost: { wood: 4, essence: 2 }, give: { item: 'bow' }, rarity: 'rare' },
+  { id: 'froststaff', name: 'คทาเหมันต์', cost: { wood: 3, essence: 3, darkShard: 2 }, give: { item: 'froststaff' }, rarity: 'rare' },
   { id: 'iron', name: 'เกราะเหล็ก', cost: { ore: 4, bone: 1 }, give: { item: 'iron' } },
   { id: 'shadow', name: 'เกราะเงา', cost: { darkShard: 3, wood: 2 }, give: { item: 'shadow' } },
   { id: 'spellFire', name: 'เวทลูกไฟ', cost: { darkShard: 2, bone: 1 }, give: { spell: 'firebolt' } },
   { id: 'spellHeal', name: 'เวทรักษา', cost: { herb: 4, bone: 1 }, give: { spell: 'heal' } },
   { id: 'voidblade', name: 'ดาบเงาว่าง', cost: { bossRelic: 1, stoneHeart: 2, darkShard: 4 }, give: { item: 'voidblade' }, rarity: 'epic' },
-  { id: 'dragonplate', name: 'เกราะมังกรร้าง', cost: { bossRelic: 1, stoneHeart: 3, ore: 5 }, give: { item: 'dragonplate' }, rarity: 'epic' }
+  { id: 'dragonplate', name: 'เกราะมังกรร้าง', cost: { bossRelic: 1, stoneHeart: 3, ore: 5 }, give: { item: 'dragonplate' }, rarity: 'epic' },
+  { id: 'runerobe', name: 'ผ้าคลุมรูน', cost: { essence: 3, darkShard: 2, wood: 2 }, give: { item: 'runerobe' }, rarity: 'rare' },
+  { id: 'ranger', name: 'เกราะพราน', cost: { leather: 3, wood: 2, bone: 2 }, give: { item: 'ranger' }, rarity: 'uncommon' },
+  { id: 'upgrade_weapon', name: 'ลับคมอาวุธ', cost: { ore: 3, darkShard: 1 }, give: { upgrade: 'weapon' }, repeatable: true },
+  { id: 'upgrade_armor', name: 'เสริมเกราะ', cost: { ore: 3, bone: 2 }, give: { upgrade: 'armor' }, repeatable: true }
 ];
 
 export const SPELLS = {
@@ -94,6 +102,7 @@ const LOOT_TABLE = {
   ],
   deer: [
     { id: 'herb', chance: 1, min: 1, max: 2 },
+    { id: 'meat', chance: .9, min: 1, max: 2 },
     { id: 'wood', chance: .6, min: 1, max: 1 }
   ]
 };
@@ -128,6 +137,10 @@ const NPC_DATA = [
       'เจ้าเดินเข้ามาในดินแดนที่แม้แต่ความทรงจำยังลืมไปแล้ว...',
       'สมุนไพรในป่ายังมีชีวิต เก็บมาให้ข้า 5 ชิ้นเถิด ข้าจะตอบแทนด้วยยาฟื้นฟู',
       'เมื่อฟ้าสาง ข้าจะไปยืนสวดที่ศาลเจ้า ตามหาข้าได้ที่นั่น'
+    ],
+    choices: [
+      { label: 'ถามเรื่องสมุนไพร', text: 'สมุนไพรเรืองแสงเติบโตตามทางป่า เก็บมาให้ครบห้าชิ้นแล้วกลับมาหาข้า', relation: 2 },
+      { label: 'ขอพรให้เดินทางปลอดภัย', text: 'ขอให้แสงที่เหลืออยู่ในใจเจ้านำทาง', relation: 1 }
     ]
   },
   {
@@ -146,6 +159,10 @@ const NPC_DATA = [
       'เฮ้ นักร่อนเร่! เหล็กและกระดูกที่เจ้าเก็บมาได้ ฉันเปลี่ยนเป็นอาวุธให้ได้',
       'ฆ่าผู้พิทักษ์ซะ 3 ตัว แล้วเอาแร่มาให้ฉัน แล้วฉันจะสอนวิธีคราฟต์ให้',
       'ตอนเย็นฉันย้ายเตาไปใกล้เหมืองแร่ อย่าลืมแวะไปหา'
+    ],
+    choices: [
+      { label: 'ถามเรื่องผู้พิทักษ์', text: 'เล็งข้อต่อให้แม่น พวกมันช้าแต่เกราะหนา', relation: 1 },
+      { label: 'ขอดูสินค้า', text: 'เอาวัตถุดิบมา แล้วฉันจะตีของดีให้', relation: 2 }
     ]
   },
   {
@@ -164,6 +181,10 @@ const NPC_DATA = [
       'ทองไม่มีวันเน่าในดินแดนนี้ ของวิญญาณนั่นต่างหากที่เน่าได้',
       'ของข้าล้วนมาจากผู้ที่เดินทางไม่ถึงปลายทาง ซื้อไปเถิด อย่าถามที่มา',
       'กด B เมื่อใดก็ได้เพื่อเปิดร้านของข้า แม้ข้าจะเดินทางไปยังแม่น้ำ'
+    ],
+    choices: [
+      { label: 'ถามข่าวในดินแดน', text: 'หมอกกลืนเส้นทางที่คนเดินทางน้อย ระวังตัวไว้', relation: 1 },
+      { label: 'ขอส่วนลด', text: 'พิสูจน์ฝีมือเสียก่อน แล้วค่อยว่ากันเรื่องราคา', relation: 2 }
     ]
   }
 ];
@@ -211,6 +232,62 @@ export function createSystems(ctx) {
     if (!Array.isArray(state.spells)) state.spells = [];
     if (typeof state.activeSpell !== 'string') state.activeSpell = null;
     if (!state.quests || typeof state.quests !== 'object') state.quests = {};
+    if (!state.relationships || typeof state.relationships !== 'object' || Array.isArray(state.relationships)) state.relationships = {};
+    if (!state.npcMemories || typeof state.npcMemories !== 'object' || Array.isArray(state.npcMemories)) state.npcMemories = {};
+    if (!state.worldHistory || typeof state.worldHistory !== 'object' || Array.isArray(state.worldHistory)) state.worldHistory = {};
+    for (const npc of NPC_DATA) {
+      state.relationships[npc.id] = THREE.MathUtils.clamp(Number(state.relationships[npc.id]) || 0, -100, 100);
+      if (!state.npcMemories[npc.id] || typeof state.npcMemories[npc.id] !== 'object' || Array.isArray(state.npcMemories[npc.id])) state.npcMemories[npc.id] = {};
+    }
+  }
+
+  const MEMORY_REACTIONS = {
+    guardianKill: { field: 'guardians', reaction: { sage: 1, smith: 2, merchant: 1 } },
+    wolfKill: { field: 'wolves', reaction: { sage: 1, smith: 1 } },
+    deerKill: { field: 'deer', reaction: { sage: -2, merchant: -1 } },
+    dungeonClear: { field: 'dungeons', reaction: { sage: 3, smith: 3, merchant: 3 } },
+    mainQuestComplete: { field: 'mainQuests', reaction: { sage: 3, smith: 2, merchant: 1 } },
+    herbQuestComplete: { field: 'herbQuests', reaction: { sage: 4 } },
+    huntQuestComplete: { field: 'huntQuests', reaction: { smith: 4 } },
+    trade: { field: 'trades', reaction: { merchant: 1 } },
+    campRest: { field: 'campRests', reaction: {} },
+    cookedMeal: { field: 'cookedMeals', reaction: {} },
+    dialogueChoice: { field: 'kindWords', reaction: {} }
+  };
+
+  function rememberAction(action) {
+    const event = MEMORY_REACTIONS[action];
+    if (!event) return;
+    state.worldHistory[action] = Math.min(999, (Number(state.worldHistory[action]) || 0) + 1);
+    for (const npc of NPC_DATA) {
+      const memory = state.npcMemories[npc.id] || (state.npcMemories[npc.id] = {});
+      memory[event.field] = Math.min(999, (Number(memory[event.field]) || 0) + 1);
+      memory.lastAction = action;
+      const change = event.reaction[npc.id] || 0;
+      if (change) state.relationships[npc.id] = THREE.MathUtils.clamp((Number(state.relationships[npc.id]) || 0) + change, -100, 100);
+    }
+  }
+
+  function rememberedGreeting(npc) {
+    const memory = state.npcMemories[npc.id] || {};
+    const relation = Number(state.relationships[npc.id]) || 0;
+    if (memory.dungeons) {
+      return npc.id === 'sage' ? 'ข้ายังจำได้ว่าเจ้าทำลายคำสาปในถ้ำ แสงเริ่มกลับคืนสู่ผืนดินแล้ว' :
+        npc.id === 'smith' ? 'ข่าวเรื่องถ้ำต้องสาปแพร่ไปทั่ว ข้าจำได้ว่าเจ้าเป็นคนจัดการมัน' :
+          'คนที่กลับจากถ้ำต้องสาปได้มีไม่มาก ข้าจำการกระทำนั้นไว้';
+    }
+    if (memory.mainQuests) return 'ข้าจำได้ว่าเจ้าช่วยปกป้องซากโบราณ ผู้คนเริ่มกล้าออกจากที่ซ่อนแล้ว';
+    if (npc.id === 'smith' && memory.guardians) return `ข้าเห็นเจ้าปราบผู้พิทักษ์มาแล้ว ${memory.guardians} ตัว ฝีมือใช้ได้เลย`;
+    if (npc.id === 'sage' && memory.deer) return 'ข้าจำการล่าสัตว์ของเจ้าได้ ป่าต้องการการดูแลพอ ๆ กับผู้คน';
+    if (memory.wolves) return 'ข้าได้ยินว่าเจ้าช่วยลดฝูงหมาป่าที่คุกคามเส้นทางเดินทาง';
+    if (npc.id === 'merchant' && memory.trades > 1) return `กลับมาอีกแล้วสินะ เราค้าขายกันมา ${memory.trades} ครั้งแล้ว`;
+    if (npc.id === 'sage' && memory.herbQuests) return 'สมุนไพรที่เจ้านำมาให้ยังช่วยผู้เดินทางได้อีกหลายคน';
+    if (npc.id === 'smith' && memory.huntQuests) return 'ข้ายังจำได้ว่าเจ้าช่วยกำจัดผู้พิทักษ์ งานตีเหล็กของข้าปลอดภัยขึ้นมาก';
+    if (relation < 0) return 'ข้ายังจำสิ่งที่เจ้าทำไว้ได้ อย่าคิดว่ากาลเวลาจะลบมัน';
+    if (memory.campRests) return 'เห็นเจ้าตั้งค่ายพักอยู่หลายครั้ง รู้จักดูแลตัวเองระหว่างเดินทางก็ดีแล้ว';
+    if (memory.cookedMeals) return 'กลิ่นอาหารจากค่ายของเจ้าทำให้ข้านึกถึงวันที่โลกนี้ยังสงบ';
+    if (memory.visits > 1) return 'กลับมาอีกแล้ว ยินดีที่ได้พบเจ้า';
+    return null;
   }
 
   function getCount(id) {
@@ -219,8 +296,8 @@ export function createSystems(ctx) {
 
   function addItem(id, amount = 1) {
     const equipmentIds = [
-      'sword', 'greatsword', 'staff', 'voidblade',
-      'leather', 'iron', 'shadow', 'dragonplate'
+      'sword', 'greatsword', 'staff', 'voidblade', 'axe', 'bow', 'froststaff',
+      'leather', 'iron', 'shadow', 'dragonplate', 'runerobe', 'ranger'
     ];
     if (!MATERIAL_INFO[id] && !equipmentIds.includes(id)) return;
 
@@ -354,7 +431,10 @@ export function createSystems(ctx) {
       kind: 'npc',
       npcId: data.id,
       baseY: y,
-      target: new THREE.Vector3(data.position[0], y, data.position[2])
+      target: new THREE.Vector3(data.position[0], y, data.position[2]),
+      walkPhase: Math.random() * Math.PI * 2,
+      moving: false,
+      facing: 'south'
     };
     scene.add(group);
     return group;
@@ -388,6 +468,22 @@ export function createSystems(ctx) {
     effects.push({ mesh: ring, life: .5, maxLife: .5, kind: 'burst' });
   }
 
+  function impact(position, color = 0xffb28a) {
+    const count = 9;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const velocity = [];
+    for (let i = 0; i < count; i++) {
+      positions.set([position.x, position.y + .8, position.z], i * 3);
+      velocity.push(new THREE.Vector3((Math.random() - .5) * 2.4, .7 + Math.random() * 1.8, (Math.random() - .5) * 2.4));
+    }
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({ color, size: .12, transparent: true, opacity: .8, depthWrite: false });
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+    effects.push({ mesh: particles, life: .28, maxLife: .28, kind: 'impact', velocity });
+  }
+
   function advanceQuest(id, amount = 1) {
     const quest = SIDE_QUESTS[id];
     const progress = state.quests[id];
@@ -397,6 +493,7 @@ export function createSystems(ctx) {
 
     if (progress.count >= quest.target) {
       progress.status = 'done';
+      rememberAction(id === 'herb' ? 'herbQuestComplete' : 'huntQuestComplete');
       const reward = quest.reward;
 
       if (reward.potions) state.potions += reward.potions;
@@ -413,6 +510,9 @@ export function createSystems(ctx) {
 
   function onEnemyKilled(enemy) {
     const type = enemy.userData.type || 'guardian';
+    if (type === 'guardian' || type === 'boss') rememberAction('guardianKill');
+    else if (type === 'deer') rememberAction('deerKill');
+    else if (type === 'wolf') rememberAction('wolfKill');
     const table = LOOT_TABLE[type] || LOOT_TABLE.guardian;
 
     for (const entry of table) {
@@ -467,6 +567,15 @@ export function createSystems(ctx) {
       state.spells.push(recipe.give.spell);
       if (!state.activeSpell) state.activeSpell = recipe.give.spell;
     }
+    if (recipe.give.upgrade === 'weapon') {
+      state.equipmentUpgrades = state.equipmentUpgrades || {};
+      state.equipmentUpgrades[state.weapon] = (state.equipmentUpgrades[state.weapon] || 0) + 1;
+    }
+    if (recipe.give.upgrade === 'armor') {
+      state.equipmentUpgrades = state.equipmentUpgrades || {};
+      const key = `armor:${state.armor}`;
+      state.equipmentUpgrades[key] = (state.equipmentUpgrades[key] || 0) + 1;
+    }
 
     if (audio) audio.play('craft');
     toast(`คราฟต์สำเร็จ: ${recipe.name}`);
@@ -491,7 +600,9 @@ export function createSystems(ctx) {
     if (audio) audio.play('spell');
 
     const arcana = Math.max(0, Number(state.skills && state.skills.arcana) || 0);
-    const power = Math.round(spell.power * (1 + arcana * .1));
+    const classBonus = state.characterClass === 'mage' ? .2 : 0;
+    const armorBonus = state.armor === 'runerobe' ? .1 : 0;
+    const power = Math.round(spell.power * (1 + arcana * .1 + classBonus + armorBonus));
 
     if (id === 'heal') {
       state.hp = Math.min(state.maxHp || 100, state.hp + power);
@@ -644,6 +755,7 @@ export function createSystems(ctx) {
     state.quests[id] = { status: 'active', count: 0 };
     toast(`รับภารกิจ: ${quest.title}`);
     refreshQuestUI();
+    updateHud();
   }
 
   function questAvailable(npc) {
@@ -661,13 +773,31 @@ export function createSystems(ctx) {
     if (!nameEl || !textEl || !nextEl) return;
 
     const npc = dialogue.npc;
-    const isLast = dialogue.index >= npc.lines.length - 1;
+    const lines = dialogue.lines || npc.lines;
+    const isLast = dialogue.index >= lines.length - 1;
 
-    nameEl.textContent = npc.name;
-    textEl.textContent = npc.lines[dialogue.index];
+    const relation = Math.round(Number((state.relationships || {})[npc.id]) || 0);
+    nameEl.textContent = `${npc.name} · ความสัมพันธ์ ${relation}`;
+    textEl.textContent = lines[dialogue.index];
     nextEl.textContent = isLast
       ? (questAvailable(npc) ? 'รับภารกิจ' : 'จบการสนทนา')
       : 'ถัดไป';
+    const choicesEl = $('#dialogue-choices');
+    if (choicesEl) choicesEl.innerHTML = (dialogue.index === 0 ? (npc.choices || []) : [])
+      .map((choice, index) => `<button type="button" class="dialogue-choice" data-choice="${index}">${choice.label}</button>`).join('');
+    if (dialogue.choiceText) textEl.textContent = dialogue.choiceText;
+  }
+
+  function chooseDialogue(index) {
+    if (!dialogue) return;
+    const choice = (dialogue.npc.choices || [])[index];
+    if (!choice) return;
+    state.relationships = state.relationships || {};
+    state.relationships[dialogue.npc.id] = THREE.MathUtils.clamp((Number(state.relationships[dialogue.npc.id]) || 0) + choice.relation, -100, 100);
+    rememberAction('dialogueChoice');
+    dialogue.choiceText = choice.text;
+    dialogue.index = 1;
+    renderDialogue();
   }
 
   function closeDialogue() {
@@ -677,7 +807,11 @@ export function createSystems(ctx) {
   }
 
   function openDialogue(npc) {
-    dialogue = { npc, index: 0 };
+    state.npcMemories = state.npcMemories || {};
+    const memory = state.npcMemories[npc.id] || (state.npcMemories[npc.id] = {});
+    memory.visits = Math.min(999, (Number(memory.visits) || 0) + 1);
+    const greeting = rememberedGreeting(npc);
+    dialogue = { npc, index: 0, lines: greeting ? [greeting, ...npc.lines] : npc.lines };
     const panel = $('#dialogue-panel');
     if (panel) panel.classList.remove('hidden');
     renderDialogue();
@@ -742,16 +876,18 @@ export function createSystems(ctx) {
 
     if (buyContainer) {
       buyContainer.innerHTML = SHOP_ITEMS.map((item) => {
+        const relation = THREE.MathUtils.clamp(Number(state.relationships?.merchant) || 0, -20, 20);
+        const price = Math.max(1, Math.floor(item.price * (1 - relation * .01)));
         const owned = item.id !== 'potion' && owns(item.id) &&
           !['herb', 'ore', 'wood', 'bone', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
-        const disabled = gold < item.price || owned ? ' disabled' : '';
+        const disabled = gold < price || owned ? ' disabled' : '';
         const label = owned ? 'มีแล้ว' : item.name;
         const rarity = item.rarity
           ? ` <em class="rarity ${item.rarity}">[${RARITY[item.rarity].name}]</em>`
           : '';
         return (
           `<button type="button" data-buy="${item.id}"${disabled}>` +
-          `<span>${label}${rarity}</span><strong>${item.price} ◈</strong></button>`
+          `<span>${label}${rarity}</span><strong>${price} ◈</strong></button>`
         );
       }).join('');
     }
@@ -776,9 +912,12 @@ export function createSystems(ctx) {
   function buyItem(id) {
     const item = SHOP_ITEMS.find((entry) => entry.id === id);
     if (!item) return;
-    if (state.gold < item.price) return toast('ทองไม่เพียงพอ');
+    const relation = THREE.MathUtils.clamp(Number(state.relationships?.merchant) || 0, -20, 20);
+    const price = Math.max(1, Math.floor(item.price * (1 - relation * .01)));
+    if (state.gold < price) return toast('ทองไม่เพียงพอ');
 
-    state.gold -= item.price;
+    state.gold -= price;
+    rememberAction('trade');
     if (id === 'potion') state.potions++;
     else addItem(id, 1);
 
@@ -796,6 +935,7 @@ export function createSystems(ctx) {
     const value = Math.max(1, Math.floor(item.price * .5));
     state.inventory[id] = getCount(id) - 1;
     state.gold += value;
+    rememberAction('trade');
 
     if (audio) audio.play('coin');
     toast(`ขาย${item.name} ได้ ${value} ทอง`);
@@ -926,9 +1066,9 @@ export function createSystems(ctx) {
     const g = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    const minX = -40;
-    const maxX = 40;
-    const minZ = -100;
+    const minX = -70;
+    const maxX = 70;
+    const minZ = -170;
     const maxZ = 20;
     const toX = (x) => (x - minX) / (maxX - minX) * width;
     const toY = (z) => (z - minZ) / (maxZ - minZ) * height;
@@ -938,13 +1078,13 @@ export function createSystems(ctx) {
 
     g.strokeStyle = '#ffffff10';
     g.lineWidth = 1;
-    for (let x = -40; x <= 40; x += 10) {
+    for (let x = -70; x <= 70; x += 10) {
       g.beginPath();
       g.moveTo(toX(x), 0);
       g.lineTo(toX(x), height);
       g.stroke();
     }
-    for (let z = -100; z <= 20; z += 10) {
+    for (let z = -170; z <= 20; z += 10) {
       g.beginPath();
       g.moveTo(0, toY(z));
       g.lineTo(width, toY(z));
@@ -1000,7 +1140,9 @@ export function createSystems(ctx) {
 
     for (const landmark of staticLandmarks) {
       if (state.discoveredRegions.includes(landmark.region)) {
-        dot(landmark.position, landmark.color, 5, landmark.name);
+        const name = landmark.region === 'hamlet' && state.settlementStage >= 2 ? 'หมู่บ้านปลอดภัย'
+          : landmark.region === 'hamlet' && state.settlementStage >= 1 ? 'ชุมชนผู้รอดชีวิต' : landmark.name;
+        dot(landmark.position, landmark.color, 5, name);
       }
     }
     for (const npc of npcs) dot(npc.position, '#7fd4e8', 4, 'NPC');
@@ -1046,20 +1188,39 @@ export function createSystems(ctx) {
         time >= entry.from && time < entry.to
       ) || data.schedule[0];
 
+      const villageDayStops = { sage: [25, 0, -25], smith: [29, 0, -30], merchant: [33, 0, -25] };
+      const targetPosition = state.settlementStage >= 1 && time >= .08 && time < .5
+        ? villageDayStops[data.id] || stop.position
+        : stop.position;
       const goal = npc.userData.target;
-      goal.set(stop.position[0], surfaceY(stop.position[0], stop.position[2], stop.position[1]), stop.position[2]);
+      const stopKey = `${targetPosition[0]}:${targetPosition[2]}`;
+      if (npc.userData.scheduleStop !== stopKey) {
+        npc.userData.scheduleStop = stopKey;
+        goal.set(targetPosition[0], surfaceY(targetPosition[0], targetPosition[2], targetPosition[1]), targetPosition[2]);
+      }
 
       const dx = goal.x - npc.position.x;
       const dz = goal.z - npc.position.z;
       const distance = Math.hypot(dx, dz);
 
       if (distance > .35) {
+        npc.userData.moving = true;
         const step = Math.min(distance, dt * .85);
         npc.position.x += dx / distance * step;
         npc.position.z += dz / distance * step;
-        npc.position.y = surfaceY(npc.position.x, npc.position.z, goal.y);
+        npc.userData.heightTimer = (npc.userData.heightTimer || 0) + dt;
+        if (npc.userData.heightTimer >= .15) {
+          npc.userData.heightTimer = 0;
+          npc.position.y = surfaceY(npc.position.x, npc.position.z, goal.y);
+        }
         npc.rotation.y = Math.atan2(dx, dz);
+        npc.userData.facing = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'east' : 'west') : (dz > 0 ? 'south' : 'north');
+      } else {
+        npc.userData.moving = false;
       }
+      npc.userData.walkPhase += dt * (npc.userData.moving ? 8 : 2);
+      npc.children[0].rotation.z = npc.userData.moving ? Math.sin(npc.userData.walkPhase) * .08 : 0;
+      npc.children[1].position.y = 1.72 + (npc.userData.moving ? Math.abs(Math.sin(npc.userData.walkPhase)) * .035 : 0);
     }
   }
 
@@ -1113,6 +1274,16 @@ export function createSystems(ctx) {
 
       if (effect.kind === 'burst') {
         effect.mesh.scale.setScalar(1 + (1 - ratio) * 2.2);
+      }
+      if (effect.kind === 'impact') {
+        const positions = effect.mesh.geometry.attributes.position;
+        for (let p = 0; p < positions.count; p++) {
+          positions.array[p * 3] += effect.velocity[p].x * dt;
+          positions.array[p * 3 + 1] += effect.velocity[p].y * dt;
+          positions.array[p * 3 + 2] += effect.velocity[p].z * dt;
+          effect.velocity[p].y -= dt * 5;
+        }
+        positions.needsUpdate = true;
       }
 
       if (effect.life <= 0) {
@@ -1224,7 +1395,7 @@ export function createSystems(ctx) {
     if (!state.inventory.sword) state.inventory.sword = 1;
     if (!state.inventory.leather) state.inventory.leather = 1;
 
-    const skillCaps = { might: 5, vitality: 3, arcana: 3 };
+    const skillCaps = { might: 5, vitality: 3, arcana: 3, precision: 3, ward: 3 };
     const skills = {};
     for (const [id, cap] of Object.entries(skillCaps)) {
       const rank = state.skills && state.skills[id];
@@ -1233,6 +1404,17 @@ export function createSystems(ctx) {
       );
     }
     state.skills = skills;
+    state.relationships = state.relationships || {};
+    state.npcMemories = state.npcMemories || {};
+    state.worldHistory = state.worldHistory || {};
+    for (const npc of NPC_DATA) {
+      state.relationships[npc.id] = THREE.MathUtils.clamp(Number(state.relationships[npc.id]) || 0, -100, 100);
+      const memory = state.npcMemories[npc.id] || (state.npcMemories[npc.id] = {});
+      for (const field of ['guardians', 'wolves', 'deer', 'dungeons', 'mainQuests', 'herbQuests', 'huntQuests', 'trades', 'campRests', 'cookedMeals', 'kindWords', 'visits']) {
+        memory[field] = THREE.MathUtils.clamp(Math.floor(Number(memory[field]) || 0), 0, 999);
+      }
+      if (!Object.prototype.hasOwnProperty.call(MEMORY_REACTIONS, memory.lastAction)) memory.lastAction = null;
+    }
     state.maxHp = 100 + skills.vitality * 15;
     state.maxMana = 100 + skills.arcana * 12;
     state.hp = THREE.MathUtils.clamp(state.hp, 0, state.maxHp);
@@ -1268,6 +1450,11 @@ export function createSystems(ctx) {
   for (const data of NPC_DATA) npcs.push(makeNpcMesh(data));
 
   const nextButton = $('#dialogue-next');
+  const choicesContainer = $('#dialogue-choices');
+  if (choicesContainer) choicesContainer.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-choice]');
+    if (button) chooseDialogue(Number(button.dataset.choice));
+  });
   if (nextButton) {
     nextButton.addEventListener('click', () => {
       if (!dialogue) return;
@@ -1335,6 +1522,7 @@ export function createSystems(ctx) {
     addItem,
     interact,
     castSpell,
+    impact,
     onEnemyKilled,
     advanceQuest,
     update,
@@ -1345,6 +1533,7 @@ export function createSystems(ctx) {
     refreshInventoryUI,
     refreshQuestUI,
     closeDialogue,
+    rememberAction,
     openShop,
     closeShop,
     toggleShop,
