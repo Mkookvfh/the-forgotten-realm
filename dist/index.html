@@ -1,0 +1,274 @@
+
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="The Forgotten Realm - Dark Fantasy 3D Adventure">
+  <title>THE FORGOTTEN REALM</title>
+  <script type="module" crossorigin src="/assets/index-kz0TutYl.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DJ6SsZkq.css">
+</head>
+<body>
+  <div id="game"></div>
+
+  <main id="hud">
+    <header class="topbar">
+      <div class="brand">
+        <strong>THE FORGOTTEN REALM</strong>
+        <small>ASHEN WILDS · UPDATE 0.6</small>
+      </div>
+
+      <div class="top-actions">
+        <span id="clock" class="clock">NIGHT</span>
+        <button id="time-toggle" class="top-btn" type="button">
+          ☾ NIGHT
+        </button>
+        <button id="shop-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="shop-panel">
+  🏪 ตลาด
+        </button>
+        <button id="quest-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="quest-panel">
+  📜 ภารกิจ
+        </button>
+        <button id="map-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="map-panel">
+  🗺 แผนที่
+        </button>
+        <button id="inventory-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="inventory">
+  🎒 กระเป๋า
+        </button>
+        <button id="settings-open" class="top-btn settings-btn" type="button">
+          ⚙ ตั้งค่า
+        </button>
+      </div>
+    </header>
+
+    <section class="status">
+      <div class="stat">
+        <label>HP</label>
+        <div class="meter"><i id="hp-fill"></i></div>
+        <b id="hp-text">100 / 100</b>
+      </div>
+
+      <div class="stat">
+        <label>STA</label>
+        <div class="meter stamina"><i id="stamina-fill"></i></div>
+        <b id="stamina-text">100 / 100</b>
+      </div>
+
+      <div class="stat">
+        <label>MP</label>
+        <div class="meter mana"><i id="mana-fill"></i></div>
+        <b id="mana-text">100 / 100</b>
+      </div>
+
+      <div class="level-box">
+        <small>LEVEL</small>
+        <b id="level-text">1</b>
+      </div>
+    </section>
+
+    <section id="quest" class="glass">
+      <div class="quest-title">✦ ภารกิจปัจจุบัน</div>
+      <span id="quest-text">เดินทางไปยังหอคอยร้าง</span>
+    </section>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="interaction-hint"></div>
+
+    <div id="minimap-wrap" aria-label="แผนที่ย่อและเข็มทิศ">
+      <canvas id="minimap" width="160" height="160"></canvas>
+      <div id="compass-text">N · 000°</div>
+    </div>
+
+    <section id="mobile-controls">
+      <div id="stick-zone" aria-label="จอยสติ๊กเดิน">
+        <div id="stick"><i></i></div>
+      </div>
+
+      <div class="mobile-actions">
+        <button id="jump" type="button">↑ กระโดด</button>
+        <button id="attack" type="button">⚔ โจมตี</button>
+        <button id="interact" type="button">ใช้ / คุย</button>
+        <button id="run" type="button">วิ่ง</button>
+        <button id="dodge" type="button">หลบหลีก</button>
+        <button id="cast" type="button" disabled>✦ ร่ายเวท</button>
+      </div>
+    </section>
+
+    <div id="desktop-help">
+       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
+    </div>
+
+    <section id="settings-panel" class="panel hidden">
+      <div class="panel-head">
+        <div>
+          <small>GAME OPTIONS</small>
+          <b>⚙ ตั้งค่าเกม</b>
+        </div>
+        <button id="settings-close" class="close-btn" type="button">✕</button>
+      </div>
+
+      <label>
+        <span>คุณภาพกราฟิก</span>
+        <select id="quality">
+          <option value="low">ประหยัดพลังงาน</option>
+          <option value="medium" selected>สมดุล</option>
+          <option value="high">สูง</option>
+        </select>
+      </label>
+
+      <label>
+        <span>ความไวกล้อง</span>
+        <input id="sensitivity" type="range" min="1" max="12" value="5">
+      </label>
+
+      <label class="toggle">
+        <input id="rain-toggle" type="checkbox" checked>
+        <span>เปิดสภาพอากาศ / ฝน</span>
+      </label>
+
+      <label class="toggle">
+        <input id="sound-toggle" type="checkbox" checked>
+        <span>เปิดเสียงบรรยากาศและเอฟเฟกต์</span>
+      </label>
+
+      <label>
+        <span>ช่องบันทึก</span>
+        <select id="save-slot">
+          <option value="1">ช่อง 1</option>
+          <option value="2">ช่อง 2</option>
+          <option value="3">ช่อง 3</option>
+        </select>
+      </label>
+
+      <div class="settings-actions">
+        <button id="save-button" class="wide-btn" type="button">บันทึกเกม</button>
+        <button id="load-button" class="wide-btn secondary" type="button">โหลดเกม</button>
+      </div>
+
+      <p class="note">บันทึกอัตโนมัติทุก 30 วินาทีในช่องที่เลือก</p>
+    </section>
+
+    <section id="inventory" class="panel inventory hidden" aria-label="กระเป๋าสัมภาระ">
+  <div class="inventory-head">
+    <b>กระเป๋าสัมภาระและอุปกรณ์</b>
+    <button id="inventory-close" class="close-btn" type="button"
+      aria-label="ปิดกระเป๋า">✕</button>
+  </div>
+      <span>✧ ผลึกวิญญาณ <strong id="crystal-count">0</strong></span>
+      <span>✚ ยาฟื้นฟู <strong id="potion-count">2</strong> <small>(Q)</small></span>
+      <span>◈ ทอง <strong id="gold-count">60</strong></span>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">อาวุธที่สวมใส่: <strong id="equipped-weapon">ดาบ</strong></small>
+        <div class="equipment-buttons">
+          <button id="weapon-sword" type="button">ดาบ</button>
+          <button id="weapon-greatsword" type="button">ดาบใหญ่</button>
+          <button id="weapon-staff" type="button">คทาเวท</button>
+        </div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">เกราะที่สวมใส่: <strong id="equipped-armor">เกราะหนัง</strong></small>
+        <div class="equipment-buttons">
+          <button id="armor-leather" type="button">หนัง</button>
+          <button id="armor-iron" type="button">เหล็ก</button>
+          <button id="armor-shadow" type="button">เงา</button>
+        </div>
+      </div>
+
+      <div class="equipment-stats">
+        <span>พลังโจมตี <strong id="attack-stat">1</strong></span>
+        <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
+        <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
+      </div>
+      <div class="equipment-block">
+        <small class="equipment-heading">🌳 ต้นไม้ทักษะ <small>(<span id="skill-points-tree">0</span> แต้ม)</small></small>
+        <div id="skill-tree" class="skill-tree"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">วัตถุดิบในกระเป๋า</small>
+        <div id="material-list" class="material-list"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">⚒ คราฟต์</small>
+        <div id="craft-list" class="craft-list"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">✦ เวทมนตร์ <small>(R)</small></small>
+        <div id="spell-list" class="spell-list">
+          <button id="spell-firebolt" data-spell="firebolt" type="button" disabled>ลูกไฟ</button>
+          <button id="spell-heal" data-spell="heal" type="button" disabled>รักษา</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="shop-panel" class="panel shop-panel hidden" aria-label="ร้านค้าเร่ร่อน">
+      <div class="panel-head">
+        <div>
+          <small>WANDERING MERCHANT</small>
+          <b>🏪 ร้านค้าเร่ร่อน</b>
+        </div>
+        <button id="shop-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div class="shop-gold">ทองของคุณ: <strong id="shop-gold">60</strong></div>
+      <small class="equipment-heading">ซื้อสินค้า</small>
+      <div id="shop-buy" class="shop-list"></div>
+      <small class="equipment-heading">ขายของในกระเป๋า</small>
+      <div id="shop-sell" class="shop-list"></div>
+      <p class="note">กด B เพื่อเปิด/ปิดร้านค้า</p>
+    </section>
+
+    <section id="quest-panel" class="panel quest-panel hidden" aria-label="บันทึกภารกิจ">
+      <div class="panel-head">
+        <div>
+          <small>QUEST LOG</small>
+          <b>📜 ภารกิจ</b>
+        </div>
+        <button id="quest-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div id="quest-list" class="quest-list"></div>
+    </section>
+
+    <section id="map-panel" class="panel map-panel hidden" aria-label="แผนที่โลก">
+      <div class="panel-head">
+        <div>
+          <small>WORLD MAP</small>
+          <b>🗺 อาณาจักรที่ถูกลืม</b>
+        </div>
+        <button id="map-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div class="map-stage">
+        <canvas id="world-map" width="720" height="900"></canvas>
+        <div class="map-legend">
+          <span><i class="dot player"></i>คุณ</span>
+          <span><i class="dot enemy"></i>ศัตรู</span>
+          <span><i class="dot boss"></i>BOSS</span>
+          <span><i class="dot npc"></i>NPC</span>
+          <span><i class="dot node"></i>วัตถุดิบ</span>
+        </div>
+      </div>
+      <div id="map-coords">ตำแหน่ง: 0, 0</div>
+      <p class="note">พื้นที่ที่ยังไม่เคยไปจะถูกปกปิดด้วยหมอก</p>
+    </section>
+
+    <section id="dialogue-panel" class="panel dialogue-panel hidden" role="dialog" aria-label="บทสนทนา">
+      <div class="panel-head">
+        <b id="dialogue-name">—</b>
+        <button id="dialogue-close" class="close-btn" type="button">✕</button>
+      </div>
+      <p id="dialogue-text"></p>
+      <button id="dialogue-next" class="wide-btn" type="button">ถัดไป</button>
+    </section>
+  </main>
+
+</body>
+</html>
