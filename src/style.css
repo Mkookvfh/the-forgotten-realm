@@ -157,6 +157,10 @@ button {
   background: linear-gradient(90deg, #88703d, #e0c36c);
 }
 
+.meter.mana i {
+  background: linear-gradient(90deg, #3d5a88, #7aa6e8);
+}
+
 .level-box {
   min-width: 44px;
   display: grid;
@@ -618,4 +622,422 @@ button {
 body {
   margin: 0;
   overflow: hidden;
+}
+
+/* Equipment UI — compact and touch-friendly */
+.inventory {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.equipment-block {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #ffffff20;
+}
+
+.equipment-heading {
+  color: #c9c0ad;
+  font-size: 10px;
+}
+
+.equipment-heading strong {
+  color: #f0d69a;
+}
+
+.equipment-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.equipment-buttons button,
+.skill-button {
+  min-height: 32px;
+  padding: 6px 4px;
+  border: 1px solid #ffffff2b;
+  border-radius: 8px;
+  background: #283244;
+  color: #f0eadf;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.equipment-buttons button.selected {
+  border-color: #e2c17e;
+  background: linear-gradient(145deg, #715a34, #382b1d);
+  color: #fff1cf;
+}
+
+.equipment-stats {
+  display: grid;
+  gap: 4px;
+  padding-top: 7px;
+  border-top: 1px solid #ffffff20;
+  font-size: 10px;
+}
+
+.equipment-stats span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.skill-button {
+  width: 100%;
+  border-color: #c5ad7977;
+  background: #594329;
+}
+
+.skill-button:disabled {
+  opacity: .45;
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  .inventory {
+    max-height: 38vh;
+  }
+}
+
+/* ---------- Update 0.5 ---------- */
+#minimap-wrap {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 160px;
+  z-index: 6;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 16px #000a);
+}
+
+#minimap {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 50%;
+}
+
+#compass-text {
+  margin-top: 4px;
+  color: #f0d69a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  text-shadow: 0 2px 4px #000;
+}
+
+.equipment-buttons button:disabled,
+.skill-button:disabled,
+.craft-btn:disabled,
+.spell-list button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.material-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  font-size: 9px;
+  color: #c9c0ad;
+}
+
+.material-list span {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.craft-list {
+  display: grid;
+  gap: 5px;
+}
+
+.craft-btn {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ffffff2b;
+  border-radius: 8px;
+  background: #283244;
+  color: #f0eadf;
+  text-align: left;
+}
+
+.craft-btn b {
+  margin: 0;
+  color: #e3c17e;
+  font-size: 10px;
+}
+
+.craft-btn small {
+  color: #a9a59c;
+  font-size: 8px;
+}
+
+.spell-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.spell-list button {
+  min-height: 32px;
+  border: 1px solid #ffffff2b;
+  border-radius: 8px;
+  background: #283244;
+  color: #f0eadf;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.spell-list button.selected {
+  border-color: #8fb6f0;
+  background: linear-gradient(145deg, #35527d, #1d2c46);
+  color: #e8f1ff;
+}
+
+.quest-panel {
+  top: 130px;
+  left: 18px;
+  right: auto;
+  bottom: auto;
+  width: min(300px, calc(100vw - 36px));
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  font-size: 11px;
+}
+
+.quest-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quest-entry {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid #ffffff1c;
+  border-radius: 8px;
+  background: #ffffff08;
+}
+
+.quest-entry b {
+  margin: 0;
+  color: #e3c17e;
+  font-size: 11px;
+}
+
+.quest-entry small {
+  color: #b9b3a8;
+  font-size: 9px;
+}
+
+.quest-entry.main-quest {
+  border-color: #e3c17e55;
+  background: #e3c17e10;
+}
+
+.dialogue-panel {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 100px;
+  transform: translateX(-50%);
+  width: min(430px, calc(100vw - 28px));
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+#dialogue-text {
+  margin: 0;
+  color: #e8e1d3;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 650px) {
+  #minimap-wrap {
+    right: 10px;
+    bottom: 150px;
+    width: 108px;
+  }
+
+  .status {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 20px);
+  }
+
+  .stat {
+    grid-template-columns: 20px 48px;
+  }
+
+  .top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .quest-panel {
+    top: 112px;
+    left: 10px;
+    width: min(250px, calc(100vw - 20px));
+  }
+
+  .dialogue-panel {
+    bottom: 150px;
+  }
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  #minimap-wrap {
+    bottom: 95px;
+    width: 104px;
+  }
+
+  .dialogue-panel {
+    bottom: 95px;
+  }
+}
+
+/* ---------- Update 0.5: skill tree & world map ---------- */
+.rarity.uncommon { color: #7fd47f; }
+.rarity.rare { color: #7aa6f0; }
+.rarity.epic { color: #c992f0; }
+
+.skill-tree {
+  display: grid;
+  gap: 6px;
+}
+
+.skill-node {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid #ffffff1c;
+  border-radius: 9px;
+  background: #ffffff08;
+}
+
+.skill-node b {
+  color: #e3c17e;
+  font-size: 10px;
+}
+
+.skill-node .pips {
+  display: flex;
+  gap: 3px;
+}
+
+.skill-node .pips i {
+  width: 11px;
+  height: 6px;
+  border-radius: 2px;
+  background: #3b4353;
+}
+
+.skill-node .pips i.on {
+  background: linear-gradient(90deg, #e3c17e, #fff0c4);
+  box-shadow: 0 0 6px #e3c17e99;
+}
+
+.skill-node small {
+  grid-column: 1 / -1;
+  color: #a9a59c;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.skill-node button {
+  grid-column: 1 / -1;
+  min-height: 26px;
+  padding: 4px 6px;
+  border: 1px solid #c5ad7977;
+  border-radius: 7px;
+  background: #594329;
+  color: #fff1cf;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.skill-node button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.map-panel {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.map-stage {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+}
+
+#world-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #c5ad7955;
+  border-radius: 10px;
+  background: #070b12;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: #c9c0ad;
+  font-size: 9px;
+}
+
+.map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.map-legend .player { background: #7dfcd6; }
+.map-legend .enemy { background: #ff6b6b; }
+.map-legend .boss { background: #ff4fd8; }
+.map-legend .npc { background: #ffd166; }
+.map-legend .node { background: #8fb6f0; }
+
+#map-coords {
+  color: #f0d69a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-align: center;
+}
+
+@media (max-width: 650px) {
+  .map-panel {
+    width: calc(100vw - 16px);
+    padding: 12px;
+  }
 }

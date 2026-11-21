@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createSystems, RARITY } from './systems.js';
 import './style.css';
 
 // ---------- DOM ----------
@@ -21,9 +22,30 @@ const ui = {
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const settings = { quality: 'medium', sensitivity: 5, weather: true };
 
+const weaponStats = {
+  sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common' },
+  greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common' },
+  staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon' },
+  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic' }
+};
+
+const armorStats = {
+  leather: { name: 'เกราะหนัง', reduction: 0, rarity: 'common' },
+  iron: { name: 'เกราะเหล็ก', reduction: .25, rarity: 'common' },
+  shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
+  dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
+};
+
 const state = {
   hp: 100, stamina: 100, crystals: 0, potions: 2,
   level: 1, xp: 0, questStage: 0,
+  weapon: 'sword', armor: 'leather',
+  attackBonus: 0, skillPoints: 0,
+  maxHp: 100, maxMana: 100,
+  skills: { might: 0, vitality: 0, arcana: 0 },
+  inventory: { sword: 1, leather: 1 },
+  mana: 100, spells: [], activeSpell: null,
+  quests: {},
   dayTime: 0.72, weatherTime: 0,
   weatherOn: true, dead: false,
   discoveredRegions: []
@@ -40,7 +62,7 @@ function toast(message) {
 
 function updateHud() {
   ui.hp.style.width = `${Math.max(0, state.hp)}%`;
-  ui.hpText.textContent = `${Math.ceil(state.hp)} / 100`;
+  ui.hpText.textContent = `${Math.ceil(state.hp)} / ${state.maxHp}`;
   ui.stamina.style.width = `${Math.ceil(state.stamina)}%`;
   ui.staminaText.textContent = `${Math.ceil(state.stamina)} / 100`;
   ui.level.textContent = String(state.level);
@@ -52,6 +74,119 @@ function updateHud() {
     : state.questStage === 1
       ? 'กำจัดผู้พิทักษ์ที่เฝ้าซากโบราณ'
       : 'สำเร็จ! สำรวจดินแดนต่อไป';
+}
+
+function refreshEquipmentUI() {
+  const weapon = weaponStats[state.weapon] || weaponStats.sword;
+  const armor = armorStats[state.armor] || armorStats.leather;
+
+  const weaponLabel = $('#equipped-weapon');
+  const armorLabel = $('#equipped-armor');
+  const attackLabel = $('#attack-stat');
+  const defenseLabel = $('#defense-stat');
+  const skillLabel = $('#skill-points');
+
+  if (weaponLabel) {
+    weaponLabel.textContent = `${weapon.name} [${RARITY[weapon.rarity || 'common'].name}]`;
+    weaponLabel.style.color = RARITY[weapon.rarity || 'common'].color;
+  }
+  if (armorLabel) {
+    armorLabel.textContent = `${armor.name} [${RARITY[armor.rarity || 'common'].name}]`;
+    armorLabel.style.color = RARITY[armor.rarity || 'common'].color;
+  }
+  if (attackLabel) attackLabel.textContent = String(weapon.damage + state.attackBonus);
+  if (defenseLabel) defenseLabel.textContent = `${Math.round(armor.reduction * 100)}%`;
+  if (skillLabel) skillLabel.textContent = String(state.skillPoints);
+
+  for (const id of Object.keys(weaponStats)) {
+    const button = $(`#weapon-${id}`);
+    if (button) {
+      button.classList.toggle('selected', state.weapon === id);
+      button.disabled = !systems.owns(id);
+    }
+  }
+  for (const id of Object.keys(armorStats)) {
+    const button = $(`#armor-${id}`);
+    if (button) {
+      button.classList.toggle('selected', state.armor === id);
+      button.disabled = !systems.owns(id);
+    }
+  }
+}
+
+function selectWeapon(id) {
+  if (!weaponStats[id] || !systems.owns(id)) return;
+  state.weapon = id;
+  refreshEquipmentUI();
+  toast(`เปลี่ยนอาวุธ: ${weaponStats[id].name}`);
+}
+
+function selectArmor(id) {
+  if (!armorStats[id] || !systems.owns(id)) return;
+  state.armor = id;
+  refreshEquipmentUI();
+  toast(`สวมใส่: ${armorStats[id].name}`);
+}
+
+const skillDefs = {
+  might: { name: 'พลังโจมตี', max: 5, desc: 'เพิ่มพลังโจมตี +0.5 ต่อระดับ' },
+  vitality: { name: 'ความทนทาน', max: 3, desc: 'เพิ่ม HP สูงสุด +15 ต่อระดับ' },
+  arcana: { name: 'พลังเวท', max: 3, desc: 'เพิ่ม MP สูงสุด +12 และพลังเวท +10% ต่อระดับ' }
+};
+
+function upgradeSkill(id) {
+  const def = skillDefs[id];
+  if (!def) return;
+
+  const rank = state.skills[id] || 0;
+  if (rank >= def.max) return toast('อัปเกรดถึงขีดจำกัดแล้ว');
+  if (state.skillPoints <= 0) return toast('ไม่มีแต้มทักษะ');
+
+  state.skillPoints--;
+  state.skills[id] = rank + 1;
+
+  if (id === 'might') {
+    state.attackBonus = Math.min(5, state.skills.might * .5);
+  } else if (id === 'vitality') {
+    state.maxHp = 100 + state.skills.vitality * 15;
+    state.hp = Math.min(state.maxHp, state.hp + 15);
+  } else if (id === 'arcana') {
+    state.maxMana = 100 + state.skills.arcana * 12;
+    state.mana = Math.min(state.maxMana, state.mana + 12);
+  }
+
+  refreshSkillUI();
+  refreshEquipmentUI();
+  updateHud();
+  toast(`อัปเกรด ${def.name} เป็นระดับ ${state.skills[id]}`);
+}
+
+function refreshSkillUI() {
+  const pointsLabel = $('#skill-points');
+  if (pointsLabel) pointsLabel.textContent = String(state.skillPoints);
+
+  const treePointsLabel = $('#skill-points-tree');
+  if (treePointsLabel) treePointsLabel.textContent = String(state.skillPoints);
+
+  const container = $('#skill-tree');
+  if (!container) return;
+
+  container.innerHTML = Object.entries(skillDefs).map(([id, def]) => {
+    const rank = state.skills[id] || 0;
+    const pips = Array.from({ length: def.max }, (_, index) => (
+      `<i class="${index < rank ? 'on' : ''}"></i>`
+    )).join('');
+    const disabled = rank >= def.max || state.skillPoints <= 0 ? ' disabled' : '';
+
+    return (
+      `<div class="skill-node">` +
+      `<b>${def.name}</b>` +
+      `<div class="pips">${pips}</div>` +
+      `<small>${def.desc}</small>` +
+      `<button type="button" data-skill="${id}"${disabled}>อัปเกรด</button>` +
+      `</div>`
+    );
+  }).join('');
 }
 
 // ---------- Three.js scene ----------
@@ -678,18 +813,43 @@ for (let i = 0; i < 8; i++) {
 
 // ---------- Enemies ----------
 const enemies = [];
-const enemyMat = new THREE.MeshStandardMaterial({
-  color: 0x332a36,
-  roughness: .8,
-  emissive: 0x230b22
-});
 
-for (let i = 0; i < 3; i++) {
+const enemyTypes = {
+  guardian: {
+    name: 'ผู้พิทักษ์', hp: 3, damage: 8, speed: 1.65,
+    aggro: 12, reach: 1.5, cooldown: 1.25, xp: 35,
+    scale: 1, color: 0x332a36, emissive: 0x230b22, eye: 0xff443e
+  },
+  wraith: {
+    name: 'วิญญาณร้าย', hp: 2, damage: 6, speed: 2.4,
+    aggro: 14, reach: 1.4, cooldown: 1.0, xp: 25,
+    scale: .85, color: 0x2c3b4a, emissive: 0x12303f, eye: 0x8ce8ff
+  },
+  brute: {
+    name: 'อสูรศิลา', hp: 6, damage: 12, speed: 1.05,
+    aggro: 10, reach: 2.0, cooldown: 1.6, xp: 60,
+    scale: 1.35, color: 0x4a2f2a, emissive: 0x3a1108, eye: 0xffa24a
+  },
+  boss: {
+    name: 'เจ้าแห่งซากปรัก', hp: 20, damage: 16, speed: 1.25,
+    aggro: 18, reach: 2.8, cooldown: 1.5, xp: 300,
+    scale: 2.1, color: 0x3a2246, emissive: 0x3d0b52, eye: 0xff4fd8
+  }
+};
+
+function spawnEnemy(type, x, z) {
+  const stats = enemyTypes[type];
   const enemy = new THREE.Group();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: stats.color,
+    roughness: .8,
+    emissive: stats.emissive
+  });
 
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(.48, .65, 4, 7),
-    enemyMat
+    material
   );
   torso.position.y = .95;
   torso.castShadow = true;
@@ -697,52 +857,106 @@ for (let i = 0; i < 3; i++) {
 
   const eyes = new THREE.Mesh(
     new THREE.SphereGeometry(.09, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff443e })
+    new THREE.MeshBasicMaterial({ color: stats.eye })
   );
   eyes.position.set(0, 1.55, .36);
   enemy.add(eyes);
 
-  // Enemy Health Bar
-  const healthBar = new THREE.Group();
+  if (type === 'boss') {
+    const crown = new THREE.Mesh(
+      new THREE.ConeGeometry(.42, .8, 6),
+      new THREE.MeshStandardMaterial({
+        color: 0xc992f0,
+        emissive: 0x8c3ad0,
+        emissiveIntensity: 1.4
+      })
+    );
+    crown.position.y = 2.05;
+    enemy.add(crown);
+  }
 
+  const healthBar = new THREE.Group();
   const healthBack = new THREE.Mesh(
-    new THREE.PlaneGeometry(1, 0.12),
+    new THREE.PlaneGeometry(1, .12),
     new THREE.MeshBasicMaterial({
       color: 0x180d14,
       transparent: true,
-      opacity: 0.85,
+      opacity: .85,
       depthTest: true
     })
   );
-
   const healthFill = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.92, 0.07),
+    new THREE.PlaneGeometry(.92, .07),
     new THREE.MeshBasicMaterial({
-      color: 0x42e66b,
+      color: type === 'boss' ? 0xff4fd8 : 0x42e66b,
       depthTest: true
     })
   );
-
-  healthFill.position.z = 0.01;
+  healthFill.position.z = .01;
   healthBar.add(healthBack);
   healthBar.add(healthFill);
   healthBar.position.y = 2.05;
   enemy.add(healthBar);
 
-  enemy.position.set((i - 1) * 4, 0, -30 - i * 6);
+  enemy.position.set(x, 0, z);
+  enemy.scale.setScalar(stats.scale);
   enemy.userData = {
-    hp: 3,
+    type,
+    name: stats.name,
+    stats,
+    hp: stats.hp,
+    maxHp: stats.hp,
     alive: true,
-    homeX: enemy.position.x,
-    homeZ: enemy.position.z,
+    homeX: x,
+    homeZ: z,
     cooldown: 0,
-healthBar: healthBar,
-healthFill: healthFill
+    healthBar,
+    healthFill
   };
 
   scene.add(enemy);
   enemies.push(enemy);
+  return enemy;
 }
+
+const enemySpawns = [
+  ['guardian', -4, -30],
+  ['guardian', 0, -36],
+  ['guardian', 4, -42],
+  ['wraith', -9, -16],
+  ['wraith', 9, -24],
+  ['wraith', -10, -52],
+  ['brute', 10, -50],
+  ['brute', 15, -58],
+  ['boss', 0, -86]
+];
+
+for (const [type, x, z] of enemySpawns) spawnEnemy(type, x, z);
+
+// ---------- Update 0.5 Systems ----------
+const systems = createSystems({
+  scene,
+  player,
+  state,
+  enemies,
+  toast,
+  gainXp,
+  updateHud,
+  refreshEquipmentUI,
+  defeatEnemy,
+  staticLandmarks: [
+    { position: tower.position, color: '#c9a86a', size: 4.5, name: 'หอคอย', region: 'tower' },
+    { position: ruinGroup.position, color: '#9d9fb4', size: 4, name: 'ซากวิหาร', region: 'ruins' },
+    { position: shrine.position, color: '#d6a8f0', size: 3.5, name: 'ศาลเจ้า', region: 'tower' }
+  ],
+  regions: [
+    { id: 'tower', name: 'หอคอยแห่งผู้สูญหาย', center: tower.position, radius: 10 },
+    { id: 'ruins', name: 'วิหารโบราณ', center: ruinGroup.position, radius: 12 },
+    { id: 'river', name: 'ริมแม่น้ำโบราณ', center: new THREE.Vector3(0, 0, -72), radius: 18 },
+    { id: 'forest', name: 'ป่าต้องสาป', center: new THREE.Vector3(-12, 0, -30), radius: 20 },
+    { id: 'wilderness', name: 'ทุ่งรกร้าง', center: new THREE.Vector3(0, 0, 0), radius: 25 }
+  ]
+});
 
 // ---------- Rain ----------
 const rainCount = isTouch ? 180 : 420;
@@ -850,6 +1064,8 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyE') input.interactPressed = true;
     if (e.code === 'KeyQ') usePotion();
     if (e.code === 'KeyC') input.dodgePressed = true;
+    if (e.code === 'KeyR') systems.castSpell();
+    if (e.code === 'KeyM') toggleMapPanel();
   }
 
   keys[e.code] = true;
@@ -948,6 +1164,10 @@ bindHold('#dodge', () => {
   input.dodgePressed = true;
 });
 
+bindHold('#cast', () => {
+  systems.castSpell();
+});
+
 // ---------- Camera ----------
 let yaw = 0;
 let pitch = .22;
@@ -1024,7 +1244,7 @@ const desiredCamera = new THREE.Vector3();
 
 function saveGame(showMessage = true) {
   const payload = {
-    version: 2,
+    version: 5,
     player: [
       player.position.x,
       player.position.y,
@@ -1032,10 +1252,12 @@ function saveGame(showMessage = true) {
     ],
     state: { ...state },
     settings: { ...settings },
+    systems: systems.serializeWorld(),
 
     collectibles: collectibles.map(crystal => crystal.visible),
 
     enemies: enemies.map(enemy => ({
+      type: enemy.userData.type,
       position: [
         enemy.position.x,
         enemy.position.y,
@@ -1088,8 +1310,17 @@ function loadGame() {
       }
     }
 
-    state.hp = THREE.MathUtils.clamp(state.hp, 0, 100);
+    systems.restoreState();
+    systems.deserializeWorld(data.systems);
+
+    state.hp = THREE.MathUtils.clamp(state.hp, 0, state.maxHp);
     state.stamina = THREE.MathUtils.clamp(state.stamina, 0, 100);
+    state.weapon = weaponStats[data.state.weapon] ? data.state.weapon : 'sword';
+    state.armor = armorStats[data.state.armor] ? data.state.armor : 'leather';
+    state.attackBonus = THREE.MathUtils.clamp(
+      Number(data.state.attackBonus) || 0, 0, 5
+    );
+    state.skillPoints = Math.max(0, Number(data.state.skillPoints) || 0);
     state.potions = Math.max(0, state.potions);
     state.crystals = Math.max(0, state.crystals);
     state.level = Math.max(1, state.level);
@@ -1111,6 +1342,7 @@ function loadGame() {
       enemies.forEach((enemy, index) => {
         const saved = data.enemies[index];
         if (!saved) return;
+        if (saved.type && saved.type !== enemy.userData.type) return;
 
         if (
           Array.isArray(saved.position) &&
@@ -1123,18 +1355,19 @@ function loadGame() {
         enemy.userData.homeX = enemy.position.x;
 enemy.userData.homeZ = enemy.position.z;
 
+        const maxHp = enemy.userData.maxHp;
         enemy.userData.hp = THREE.MathUtils.clamp(
-          Number(saved.hp) || 0, 0, 3
+          Number(saved.hp) || 0, 0, maxHp
         );
 
         enemy.userData.alive =
           saved.alive !== false && enemy.userData.hp > 0;
 
         enemy.userData.healthFill.scale.x =
-          enemy.userData.hp / 3;
+          enemy.userData.hp / maxHp;
 
         enemy.userData.healthFill.position.x =
-          -(1 - enemy.userData.hp / 3) * 0.46;
+          -(1 - enemy.userData.hp / maxHp) * 0.46;
 
         if (enemy.userData.alive) {
           scene.add(enemy);
@@ -1160,6 +1393,10 @@ enemy.userData.homeZ = enemy.position.z;
 
     applySettings();
     updateHud();
+    refreshEquipmentUI();
+    refreshSkillUI();
+    systems.refreshInventoryUI();
+    systems.refreshQuestUI();
     toast('โหลดเกมแล้ว');
   } catch (error) {
     console.error(error);
@@ -1169,10 +1406,10 @@ enemy.userData.homeZ = enemy.position.z;
 
 function usePotion() {
   if (state.potions <= 0) return toast('ไม่มียาฟื้นฟู');
-  if (state.hp >= 100) return toast('พลังชีวิตเต็มแล้ว');
+  if (state.hp >= state.maxHp) return toast('พลังชีวิตเต็มแล้ว');
 
   state.potions--;
-  state.hp = Math.min(100, state.hp + 45);
+  state.hp = Math.min(state.maxHp, state.hp + 45);
   updateHud();
   toast('ใช้ยาฟื้นฟู +45 HP');
 }
@@ -1183,14 +1420,33 @@ function gainXp(amount) {
   while (state.xp >= 100) {
     state.xp -= 100;
     state.level++;
-    toast(`เลเวลเพิ่มเป็น ${state.level}`);
+    state.skillPoints++;
+    refreshEquipmentUI();
+    refreshSkillUI();
+    toast(`เลเวลเพิ่มเป็น ${state.level} · ได้แต้มทักษะ 1`);
   }
+}
+
+function defeatEnemy(enemy) {
+  if (!enemy.userData.alive) return;
+
+  enemy.userData.hp = 0;
+  enemy.userData.alive = false;
+  scene.remove(enemy);
+
+  const crystals = enemy.userData.type === 'boss' ? 5 : 1;
+  state.crystals += crystals;
+  gainXp(enemy.userData.stats.xp);
+  systems.onEnemyKilled(enemy);
+  toast(`${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} ชิ้น`);
+  updateHud();
 }
 
 function attack() {
   if (attackCooldown > 0) return;
 
-  attackCooldown = .55;
+  const weapon = weaponStats[state.weapon] || weaponStats.sword;
+  attackCooldown = weapon.cooldown;
   let hit = false;
 
   for (const enemy of enemies) {
@@ -1198,21 +1454,17 @@ function attack() {
 
     const d = player.position.distanceTo(enemy.position);
 
-    if (d < 3.0) {
-      enemy.userData.hp--;
+    if (d < weapon.range) {
+      enemy.userData.hp -= weapon.damage + state.attackBonus;
       hit = true;
       enemy.scale.setScalar(.92);
 
       setTimeout(() => enemy.scale.setScalar(1), 100);
 
       if (enemy.userData.hp <= 0) {
-        enemy.userData.alive = false;
-        scene.remove(enemy);
-        state.crystals++;
-        gainXp(35);
-        toast('ผู้พิทักษ์พ่ายแพ้ · ได้ผลึก 1 ชิ้น');
+        defeatEnemy(enemy);
       } else {
-        toast('โจมตีโดนผู้พิทักษ์');
+        toast(`โจมตีโดนด้วย${weapon.name}`);
       }
 
       break;
@@ -1224,6 +1476,8 @@ function attack() {
 }
 
 function interact() {
+  if (systems.interact()) return;
+
   if (player.position.distanceTo(shrine.position) < 5) {
     if (state.questStage === 0) {
       state.questStage = 1;
@@ -1424,36 +1678,35 @@ function updateWorld(dt) {
     if (!enemy.userData.alive) continue;
 
     const data = enemy.userData;
+    const stats = data.stats;
     const dx = player.position.x - enemy.position.x;
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
-    
-    // Update enemy health bar
-    const hpRatio = Math.max(0, data.hp / 3);
 
+    const hpRatio = Math.max(0, data.hp / data.maxHp);
     data.healthFill.scale.x = hpRatio;
     data.healthFill.position.x = -(1 - hpRatio) * 0.46;
 
     data.healthBar.quaternion.copy(camera.quaternion);
-    data.healthBar.visible = distance < 14;
-    
+    data.healthBar.visible = distance < stats.aggro + 2;
+
     data.cooldown = Math.max(0, data.cooldown - dt);
 
-    if (distance < 12) {
-      // Chase player
+    if (distance < stats.aggro) {
       const direction = new THREE.Vector3(dx, 0, dz).normalize();
-
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
 
-      if (distance > 1.5) {
-        enemy.position.addScaledVector(direction, dt * 1.65);
+      if (distance > stats.reach) {
+        enemy.position.addScaledVector(direction, dt * stats.speed);
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
-        state.hp = Math.max(0, state.hp - 8);
-        data.cooldown = 1.25;
-        toast('ผู้พิทักษ์โจมตีคุณ');
+        const armor = armorStats[state.armor] || armorStats.leather;
+        const incomingDamage = stats.damage * (1 - armor.reduction);
+        state.hp = Math.max(0, state.hp - incomingDamage);
+        data.cooldown = stats.cooldown;
+        toast(`${data.name}โจมตีคุณ`);
 
         if (state.hp <= 0) {
-          state.hp = 100;
+          state.hp = state.maxHp;
           player.position.set(0, 0, 3);
           toast('คุณกลับมาที่จุดพัก');
         }
@@ -1461,9 +1714,7 @@ function updateWorld(dt) {
         updateHud();
       }
     } else {
-      // Patrol around home position
       const t = performance.now() * 0.0005 + data.homeZ;
-
       enemy.position.x = data.homeX + Math.sin(t) * 1.2;
       enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
     }
@@ -1743,8 +1994,9 @@ playerSprite.position.y = 1.03 +
 
   updateDayNight(dt);
 updateWeather(dt);
-updateFireflies(dt);
+  updateFireflies(dt);
   updateWorld(dt);
+  systems.update(dt, yaw);
   updateHud();
 }
 
@@ -1765,29 +2017,69 @@ $('#time-toggle').addEventListener('click', () => {
 
 const inventoryOpenButton = $('#inventory-open');
 const inventoryCloseButton = $('#inventory-close');
+const questOpenButton = $('#quest-open');
+const questPanel = $('#quest-panel');
+const mapOpenButton = $('#map-open');
+const mapPanel = $('#map-panel');
+
+function closePanels(except = null) {
+  if (except !== 'inventory') {
+    ui.inventory.classList.add('hidden');
+    inventoryOpenButton.setAttribute('aria-expanded', 'false');
+  }
+  if (except !== 'quest') {
+    questPanel.classList.add('hidden');
+    questOpenButton.setAttribute('aria-expanded', 'false');
+  }
+  if (except !== 'map') {
+    mapPanel.classList.add('hidden');
+    mapOpenButton.setAttribute('aria-expanded', 'false');
+  }
+  if (except !== 'settings') ui.settings.classList.add('hidden');
+}
 
 inventoryOpenButton.addEventListener('click', () => {
-  ui.settings.classList.add('hidden');
-
   const willOpen = ui.inventory.classList.contains('hidden');
-
+  closePanels(willOpen ? 'inventory' : null);
   ui.inventory.classList.toggle('hidden', !willOpen);
   inventoryOpenButton.setAttribute('aria-expanded', String(willOpen));
 });
 
 inventoryCloseButton.addEventListener('click', () => {
-  ui.inventory.classList.add('hidden');
-  inventoryOpenButton.setAttribute('aria-expanded', 'false');
+  closePanels();
+});
+
+questOpenButton.addEventListener('click', () => {
+  const willOpen = questPanel.classList.contains('hidden');
+  closePanels(willOpen ? 'quest' : null);
+  questPanel.classList.toggle('hidden', !willOpen);
+  questOpenButton.setAttribute('aria-expanded', String(willOpen));
+  if (willOpen) systems.refreshQuestUI();
+});
+
+$('#quest-close').addEventListener('click', () => {
+  closePanels();
+});
+
+function toggleMapPanel() {
+  const willOpen = mapPanel.classList.contains('hidden');
+  closePanels(willOpen ? 'map' : null);
+  mapPanel.classList.toggle('hidden', !willOpen);
+  mapOpenButton.setAttribute('aria-expanded', String(willOpen));
+}
+
+mapOpenButton.addEventListener('click', toggleMapPanel);
+$('#map-close').addEventListener('click', () => {
+  closePanels();
 });
 
 $('#settings-open').addEventListener('click', () => {
-  ui.inventory.classList.add('hidden');
-  inventoryOpenButton.setAttribute('aria-expanded', 'false');
+  closePanels('settings');
   ui.settings.classList.remove('hidden');
 });
 
 $('#settings-close').addEventListener('click', () => {
-  ui.settings.classList.add('hidden');
+  closePanels();
 });
 
 $('#quality').addEventListener('change', (e) => {
@@ -1807,6 +2099,22 @@ $('#rain-toggle').addEventListener('change', (e) => {
 
 $('#save-button').addEventListener('click', saveGame);
 $('#load-button').addEventListener('click', loadGame);
+
+for (const id of Object.keys(weaponStats)) {
+  const button = $(`#weapon-${id}`);
+  if (button) button.addEventListener('click', () => selectWeapon(id));
+}
+for (const id of Object.keys(armorStats)) {
+  const button = $(`#armor-${id}`);
+  if (button) button.addEventListener('click', () => selectArmor(id));
+}
+const skillTree = $('#skill-tree');
+if (skillTree) {
+  skillTree.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-skill]');
+    if (button) upgradeSkill(button.dataset.skill);
+  });
+}
 
 // ---------- Screen Resize / Rotation ----------
 function resizeGame() {
@@ -1839,6 +2147,8 @@ if (window.visualViewport) {
 // ---------- Start ----------
 applySettings();
 updateHud();
+refreshEquipmentUI();
+refreshSkillUI();
 resizeGame();
 
 function animate() {
