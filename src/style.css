@@ -1206,3 +1206,31 @@ body {
   inset: 0;
   z-index: 0;
 }
+
+
+/* FIX HUD LAYER */
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+#hud .top-actions,
+#hud .top-actions *,
+#hud .panel,
+#hud .panel *,
+#hud button,
+#hud select,
+#hud input {
+  pointer-events: auto;
+}
+
+#hud .panel {
+  z-index: 30;
+}
+
+#game {
+  z-index: 0;
+}
+
