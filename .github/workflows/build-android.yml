@@ -89,7 +89,7 @@ jobs:
                           img.filepath = candidate
                           img.reload()
 
-                            for img in bpy.data.images:
+                      for img in bpy.data.images:
                   if img.source != 'FILE':
                       continue
 
