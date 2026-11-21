@@ -456,7 +456,7 @@ let importedWorld = null;
 let importedWorldBounds = null;
 const terrainRaycaster = new THREE.Raycaster();
 
-const glbRequested = new URLSearchParams(location.search).has('glb');
+const glbRequested = !new URLSearchParams(location.search).has('noglb');
 
 if (glbRequested) {
   const worldLoader = new GLTFLoader();
