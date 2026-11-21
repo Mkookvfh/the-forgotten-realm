@@ -1184,4 +1184,25 @@ body {
 #hud .panel *,
 #hud button,
 #hud select,
-#hud input
+#hud input,
+#hud [role="button"] {
+  pointer-events: auto;
+}
+
+#hud .panel {
+  z-index: 30;
+  visibility: visible;
+  opacity: 1;
+}
+
+#hud .panel.hidden,
+#hud .hidden {
+  display: none !important;
+}
+
+/* Preserve each panel's original display mode (grid/flex/block). */
+#game {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
