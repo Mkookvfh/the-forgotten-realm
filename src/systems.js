@@ -680,7 +680,7 @@ export function createSystems(ctx) {
       const disabled = recipeOwned(recipe) || !canCraft(recipe) ? ' disabled' : '';
       const label = recipeOwned(recipe) ? 'มีแล้ว' : recipe.name;
       const rarity = recipe.rarity
-        ? ` <em class="rarity ${recipe.rarity}">[${RARITY[recipe.rarity]?.name ?? recipe.rarity].name}]</em>`
+        ? ` <em class="rarity ${recipe.rarity}">[${RARITY[recipe.rarity]?.name ?? recipe.rarity.name}]</em>`
         : '';
       return (
         `<button type="button" class="craft-btn" data-recipe="${recipe.id}"${disabled}>` +
