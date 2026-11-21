@@ -34,28 +34,25 @@ jobs:
       - name: Install system tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender unzip
+          sudo apt-get install -y blender python3-numpy unzip
+          blender --background --python-expr "import bpy, numpy; print('Blender:', bpy.app.version_string, '| NumPy:', numpy.__version__)"
 
       - name: Prepare asset folders
         run: |
-          mkdir -p public/assets/converted
+          mkdir -p public/assets/converted/craftpix public/assets/world
           mkdir -p /tmp/tfr-assets
 
       - name: Extract 3D asset archives
         run: |
-          if [ -f public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip ]; then
-            unzip -oq public/assets/craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/tfr-assets/craftpix
-          elif [ -f craftpix-891176-free-environment-props-3d-low-poly-models.zip ]; then
-            unzip -oq craftpix-891176-free-environment-props-3d-low-poly-models.zip -d /tmp/tfr-assets/craftpix
-          else
-            echo "Craftpix archive not found. Skipping."
-          fi
-
-          if [ -f open-world-dark-fantasy-obj.zip ]; then
-            unzip -oq open-world-dark-fantasy-obj.zip -d /tmp/tfr-assets/world
-          else
-            echo "World OBJ archive not found. Skipping."
-          fi
+          set -euo pipefail
+          CRAFTPIX_ZIP="craftpix-891176-free-environment-props-3d-low-poly-models.zip"
+          WORLD_ZIP="open-world-dark-fantasy-obj.zip"
+          test -f "$CRAFTPIX_ZIP" || { echo "::error::Missing $CRAFTPIX_ZIP"; exit 1; }
+          test -f "$WORLD_ZIP" || { echo "::error::Missing $WORLD_ZIP"; exit 1; }
+          unzip -oq "$CRAFTPIX_ZIP" -d /tmp/tfr-assets/craftpix
+          unzip -oq "$WORLD_ZIP" -d /tmp/tfr-assets/world
+          test "$(find /tmp/tfr-assets/craftpix -type f -iname '*.fbx' | wc -l)" -eq 28 || { echo "::error::Expected 28 Craftpix FBX files"; exit 1; }
+          test -f /tmp/tfr-assets/world/open-world-dark-fantasy.obj || { echo "::error::World OBJ missing from archive"; exit 1; }
 
       - name: Create Blender conversion script
         run: |
@@ -69,8 +66,7 @@ jobs:
           output = Path(args[1])
           output.mkdir(parents=True, exist_ok=True)
 
-          supported = {".fbx", ".obj"}
-          files = [p for p in source.rglob("*") if p.suffix.lower() in supported]
+          files = sorted(p for p in source.rglob("*") if p.suffix.lower() == ".fbx")
 
           print(f"Found {len(files)} 3D files")
 
@@ -83,11 +79,6 @@ jobs:
 
                   if file.suffix.lower() == ".fbx":
                       bpy.ops.import_scene.fbx(filepath=str(file))
-                  elif hasattr(bpy.ops.wm, "obj_import"):
-                      bpy.ops.wm.obj_import(filepath=str(file))
-                  else:
-                      bpy.ops.import_scene.obj(filepath=str(file))
-
                   relative = file.relative_to(source).with_suffix(".glb")
                   destination = output / relative
                   destination.parent.mkdir(parents=True, exist_ok=True)
@@ -102,8 +93,7 @@ jobs:
                       converted += 1
                       print(f"Converted: {file.name}")
                   else:
-                      failed += 1
-                      print(f"Export failed: {file.name}")
+                      raise RuntimeError(f"GLB export is missing or empty: {destination}")
 
               except Exception as error:
                   failed += 1
@@ -111,24 +101,26 @@ jobs:
 
           print(f"Conversion complete: {converted} successful, {failed} failed")
 
-          if files and converted == 0:
-              raise RuntimeError("No 3D assets could be converted")
+          if failed or converted != len(files) or len(files) != 28:
+              raise RuntimeError(f"Expected 28 successful FBX conversions, got {converted}; failed={failed}")
           PY
 
       - name: Convert 3D assets to GLB
         run: |
-          if [ -d /tmp/tfr-assets/craftpix ]; then
-            blender --background --python /tmp/convert-assets.py -- \
-              /tmp/tfr-assets/craftpix public/assets/converted/craftpix
-          fi
-
-          if [ -d /tmp/tfr-assets/world ]; then
-            blender --background --python /tmp/convert-assets.py -- \
-              /tmp/tfr-assets/world public/assets/converted/world
-          fi
+          set -euo pipefail
+          blender --background --python-exit-code 1 --python /tmp/convert-assets.py -- \
+            /tmp/tfr-assets/craftpix/FBX public/assets/converted/craftpix
+          npx --yes obj2gltf@3.2.0 \
+            -i /tmp/tfr-assets/world/open-world-dark-fantasy.obj \
+            -o public/assets/world/open-world-dark-fantasy.glb \
+            -b
+          test -s public/assets/world/open-world-dark-fantasy.glb || { echo "::error::Converted world GLB is missing or empty"; exit 1; }
+          echo "Converted Craftpix GLB files: $(find public/assets/converted/craftpix -type f -iname '*.glb' | wc -l)"
+          test "$(find public/assets/converted/craftpix -type f -iname '*.glb' | wc -l)" -eq 28
+          ls -lh public/assets/world/open-world-dark-fantasy.glb
 
       - name: Install project dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build web game
         run: npm run build
@@ -140,15 +132,22 @@ jobs:
           fi
           npx cap sync android
 
-      - name: Build Android APK
+      - name: Build Android APKs
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug assembleRelease
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: the-forgotten-realm-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: the-forgotten-realm-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
