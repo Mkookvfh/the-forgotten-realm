@@ -71,9 +71,9 @@ jobs:
 
               path = os.path.join(source, name)
 
-              bpy.ops.import_scene.fbx(
-                  filepath=path
-              )
+              bpy.ops.wm.fbx_import(
+              filepath=path
+          )
 
               for img in bpy.data.images:
                   if img.source != 'FILE':
