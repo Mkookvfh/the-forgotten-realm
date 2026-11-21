@@ -78,7 +78,7 @@ jobs:
                   bpy.ops.wm.read_factory_settings(use_empty=True)
 
                   if file.suffix.lower() == ".fbx":
-                      bpy.ops.import_scene.fbx(filepath=str(file))
+                      bpy.ops.wm.fbx_import(filepath=str(file))
                   relative = file.relative_to(source).with_suffix(".glb")
                   destination = output / relative
                   destination.parent.mkdir(parents=True, exist_ok=True)
