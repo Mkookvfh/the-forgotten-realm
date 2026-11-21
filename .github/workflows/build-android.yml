@@ -1,5 +1,4 @@
-
-name: Build Android APK
+forame: Build Android APK
 
 on:
   workflow_dispatch:
@@ -75,7 +74,7 @@ jobs:
               filepath=path
           )
 
-              for img in bpy.data.images:
+                           for img in bpy.data.images:
                   if img.source != 'FILE':
                       continue
 
@@ -88,10 +87,6 @@ jobs:
                       if os.path.exists(candidate):
                           img.filepath = candidate
                           img.reload()
-
-                for img in bpy.data.images:
-                  if img.source != 'FILE':
-                      continue
 
                   image_path = bpy.path.abspath(img.filepath)
 
