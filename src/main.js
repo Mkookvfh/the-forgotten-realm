@@ -1,13 +1,16 @@
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createSystems, RARITY } from './systems.js';
 import { createAudio } from './audio.js';
+import {
+  createCharacterAtlas,
+  createCharacterSprite,
+  updateCharacterAnimation,
+  facingRow,
+  setSpriteFrame
+} from './pixelSprites.js';
+import { createWorldStreamer } from './worldStreamer.js';
+import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
 
 // ---------- DOM ----------
@@ -31,36 +34,24 @@ const settings = {
   sensitivity: 5,
   weather: true,
   sound: true,
-  music: true,
-  dayNightMode: 'auto',
-  mobileLayout: 'right',
-  fpsLimit: 'auto',
-  postProcessing: false
+  dayNightMode: 'auto'
 };
 const audio = createAudio();
 let currentSlot = 1;
 let dayNightMode = 'auto';
-let targetFps = 60;
-let lodTimer = 0;
-let qualityEffectScale = .65;
 
 const weaponStats = {
   sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common' },
   greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common' },
   staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon' },
-  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic' },
-  axe: { name: 'ขวานศึก', damage: 2.8, range: 3.1, cooldown: 1.0, rarity: 'uncommon', element: 'earth' },
-  bow: { name: 'ธนูวิญญาณ', damage: 1.8, range: 9, cooldown: .72, rarity: 'rare', element: 'wind' },
-  froststaff: { name: 'คทาเหมันต์', damage: 2.4, range: 5.2, cooldown: .85, rarity: 'rare', element: 'ice' }
+  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic' }
 };
 
 const armorStats = {
   leather: { name: 'เกราะหนัง', reduction: 0, rarity: 'common' },
   iron: { name: 'เกราะเหล็ก', reduction: .25, rarity: 'common' },
   shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
-  dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' },
-  runerobe: { name: 'ผ้าคลุมรูน', reduction: .2, rarity: 'rare', mana: 25 },
-  ranger: { name: 'เกราะพราน', reduction: .32, rarity: 'uncommon' }
+  dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
 };
 
 const state = {
@@ -70,26 +61,15 @@ const state = {
   weapon: 'sword', armor: 'leather',
   attackBonus: 0, skillPoints: 0,
   maxHp: 100, maxMana: 100,
-  skills: { might: 0, vitality: 0, arcana: 0, precision: 0, ward: 0 },
-  characterClass: 'adventurer',
+  skills: { might: 0, vitality: 0, arcana: 0 },
   inventory: { sword: 1, leather: 1 },
   mana: 100, spells: [], activeSpell: null,
   quests: {},
-  relationships: {},
-  npcMemories: {},
-  worldHistory: {},
-  settlementStage: 0,
-  dayTime: 0.25, weatherTime: 0,
+  dayTime: 0.72, weatherTime: 0,
   weatherOn: true, dead: false,
   discoveredRegions: [],
-  dungeonCleared: false,
-  dungeonStarted: false,
-  dungeonRewarded: false,
-  dungeonLoot: {},
-  mounted: false,
-  horsePosition: null,
-  foodBuff: 0,
-  campPosition: null
+  discoveredSecrets: [],
+  dungeonCleared: false
 };
 
 let toastTimer = 0;
@@ -120,12 +100,6 @@ function updateHud() {
     : state.questStage === 1
       ? 'กำจัดผู้พิทักษ์ที่เฝ้าซากโบราณ'
       : 'สำเร็จ! สำรวจดินแดนต่อไป';
-  const sideTracker = $('#side-quest-text');
-  if (sideTracker) {
-    const active = Object.entries(state.quests || {}).find(([, quest]) => quest?.status === 'active');
-    const labels = { herb: 'สมุนไพรเพื่อชีวิต', hunt: 'ล่าผู้พิทักษ์' };
-    sideTracker.textContent = active ? `ภารกิจรอง: ${labels[active[0]] || active[0]} (${active[1].count}/${active[0] === 'herb' ? 5 : 3})` : '';
-  }
 }
 
 function refreshEquipmentUI() {
@@ -183,9 +157,7 @@ function selectArmor(id) {
 const skillDefs = {
   might: { name: 'พลังโจมตี', max: 5, desc: 'เพิ่มพลังโจมตี +0.5 ต่อระดับ' },
   vitality: { name: 'ความทนทาน', max: 3, desc: 'เพิ่ม HP สูงสุด +15 ต่อระดับ' },
-  arcana: { name: 'พลังเวท', max: 3, desc: 'เพิ่ม MP สูงสุด +12 และพลังเวท +10% ต่อระดับ' },
-  precision: { name: 'นักล่าแม่นยำ', max: 3, desc: 'เพิ่มความเสียหายธนู +15% ต่อระดับ' },
-  ward: { name: 'เกราะธาตุ', max: 3, desc: 'ลดเวลาสถานะผิดปกติที่ได้รับ' }
+  arcana: { name: 'พลังเวท', max: 3, desc: 'เพิ่ม MP สูงสุด +12 และพลังเวท +10% ต่อระดับ' }
 };
 
 function upgradeSkill(id) {
@@ -245,21 +217,21 @@ function refreshSkillUI() {
 
 // ---------- Three.js scene ----------
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x8fc8df);
-scene.fog = new THREE.FogExp2(0xa8d2dc, 0.0022);
+scene.background = new THREE.Color(0x080d18);
+scene.fog = new THREE.FogExp2(0x202c3b, 0.0045);
 
 const camera = new THREE.PerspectiveCamera(
-  62, innerWidth / innerHeight, 0.1, 220
+  62, innerWidth / innerHeight, 0.1, 800
 );
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: !isTouch,
-  powerPreference: isTouch ? 'low-power' : 'high-performance'
+  antialias: true,
+  powerPreference: 'high-performance'
 });
 
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.22;
+renderer.toneMappingExposure = 1.12;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -268,38 +240,9 @@ renderer.domElement.style.touchAction = 'none';
 renderer.domElement.setAttribute('aria-label', 'Game view');
 mount.appendChild(renderer.domElement);
 
-let composer = null;
-let bloomPass = null;
-let vignettePass = null;
-
-function createPostProcessing() {
-  if (composer) return;
-  composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .24, .42, .84);
-  composer.addPass(bloomPass);
-  vignettePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, strength: { value: .18 } },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float strength; varying vec2 vUv; void main(){ vec4 color = texture2D(tDiffuse, vUv); float edge = smoothstep(.24, .78, length((vUv - .5) * vec2(1.0, .86))); color.rgb *= 1.0 - edge * strength; gl_FragColor = color; }`
-  });
-  composer.addPass(vignettePass);
-  composer.addPass(new OutputPass());
-}
-
-function disposePostProcessing() {
-  if (!composer) return;
-  composer.dispose();
-  bloomPass?.dispose();
-  vignettePass?.material?.dispose();
-  composer = null;
-  bloomPass = null;
-  vignettePass = null;
-}
-
 // ---------- Sky ----------
 const sky = new THREE.Mesh(
-  new THREE.SphereGeometry(180, 32, 24),
+  new THREE.SphereGeometry(520, 32, 24),
   new THREE.ShaderMaterial({
     uniforms: {
       uSun: { value: 0 }
@@ -321,17 +264,14 @@ const sky = new THREE.Mesh(
   void main() {
     float h = normalize(vDir).y;
 
-    vec3 nightHorizon = vec3(.17,.22,.34);
-    vec3 nightZenith = vec3(.018,.035,.095);
+    vec3 nightHorizon = vec3(.16,.19,.27);
+    vec3 nightZenith = vec3(.008,.014,.04);
 
-    vec3 dayHorizon = vec3(.72,.86,.91);
-    vec3 dayZenith = vec3(.23,.62,.91);
+    vec3 dayHorizon = vec3(.55,.72,.9);
+    vec3 dayZenith = vec3(.12,.42,.78);
 
-    float twilight = smoothstep(0.0, .2, uSun) * (1.0 - smoothstep(.2, .55, uSun));
-    vec3 duskHorizon = vec3(.88,.56,.32);
-    vec3 duskZenith = vec3(.43,.43,.62);
-    vec3 horizon = mix(mix(nightHorizon, dayHorizon, uSun), duskHorizon, twilight * .58);
-    vec3 zenith = mix(mix(nightZenith, dayZenith, uSun), duskZenith, twilight * .48);
+    vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
+    vec3 zenith = mix(nightZenith, dayZenith, uSun);
 
     vec3 col = mix(horizon, zenith, smoothstep(-.18,.8,h));
 
@@ -350,45 +290,14 @@ const sky = new THREE.Mesh(
 sky.renderOrder = -1;
 scene.add(sky);
 
-const clouds = [];
-const cloudMaterials = [];
-const cloudGeometry = new THREE.DodecahedronGeometry(1, 1);
-const cloudMaterial = new THREE.MeshLambertMaterial({ color: 0xf1f2ec, transparent: true, opacity: .92, flatShading: true, depthWrite: false });
-cloudMaterials.push(cloudMaterial);
-for (let i = 0; i < 10; i++) {
-  const cloud = new THREE.Group();
-  const puffs = 5 + Math.floor(Math.random() * 4);
-  for (let j = 0; j < puffs; j++) {
-    const puff = new THREE.Mesh(cloudGeometry, cloudMaterial);
-    const size = 1.8 + Math.random() * 2.1;
-    puff.position.set((j - puffs / 2) * 2.2, Math.random() * 1.1, (Math.random() - .5) * 2.8);
-    puff.scale.set(size * 1.35, size * .68, size * 1.08);
-    cloud.add(puff);
-  }
-  cloud.position.set((Math.random() - .5) * 150, 28 + Math.random() * 13, (Math.random() - .5) * 160);
-  cloud.userData.drift = .35 + Math.random() * .45;
-  clouds.push(cloud);
-  scene.add(cloud);
-}
-
-function updateClouds(dt) {
-  for (const cloud of clouds) {
-    cloud.position.x += dt * cloud.userData.drift;
-    if (cloud.position.x > 90) cloud.position.x = -90;
-  }
-  const sun = dayNightMode === 'day' ? 1 : dayNightMode === 'night' ? 0 : Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
-  cloudMaterial.color.setRGB(.35 + sun * .58, .39 + sun * .55, .48 + sun * .48);
-  cloudMaterial.opacity = .48 + sun * .45;
-}
-
 // ---------- Lighting ----------
-const hemi = new THREE.HemisphereLight(0xa8d8f2, 0x596744, 1.6);
+const hemi = new THREE.HemisphereLight(0xc8d8f0, 0x24221d, 1.65);
 scene.add(hemi);
 
-const ambient = new THREE.AmbientLight(0xd8e9d2, 0.52);
+const ambient = new THREE.AmbientLight(0xb4c8e8, 0.78);
 scene.add(ambient);
 
-const moon = new THREE.DirectionalLight(0xb8cbf2, .7);
+const moon = new THREE.DirectionalLight(0xc3d5ff, 1.8);
 moon.position.set(-18, 28, 12);
 moon.castShadow = true;
 moon.shadow.mapSize.set(1024, 1024);
@@ -399,7 +308,7 @@ moon.shadow.normalBias = 0.03;
 scene.add(moon);
 scene.add(moon.target);
 
-const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.35);
+const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.2);
 sunLight.position.set(25, 35, -20);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(1024, 1024);
@@ -417,98 +326,45 @@ sunLight.shadow.normalBias = 0.03;
 scene.add(sunLight);
 scene.add(sunLight.target);
 
-const moonGlow = new THREE.PointLight(0x9bb5ed, .32, 65);
+const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
 moonGlow.position.set(-16, 12, -18);
 scene.add(moonGlow);
 
-// ---------- Ground ----------
-function sampleDefaultTerrainHeight(x, z) {
-  let flatten = THREE.MathUtils.smoothstep(Math.abs(x), 3, 10);
-  flatten *= THREE.MathUtils.smoothstep(Math.abs(z + 72), 4, 10);
-  for (const [cx, cz, radius] of [[0, -48, 9], [13, -48, 12], [-27, -27, 12], [29, -28, 21], [-28, -87, 23], [0, -136, 13]]) {
-    flatten *= THREE.MathUtils.smoothstep(Math.hypot(x - cx, z - cz), radius, radius + 9);
-  }
-  const rolling = Math.sin(x * .075 + z * .043) * .86 +
-    Math.cos(z * .058 - x * .032) * .58 +
-    Math.sin((x - z) * .12) * .2;
-  return rolling * flatten;
-}
+// ---------- Ground and world streaming ----------
+const fallbackWorld = new THREE.Group();
+fallbackWorld.name = 'FallbackWorld';
+scene.add(fallbackWorld);
 
-const groundGeometry = new THREE.PlaneGeometry(220, 380, 55, 95);
-const groundPositions = groundGeometry.attributes.position;
-for (let i = 0; i < groundPositions.count; i++) {
-  const x = groundPositions.getX(i);
-  const z = -groundPositions.getY(i) - 65;
-  groundPositions.setZ(i, sampleDefaultTerrainHeight(x, z));
-}
-groundGeometry.computeVertexNormals();
 const ground = new THREE.Mesh(
-  groundGeometry,
-  new THREE.MeshStandardMaterial({ color: 0x7fae4f, roughness: 1, flatShading: true })
+  new THREE.PlaneGeometry(180, 180),
+  new THREE.MeshStandardMaterial({ color: 0x343a32, roughness: 1 })
 );
 ground.rotation.x = -Math.PI / 2;
-ground.position.z = -65;
 ground.receiveShadow = true;
-scene.add(ground);
+fallbackWorld.add(ground);
 
-// ---------- Terrain Height Detection ----------
-let importedWorld = null;
-let importedWorldBounds = null;
-const terrainRaycaster = new THREE.Raycaster();
+const worldStreamer = createWorldStreamer({
+  scene,
+  baseUrl: `${import.meta.env.BASE_URL}assets/world/`
+});
+let fallbackHidden = false;
 
-const glbRequested = !new URLSearchParams(location.search).has('noglb');
+worldStreamer.init().then((ok) => {
+  if (!ok) {
+    toast('ไม่พบข้อมูลโลกกว้าง ใช้แผนที่ต้นแบบแทน');
+  }
+});
 
-if (glbRequested) {
-  const worldLoader = new GLTFLoader();
-  worldLoader.load(
-    `${import.meta.env.BASE_URL}assets/world/open-world-dark-fantasy.glb`,
-
-    (gltf) => {
-      importedWorld = gltf.scene;
-      importedWorld.name = 'ImportedWorldGLB';
-      importedWorld.visible = true;
-      importedWorld.updateMatrixWorld(true);
-
-      const bounds = new THREE.Box3().setFromObject(importedWorld);
-      importedWorldBounds = bounds;
-      const size = bounds.getSize(new THREE.Vector3());
-
-      let meshCount = 0;
-      importedWorld.traverse((object) => {
-        if (object.isMesh) meshCount++;
-      });
-
-      scene.add(importedWorld);
-      ground.visible = false;
-      alignGrassToTerrain();
-
-      toast(`ตรวจพบแผนที่ GLB · ${Math.round(size.x)} × ${Math.round(size.z)}`);
-    },
-
-    undefined,
-
-    (error) => {
-      console.error('GLB WORLD LOAD ERROR:', error);
-      toast('โหลดไฟล์แผนที่ GLB ไม่สำเร็จ ใช้แผนที่ต้นแบบแทน');
-    }
-  );
-}
-
-const groundDayColor = new THREE.Color(0x7fae4f);
-const groundNightColor = new THREE.Color(0x33445a);
+const groundDayColor = new THREE.Color(0x343a32);
+const groundNightColor = new THREE.Color(0x65705d);
 
 
 const mats = {
-  stone: new THREE.MeshStandardMaterial({ color: 0x77766b, roughness: 1, flatShading: true }),
-  bark: new THREE.MeshStandardMaterial({ color: 0x68462d, roughness: 1, flatShading: true }),
-  leaves: new THREE.MeshStandardMaterial({ color: 0x5c9e3e, roughness: 1, flatShading: true }),
-  ruin: new THREE.MeshStandardMaterial({ color: 0x969587, roughness: 1, flatShading: true })
+  stone: new THREE.MeshStandardMaterial({ color: 0x454747, roughness: 1 }),
+  bark: new THREE.MeshStandardMaterial({ color: 0x33251c, roughness: 1 }),
+  leaves: new THREE.MeshStandardMaterial({ color: 0x263b2b, roughness: 1 }),
+  ruin: new THREE.MeshStandardMaterial({ color: 0x55565a, roughness: 1 })
 };
-
-const treeLeafPalette = [0x68a93e, 0x82b949, 0xa2c957, 0x458f5e, 0xc28b43].map(color =>
-  new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
-);
-const broadleafGeometry = new THREE.IcosahedronGeometry(1, 0);
 
 // ---------- Environment ----------
 for (let i = 0; i < 24; i++) {
@@ -520,21 +376,11 @@ for (let i = 0; i < 24; i++) {
   slab.rotation.y = Math.sin(i) * 0.12;
   slab.receiveShadow = true;
   slab.castShadow = true;
-  scene.add(slab);
-}
-for (let i = 0; i < 28; i++) {
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(2.6, .1, 1.65), mats.stone);
-  slab.position.set(Math.sin(i * .24) * 2.1, .04, -59 - i * 3.1);
-  slab.rotation.y = Math.sin(i * .7) * .1;
-  slab.receiveShadow = true;
-  scene.add(slab);
+  fallbackWorld.add(slab);
 }
 const obstacles = [];
-const environmentalTrees = [];
-const environmentalRocks = [];
 function makeTree(x, z, scale = 1) {
   const tree = new THREE.Group();
-  const crownMaterial = treeLeafPalette[Math.floor(random() * treeLeafPalette.length)];
 
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(.18 * scale, .32 * scale, 3.2 * scale, 6),
@@ -545,23 +391,23 @@ function makeTree(x, z, scale = 1) {
   tree.add(trunk);
 
   for (let j = 0; j < 3; j++) {
-    const crown = new THREE.Mesh(broadleafGeometry, crownMaterial);
-    crown.scale.set((1.45 - j * .08) * scale, (1.05 + j * .08) * scale, 1.25 * scale);
-    crown.position.set((j - 1) * .72 * scale, (3.15 + j * .48) * scale, (j % 2 ? .25 : -.18) * scale);
+    const crown = new THREE.Mesh(
+      new THREE.ConeGeometry((1.25 - j * .18) * scale, 2.4 * scale, 7),
+      mats.leaves
+    );
+    crown.position.set((j - 1) * .25 * scale, (3.1 + j * .52) * scale, 0);
     crown.castShadow = true;
     tree.add(crown);
   }
 
-  tree.userData.crowns = tree.children.slice(1);
-  environmentalTrees.push(tree);
-
-  tree.position.set(x, sampleDefaultTerrainHeight(x, z), z);
-scene.add(tree);
+  tree.position.set(x, 0, z);
+fallbackWorld.add(tree);
 
 obstacles.push({
   x,
   z,
-  radius: 0.85 * scale
+  radius: 0.85 * scale,
+  fallback: true
 });
 }
 
@@ -580,30 +426,13 @@ for (let i = 0; i < 92; i++) {
 
 // ---------- Grass Details ----------
 const grassMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
+  color: 0x496b3d,
   roughness: 1,
-  vertexColors: false,
   side: THREE.DoubleSide
 });
 
-function makeGrassClumpGeometry() {
-  const positions = [];
-  for (let blade = 0; blade < 3; blade++) {
-    const angle = blade * Math.PI / 3;
-    const dx = Math.cos(angle) * .16;
-    const dz = Math.sin(angle) * .16;
-    const height = .58 + blade * .12;
-    positions.push(-dx, 0, -dz, dx, 0, dz, -dx * .12, height, -dz * .12);
-    positions.push(dx, 0, dz, -dx, 0, -dz, dx * .12, height * .92, dz * .12);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-const grassBlade = makeGrassClumpGeometry();
-const grassCount = isTouch ? 1800 : 4200;
+const grassBlade = new THREE.PlaneGeometry(0.16, 0.7);
+const grassCount = isTouch ? 900 : 1800;
 const grass = new THREE.InstancedMesh(
   grassBlade,
   grassMaterial,
@@ -613,17 +442,15 @@ const grass = new THREE.InstancedMesh(
 const grassDummy = new THREE.Object3D();
 
 for (let i = 0; i < grassCount; i++) {
-  const x = (random() - 0.5) * 112;
-  const z = 14 - random() * 180;
-  const nearTower = Math.hypot(x, z + 48) < 7;
-  const nearRuins = Math.hypot(x - 13, z + 48) < 9;
-  const inVillage = x > 17 && x < 37 && z < -15 && z > -39;
-  const nearSkeletonClearing = x > -39 && x < -15 && z > -43 && z < -11;
-  if ((Math.abs(x) < 3.2 && z > -65 && z < 15) || Math.abs(z + 72) < 4.5 || nearTower || nearRuins || inVillage || nearSkeletonClearing) {
-    i--;
-    continue;
+  const x = (random() - 0.5) * 150;
+  const z = (random() - 0.5) * 150;
+
+  // เว้นพื้นที่ทางเดินตรงกลาง
+  if (Math.abs(x) < 2.5 && z > -65 && z < 12) {
+    grassDummy.position.set(x + 5, 0.32, z);
+  } else {
+    grassDummy.position.set(x, 0.32, z);
   }
-  grassDummy.position.set(x, sampleDefaultTerrainHeight(x, z) + .025, z);
 
   grassDummy.rotation.set(
     0,
@@ -631,79 +458,30 @@ for (let i = 0; i < grassCount; i++) {
     (random() - 0.5) * 0.25
   );
 
-  const scale = 0.65 + random() * 1.2;
+  const scale = 0.5 + random() * 1.1;
   grassDummy.scale.set(scale, scale, scale);
   grassDummy.updateMatrix();
+
   grass.setMatrixAt(i, grassDummy.matrix);
-  const tint = new THREE.Color().setHSL(.23 + random() * .12, .48 + random() * .28, .34 + random() * .2);
-  grass.setColorAt(i, tint);
 }
 
 grass.instanceMatrix.needsUpdate = true;
-if (grass.instanceColor) grass.instanceColor.needsUpdate = true;
 grass.frustumCulled = true;
-grass.castShadow = false;
-grass.receiveShadow = false;
-scene.add(grass);
-
-// Sparse low-poly wildflowers add the bright meadow accents from the reference art.
-const flowerColors = [0xe75243, 0xf0d45b, 0xf4eee0, 0xb36bd4];
-const flowerGeometry = new THREE.IcosahedronGeometry(.15, 0);
-for (const flowerColor of flowerColors) {
-  const flowerMaterial = new THREE.MeshStandardMaterial({ color: flowerColor, roughness: .8, flatShading: true });
-  const flowerField = new THREE.InstancedMesh(flowerGeometry, flowerMaterial, 52);
-  const flowerDummy = new THREE.Object3D();
-  let placed = 0;
-  while (placed < 52) {
-    const x = (random() - .5) * 108;
-    const z = 10 - random() * 170;
-    if ((Math.abs(x) < 5 && z > -65 && z < 10) || Math.abs(z + 72) < 7 ||
-        Math.hypot(x, z + 48) < 13 || Math.hypot(x + 27, z + 27) < 13 ||
-        (x > 17 && x < 40 && z > -42 && z < -12)) continue;
-    flowerDummy.position.set(x, sampleDefaultTerrainHeight(x, z) + .42, z);
-    const scale = .62 + random() * .75;
-    flowerDummy.scale.set(scale, scale, scale);
-    flowerDummy.rotation.set(random() * .25, random() * Math.PI, random() * .2);
-    flowerDummy.updateMatrix();
-    flowerField.setMatrixAt(placed++, flowerDummy.matrix);
-  }
-  flowerField.instanceMatrix.needsUpdate = true;
-  flowerField.castShadow = false;
-  scene.add(flowerField);
-}
-
-function alignGrassToTerrain() {
-  if (!importedWorld) return;
-  let start = 0;
-  const alignBatch = () => {
-    const end = Math.min(start + 100, grassCount);
-    for (let i = start; i < end; i++) {
-      grass.getMatrixAt(i, grassDummy.matrix);
-      grassDummy.matrix.decompose(grassDummy.position, grassDummy.quaternion, grassDummy.scale);
-      const height = getTerrainHeight(grassDummy.position.x, grassDummy.position.z, 0);
-      if (height !== null) grassDummy.position.y = height + .025;
-      grassDummy.updateMatrix();
-      grass.setMatrixAt(i, grassDummy.matrix);
-    }
-    grass.instanceMatrix.needsUpdate = true;
-    start = end;
-    if (start < grassCount) setTimeout(alignBatch, 0);
-  };
-  alignBatch();
-}
+fallbackWorld.add(grass);
 
 // ---------- Mountains ----------
 const mountainMaterial = new THREE.MeshStandardMaterial({
-  color: 0x898778,
-  roughness: 1,
-  flatShading: true
+  color: 0x414957,
+  roughness: 1
 });
 
 for (let i = 0; i < 18; i++) {
-  const radius = 7 + random() * 9;
-  const height = 15 + random() * 18;
   const mountain = new THREE.Mesh(
-    new THREE.ConeGeometry(radius, height, 7),
+    new THREE.ConeGeometry(
+      7 + random() * 9,
+      15 + random() * 18,
+      7
+    ),
     mountainMaterial
   );
 
@@ -717,56 +495,7 @@ for (let i = 0; i < 18; i++) {
   mountain.rotation.y = random() * Math.PI;
   mountain.castShadow = true;
   mountain.receiveShadow = true;
-  scene.add(mountain);
-
-  const snowCap = new THREE.Mesh(
-    new THREE.ConeGeometry(radius * .27, height * .24, 7),
-    new THREE.MeshStandardMaterial({ color: 0xe6e7df, roughness: .95, flatShading: true })
-  );
-  snowCap.position.copy(mountain.position);
-  snowCap.position.y += height * .39;
-  snowCap.castShadow = true;
-  scene.add(snowCap);
-}
-
-// Layered rock walls frame the meadow like a lost highland valley.
-const cliffGeometry = new THREE.DodecahedronGeometry(1, 0);
-const cliffMaterials = [0x918c7d, 0xaaa18d, 0x77796f, 0x6f7775].map(color =>
-  new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
-);
-for (const side of [-1, 1]) {
-  for (let i = 0; i < 17; i++) {
-    const z = 12 - i * 10.4;
-    const width = 6 + random() * 4.5;
-    const height = 9 + random() * 11;
-    const cliff = new THREE.Mesh(cliffGeometry, cliffMaterials[Math.floor(random() * cliffMaterials.length)]);
-    cliff.position.set(side * (56 + random() * 2.5), height * .42, z + (random() - .5) * 3);
-    cliff.scale.set(width, height, 7 + random() * 6);
-    cliff.rotation.set((random() - .5) * .18, random() * .5, (random() - .5) * .12);
-    cliff.castShadow = false;
-    cliff.receiveShadow = false;
-    scene.add(cliff);
-  }
-}
-
-// Faceted boulders and shrubs break up the broad meadow into readable low-poly biomes.
-const boulderMaterials = [0x777b76, 0x999486, 0x676f70, 0xb0a48d].map(color =>
-  new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
-);
-for (let i = 0; i < 48; i++) {
-  const x = (random() - .5) * 105;
-  const z = 9 - random() * 175;
-  if ((Math.abs(x) < 4 && z > -65 && z < 13) || (x > 16 && x < 38 && z < -15 && z > -39) || (x > -39 && x < -15 && z > -43 && z < -11) || Math.abs(z + 72) < 5) continue;
-  const size = .35 + random() * 1.05;
-  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 0), boulderMaterials[Math.floor(random() * boulderMaterials.length)]);
-  rock.position.set(x, sampleDefaultTerrainHeight(x, z) + size * .48, z);
-  rock.rotation.set(random() * .5, random() * Math.PI, random() * .4);
-  rock.scale.set(1 + random() * .6, .65 + random() * .55, .85 + random() * .5);
-  rock.castShadow = true;
-  rock.receiveShadow = true;
-  scene.add(rock);
-  environmentalRocks.push(rock);
-  if (size > .95) obstacles.push({ x, z, radius: size * .8 });
+  fallbackWorld.add(mountain);
 }
 
 // ---------- Ancient River ----------
@@ -781,17 +510,15 @@ const riverCurve = new THREE.CatmullRomCurve3([
 const river = new THREE.Mesh(
   new THREE.TubeGeometry(riverCurve, 80, 2.8, 8, false),
   new THREE.MeshStandardMaterial({
-    color: 0x287e8b,
-    emissive: 0x0b252a,
-    emissiveIntensity: .28,
-    roughness: 0.24,
-    metalness: 0.08,
+    color: 0x263f59,
+    roughness: 0.2,
+    metalness: 0.25,
     transparent: true,
     opacity: 0.88
   })
 );
 
-scene.add(river);
+fallbackWorld.add(river);
 
 // ---------- Ancient Ruins ----------
 const ruinGroup = new THREE.Group();
@@ -824,13 +551,14 @@ ruinFloor.receiveShadow = true;
 ruinGroup.add(ruinFloor);
 
 ruinGroup.position.set(13, 0, -48);
-scene.add(ruinGroup);
+fallbackWorld.add(ruinGroup);
 
 for (let i = 0; i < 4; i++) {
   obstacles.push({
     x: 13 + (i % 2) * 7 - 3.5,
     z: -48 + Math.floor(i / 2) * 7 - 3.5,
-    radius: 0.9
+    radius: 0.9,
+    fallback: true
   });
 }
 
@@ -852,206 +580,13 @@ const towerTop = new THREE.Mesh(
 towerTop.position.y = 9.1;
 tower.add(towerTop);
 tower.position.set(0, 0, -48);
-scene.add(tower);
+fallbackWorld.add(tower);
 obstacles.push({
   x: 0,
   z: -48,
-  radius: 2.7
+  radius: 2.7,
+  fallback: true
 });
-
-// ---------- Forgotten hamlet ----------
-const hamlet = new THREE.Group();
-const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x75634b, roughness: 1 });
-const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x3d3028, roughness: .95 });
-const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x38291e, roughness: 1 });
-const windowMaterial = new THREE.MeshStandardMaterial({ color: 0xb88048, emissive: 0x4b2512, emissiveIntensity: .35 });
-
-function makeCabin(x, z, scale = 1, rotation = 0) {
-  const cabin = new THREE.Group();
-  const walls = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.5, 3.2), wallMaterial);
-  walls.position.y = 1.25;
-  walls.castShadow = true;
-  walls.receiveShadow = true;
-  cabin.add(walls);
-
-  for (const side of [-1, 1]) {
-    const roofSide = new THREE.Mesh(new THREE.BoxGeometry(3.95, .16, 2.05), roofMaterial);
-    roofSide.position.set(0, 2.55, side * .72);
-    roofSide.rotation.x = side * .58;
-    roofSide.castShadow = true;
-    cabin.add(roofSide);
-  }
-
-  const door = new THREE.Mesh(new THREE.BoxGeometry(.75, 1.55, .12), doorMaterial);
-  door.position.set(0, .78, 1.66);
-  cabin.add(door);
-  for (const wx of [-1.12, 1.12]) {
-    const window = new THREE.Mesh(new THREE.BoxGeometry(.48, .55, .08), windowMaterial);
-    window.position.set(wx, 1.55, 1.63);
-    cabin.add(window);
-  }
-  const chimney = new THREE.Mesh(new THREE.BoxGeometry(.45, 1.1, .48), mats.ruin);
-  chimney.position.set(.95, 2.9, -.72);
-  chimney.castShadow = true;
-  cabin.add(chimney);
-
-  cabin.position.set(x, 0, z);
-  cabin.rotation.y = rotation;
-  cabin.scale.setScalar(scale);
-  hamlet.add(cabin);
-  obstacles.push({ x, z, radius: 2.15 * scale });
-}
-
-makeCabin(24, -20, 1.05, -.25);
-makeCabin(31, -27, .85, .35);
-makeCabin(22, -31, .75, .5);
-
-for (let i = 0; i < 7; i++) {
-  const post = new THREE.Mesh(new THREE.BoxGeometry(.18, .9, .18), mats.bark);
-  post.position.set(27 + i * 1.15, .45, -34);
-  post.castShadow = true;
-  hamlet.add(post);
-  if (i < 6) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.15, .12, .12), mats.bark);
-    rail.position.set(27.58 + i * 1.15, .55, -34);
-    hamlet.add(rail);
-  }
-  obstacles.push({ x: 27 + i * 1.15, z: -34, radius: .22 });
-}
-
-const hamletPath = new THREE.Mesh(new THREE.BoxGeometry(18, .08, 2.2), new THREE.MeshStandardMaterial({ color: 0x625643, roughness: 1 }));
-hamletPath.position.set(18, .035, -24);
-hamletPath.rotation.y = -.42;
-hamletPath.receiveShadow = true;
-hamlet.add(hamletPath);
-
-const hamletRevival = new THREE.Group();
-const hamletGuarded = new THREE.Group();
-const villageLanternMaterial = new THREE.MeshStandardMaterial({ color: 0xffc46a, emissive: 0xff8a32, emissiveIntensity: 1.4 });
-const villageWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x6c5137, roughness: 1, flatShading: true });
-for (const [x, z] of [[20, -22], [32, -31], [29, -20]]) {
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .12, 2.6, 5), villageWoodMaterial);
-  pole.position.set(x, 1.3, z);
-  pole.castShadow = true;
-  hamletRevival.add(pole);
-  const lamp = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 0), villageLanternMaterial);
-  lamp.position.set(x, 2.65, z);
-  hamletRevival.add(lamp);
-  const light = new THREE.PointLight(0xffad5c, .8, 11, 2);
-  light.position.copy(lamp.position);
-  hamletRevival.add(light);
-}
-for (const [x, z] of [[18, -33], [36, -35], [36, -18]]) {
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.16, .24, 2.1, 5), villageWoodMaterial);
-  trunk.position.set(x, 1.05, z);
-  const crown = new THREE.Mesh(broadleafGeometry, treeLeafPalette[1]);
-  crown.scale.set(1.55, 1.25, 1.45);
-  crown.position.set(x, 2.55, z);
-  trunk.castShadow = true;
-  crown.castShadow = true;
-  hamletRevival.add(trunk, crown);
-}
-for (const [x, z, color] of [[23, -18, 0xb04e43], [34, -24, 0xc09a52]]) {
-  const banner = new THREE.Group();
-  const staff = new THREE.Mesh(new THREE.CylinderGeometry(.055, .07, 3.5, 5), villageWoodMaterial);
-  staff.position.y = 1.75;
-  const cloth = new THREE.Mesh(new THREE.BoxGeometry(.95, 1.2, .09), new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true }));
-  cloth.position.set(.48, 2.65, 0);
-  banner.add(staff, cloth);
-  banner.position.set(x, 0, z);
-  hamletGuarded.add(banner);
-}
-const villageWell = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.2, .8, 8), mats.ruin);
-villageWell.position.set(28, .4, -27);
-hamletGuarded.add(villageWell);
-hamletRevival.visible = false;
-hamletGuarded.visible = false;
-hamlet.add(hamletRevival, hamletGuarded);
-scene.add(hamlet);
-const hamletMarker = new THREE.Vector3(26, 0, -26);
-
-const waystone = new THREE.Group();
-const waystoneMaterial = new THREE.MeshStandardMaterial({ color: 0x83b3a1, emissive: 0x1f5146, emissiveIntensity: .55, flatShading: true });
-const waystonePillar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4.4, 1.15), waystoneMaterial);
-waystonePillar.position.y = 2.2;
-waystonePillar.castShadow = true;
-waystone.add(waystonePillar);
-const waystoneCap = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1, 0), waystoneMaterial);
-waystoneCap.position.y = 4.6;
-waystone.add(waystoneCap);
-waystone.position.set(0, 0, -136);
-scene.add(waystone);
-obstacles.push({ x: 0, z: -136, radius: 1.4 });
-const waystoneMarker = new THREE.Vector3(0, 0, -136);
-
-// ---------- Colossal skeleton landmark ----------
-const skeletonSite = new THREE.Group();
-const boneMaterial = new THREE.MeshStandardMaterial({ color: 0xd5c8a6, roughness: .92, flatShading: true });
-const boneShadeMaterial = new THREE.MeshStandardMaterial({ color: 0x9c9c77, roughness: 1, flatShading: true });
-const socketMaterial = new THREE.MeshStandardMaterial({ color: 0x181c1a, roughness: 1 });
-
-function boneCurve(points, radius = .16, material = boneMaterial) {
-  const curve = new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-  const bone = new THREE.Mesh(new THREE.TubeGeometry(curve, 14, radius, 5, false), material);
-  bone.castShadow = true;
-  bone.receiveShadow = true;
-  skeletonSite.add(bone);
-  return bone;
-}
-
-boneCurve([[0, 3.2, 2], [0, 3.35, -1], [0, 3.05, -4], [0, 3.15, -7.5]], .34, boneShadeMaterial);
-for (let i = 0; i < 8; i++) {
-  const z = 1 - i * 1.12;
-  for (const side of [-1, 1]) {
-    boneCurve([[0, 3.35, z], [side * 1.45, 4.45, z - .15], [side * 2.8, 4.2, z - .35], [side * 3.55, 2.7, z - .65], [side * 3.2, .55, z - .9]], .19);
-  }
-  const joint = new THREE.Mesh(new THREE.DodecahedronGeometry(.38, 0), boneMaterial);
-  joint.position.set(0, 3.2, z);
-  joint.castShadow = true;
-  skeletonSite.add(joint);
-}
-
-const pelvis = new THREE.Mesh(new THREE.TorusGeometry(1.55, .28, 6, 9), boneShadeMaterial);
-pelvis.rotation.x = Math.PI / 2;
-pelvis.position.set(0, 2.9, 2.3);
-pelvis.scale.set(1.15, 1, .8);
-pelvis.castShadow = true;
-skeletonSite.add(pelvis);
-
-const skull = new THREE.Mesh(new THREE.IcosahedronGeometry(1.55, 1), boneMaterial);
-skull.scale.set(1.08, .92, 1.18);
-skull.position.set(0, 3.35, -8.4);
-skull.rotation.x = -.15;
-skull.castShadow = true;
-skeletonSite.add(skull);
-const jaw = new THREE.Mesh(new THREE.BoxGeometry(1.65, .36, 1.15), boneShadeMaterial);
-jaw.position.set(0, 2.35, -8.7);
-jaw.castShadow = true;
-skeletonSite.add(jaw);
-for (const side of [-1, 1]) {
-  const socket = new THREE.Mesh(new THREE.SphereGeometry(.48, 8, 6), socketMaterial);
-  socket.position.set(side * .72, 3.45, -9.55);
-  socket.scale.set(1, 1.05, .35);
-  skeletonSite.add(socket);
-  const fang = new THREE.Mesh(new THREE.ConeGeometry(.18, .55, 5), boneMaterial);
-  fang.position.set(side * .42, 2.18, -9.1);
-  fang.rotation.x = Math.PI;
-  skeletonSite.add(fang);
-}
-
-boneCurve([[-2.7, 3.8, -.2], [-4.5, 3.6, 1.2], [-6.8, 2.6, 2.4]], .27, boneShadeMaterial);
-boneCurve([[-6.8, 2.6, 2.4], [-7.5, 1.7, 3.2], [-8.2, .35, 3.6]], .22);
-boneCurve([[2.8, 3.8, -.2], [4.7, 3.3, 1.4], [6.4, 2.2, 2.8]], .27, boneShadeMaterial);
-boneCurve([[6.4, 2.2, 2.8], [7.2, 1.2, 3.2], [8, .28, 3.6]], .22);
-
-skeletonSite.position.set(-27, 0, -27);
-scene.add(skeletonSite);
-const skeletonMarker = new THREE.Vector3(-27, 0, -27);
-for (const z of [-1, -4, -7]) {
-  obstacles.push({ x: -30.5, z: -27 + z, radius: .6 });
-  obstacles.push({ x: -23.5, z: -27 + z, radius: .6 });
-}
-obstacles.push({ x: -27, z: -35.5, radius: 1.3 });
 
 const shrine = new THREE.Mesh(
   new THREE.TorusGeometry(1.0, .12, 8, 20),
@@ -1061,128 +596,35 @@ const shrine = new THREE.Mesh(
     emissiveIntensity: 1.2
   })
 );
-shrine.position.set(0, 2, -43);
+shrine.position.set(18, 2, 18);
 scene.add(shrine);
 
 const dungeonArena = new THREE.Group();
-const cryptStone = new THREE.MeshStandardMaterial({ color: 0x454957, roughness: .94, flatShading: true });
-const cryptStoneLight = new THREE.MeshStandardMaterial({ color: 0x656575, roughness: .92, flatShading: true });
-const cryptFloorMats = [
-  new THREE.MeshStandardMaterial({ color: 0x343943, roughness: 1, flatShading: true }),
-  new THREE.MeshStandardMaterial({ color: 0x3c414c, roughness: 1, flatShading: true }),
-  new THREE.MeshStandardMaterial({ color: 0x41434c, roughness: 1, flatShading: true })
-];
-const cryptWood = new THREE.MeshStandardMaterial({ color: 0x493326, roughness: 1, flatShading: true });
-const cryptIron = new THREE.MeshStandardMaterial({ color: 0x292d36, metalness: .55, roughness: .72, flatShading: true });
-const cryptTorchMat = new THREE.MeshStandardMaterial({ color: 0xe77a32, emissive: 0xff4b12, emissiveIntensity: 2.2, roughness: .6 });
+const dungeonFloor = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9.6, .4, 12),
+  new THREE.MeshStandardMaterial({ color: 0x252b33, roughness: 1 })
+);
+dungeonFloor.position.y = .2;
+dungeonFloor.receiveShadow = true;
+dungeonArena.add(dungeonFloor);
 
-function cryptBox(w, h, d, material, x, y, z, rotationY = 0) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-  mesh.position.set(x, y, z);
-  mesh.rotation.y = rotationY;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  dungeonArena.add(mesh);
-  return mesh;
+for (let i = 0; i < 8; i++) {
+  const angle = i / 8 * Math.PI * 2;
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(.65, .9, 4.5, 6),
+    mats.ruin
+  );
+  pillar.position.set(Math.cos(angle) * 8.2, 2.25, Math.sin(angle) * 8.2);
+  pillar.castShadow = true;
+  pillar.receiveShadow = true;
+  dungeonArena.add(pillar);
+  obstacles.push({
+    x: -28 + pillar.position.x,
+    z: -87 + pillar.position.z,
+    radius: .9
+  });
 }
-
-// A rectangular, walkable crypt hall with worn modular flagstones.
-cryptBox(30, .45, 36, cryptStone, 0, -.28, 0);
-const floorTiles = cryptFloorMats.map(material => {
-  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.48, 2.48), material, 44);
-  mesh.receiveShadow = true;
-  dungeonArena.add(mesh);
-  return { mesh, count: 0 };
-});
-const floorTransform = new THREE.Object3D();
-for (let x = -13; x <= 13; x += 2.6) {
-  for (let z = -16; z <= 14; z += 2.6) {
-    const tileIndex = Math.abs(Math.round(x * 2 + z)) % floorTiles.length;
-    const tile = floorTiles[tileIndex];
-    floorTransform.position.set(x, -.025, z);
-    floorTransform.rotation.set(-Math.PI / 2, 0, (Math.round(x + z) % 2) * .006);
-    floorTransform.updateMatrix();
-    tile.mesh.setMatrixAt(tile.count++, floorTransform.matrix);
-  }
-}
-for (const tile of floorTiles) tile.mesh.count = tile.count;
-
-// Thick walls leave a broad doorway in the south wall beside the portal.
-cryptBox(30, 6.5, 1.2, cryptStone, 0, 3.1, -17.4);
-cryptBox(1.2, 6.5, 34, cryptStone, -14.4, 3.1, 0);
-cryptBox(1.2, 6.5, 34, cryptStone, 14.4, 3.1, 0);
-cryptBox(12, 6.5, 1.2, cryptStone, -9, 3.1, 17.4);
-cryptBox(7, 6.5, 1.2, cryptStone, 11.5, 3.1, 17.4);
-cryptBox(2.4, 6.5, 1.5, cryptStoneLight, 1.4, 3.1, 17.2);
-cryptBox(2.4, 6.5, 1.5, cryptStoneLight, 7.2, 3.1, 17.2);
-
-// Raised side galleries, parapets and broad stair runs give the room its dungeon silhouette.
-for (const side of [-1, 1]) {
-  cryptBox(4.8, .5, 27, cryptStoneLight, side * 11.5, 3.05, -1.6);
-  cryptBox(4.8, .55, .55, cryptStone, side * 11.5, 3.55, -1.6);
-  for (let z = -12; z <= 10; z += 3.7) cryptBox(.35, .75, .35, cryptStoneLight, side * 9.25, 3.65, z);
-  const stairDirection = side === -1 ? 1 : -1;
-  for (let step = 0; step < 9; step++) {
-    const x = side * (8.5 + step * .48);
-    const y = .2 + step * .35;
-    const z = 9 - step * 1.25;
-    cryptBox(3.5, .42, 1.35, step % 3 ? cryptStone : cryptStoneLight, x, y, z, stairDirection * .035);
-  }
-}
-
-// Pillars frame the gallery and remain solid in the movement collision map.
-for (const x of [-8.6, 8.6]) {
-  for (const z of [-12, -4, 4, 12]) {
-    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(.78, .98, 5.7, 6), cryptStoneLight);
-    pillar.position.set(x, 2.85, z);
-    pillar.castShadow = true;
-    pillar.receiveShadow = true;
-    dungeonArena.add(pillar);
-    cryptBox(1.55, .42, 1.55, cryptStone, x, 5.75, z);
-    obstacles.push({ x: -28 + x, z: -87 + z, radius: 1.02 });
-  }
-}
-
-// Broken barricades, toppled furniture, rubble and storage make the hall feel abandoned.
-for (const [x, z, yaw] of [[-5.4, -10, .26], [5.7, -7.6, -.34], [-9.7, 7.4, .48], [9.4, 7.8, -.55]]) {
-  cryptBox(3.4, .24, .22, cryptWood, x, .3, z, yaw);
-  cryptBox(2.2, .2, .2, cryptWood, x + .8, .53, z + .45, -yaw * 1.5);
-  for (const legX of [-1.2, 1.2]) cryptBox(.2, .75, .2, cryptWood, x + legX, -.08, z);
-}
-for (const [x, z] of [[-11, -8], [-10, 9], [10, -11], [11, 4], [-5, 13], [5, -14]]) {
-  const crate = cryptBox(1.15, 1.05, 1.15, cryptWood, x, .53, z, (x + z) * .07);
-  cryptBox(1.22, .12, 1.22, cryptIron, x, 1.02, z, (x + z) * .07);
-  crate.rotation.z = ((x * z) % 3) * .045;
-}
-for (let i = 0; i < 12; i++) {
-  const x = Math.sin(i * 12.8) * 11.6;
-  const z = Math.cos(i * 7.4) * 13.4;
-  const rubble = new THREE.Mesh(new THREE.DodecahedronGeometry(.25 + (i % 3) * .11, 0), i % 2 ? cryptStone : cryptStoneLight);
-  rubble.position.set(x, .13, z);
-  rubble.scale.y = .65;
-  rubble.castShadow = true;
-  dungeonArena.add(rubble);
-}
-
-// Amber wall torches and a cool blue vault light echo the reference lighting.
-for (const [x, z, color] of [[-13, -10, 0xff873d], [13, -10, 0x559dff], [-13, 10, 0xff7834], [13, 10, 0x559dff]]) {
-  cryptBox(.3, 1.25, .3, cryptIron, x * .91, 2.35, z);
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(.24, .8, 6), cryptTorchMat);
-  flame.position.set(x * .91, 3.35, z);
-  dungeonArena.add(flame);
-  const light = new THREE.PointLight(color, color === 0xff873d || color === 0xff7834 ? 2.1 : 1.5, 15, 2);
-  light.position.set(x * .91, 3.7, z);
-  dungeonArena.add(light);
-}
-
-// Low altar and a second stair at the far end anchor the boss chamber.
-cryptBox(5.8, .45, 4.2, cryptStoneLight, 0, .28, -5.4);
-cryptBox(4.2, .65, 3.2, cryptStone, 0, .72, -5.4);
-cryptBox(2.6, .55, 1.8, cryptStoneLight, 0, 1.32, -5.4);
-for (let i = 0; i < 5; i++) cryptBox(5, .34, 1.1, cryptStoneLight, 0, .18 + i * .32, -12 + i * 1.15);
-
 dungeonArena.position.set(-28, 0, -87);
-dungeonArena.visible = false;
 scene.add(dungeonArena);
 
 const dungeonPortal = new THREE.Group();
@@ -1222,112 +664,6 @@ for (let i = 0; i < 4; i++) {
 }
 dungeonPortal.position.set(-24, 0, -77);
 scene.add(dungeonPortal);
-
-const dungeonCorruption = new THREE.Group();
-const curseCrystalMaterial = new THREE.MeshStandardMaterial({ color: 0x34244e, emissive: 0x5a2b91, emissiveIntensity: 1.15, roughness: .45, flatShading: true });
-const cleansedGrowth = new THREE.Group();
-const cleansedRockMaterial = new THREE.MeshStandardMaterial({ color: 0x74866a, roughness: 1, flatShading: true });
-for (let i = 0; i < 7; i++) {
-  const angle = i / 7 * Math.PI * 2;
-  const radius = 5.2 + (i % 3) * 1.1;
-  const crystal = new THREE.Mesh(new THREE.ConeGeometry(.45 + (i % 3) * .13, 1.4 + (i % 2) * .8, 5), curseCrystalMaterial);
-  crystal.position.set(Math.cos(angle) * radius, .6, Math.sin(angle) * radius);
-  crystal.rotation.z = (i % 2 ? 1 : -1) * .16;
-  crystal.castShadow = true;
-  dungeonCorruption.add(crystal);
-  const plant = new THREE.Mesh(broadleafGeometry, treeLeafPalette[i % 3]);
-  plant.scale.set(.5, .42, .48);
-  plant.position.set(Math.cos(angle) * radius, .38, Math.sin(angle) * radius);
-  cleansedGrowth.add(plant);
-  const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(.45, 0), cleansedRockMaterial);
-  pebble.position.set(Math.cos(angle) * (radius + 1), .24, Math.sin(angle) * (radius + 1));
-  pebble.scale.y = .6;
-  cleansedGrowth.add(pebble);
-}
-dungeonCorruption.position.set(dungeonPortal.position.x, 0, dungeonPortal.position.z);
-cleansedGrowth.position.copy(dungeonCorruption.position);
-cleansedGrowth.visible = false;
-scene.add(dungeonCorruption, cleansedGrowth);
-
-function updateLivingWorld() {
-  const nextStage = state.dungeonCleared ? 2 : state.questStage >= 2 ? 1 : 0;
-  state.settlementStage = nextStage;
-  hamletRevival.visible = nextStage >= 1;
-  hamletGuarded.visible = nextStage >= 2;
-  windowMaterial.emissiveIntensity = nextStage === 0 ? .12 : nextStage === 1 ? .62 : 1.05;
-  dungeonCorruption.visible = !state.dungeonCleared;
-  cleansedGrowth.visible = Boolean(state.dungeonCleared);
-  portalRing.material.emissiveIntensity = state.dungeonCleared ? .35 : 1.8;
-  portalCore.material.color.setHex(state.dungeonCleared ? 0x28645b : 0x1b0d2e);
-}
-
-const dungeonChests = [];
-const chestWood = new THREE.MeshStandardMaterial({ color: 0x704927, roughness: .8, flatShading: true });
-const chestIron = new THREE.MeshStandardMaterial({ color: 0xb7a16e, metalness: .62, roughness: .45 });
-function makeDungeonChest(id, x, z, requiresClear = false) {
-  const chest = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.25, .72, .82), chestWood);
-  base.position.y = .38;
-  base.castShadow = true;
-  chest.add(base);
-  const lidPivot = new THREE.Group();
-  lidPivot.position.set(0, .72, -.37);
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.25, .44, .82), chestWood);
-  lid.position.set(0, .2, .37);
-  lid.castShadow = true;
-  lidPivot.add(lid);
-  chest.add(lidPivot);
-  const lock = new THREE.Mesh(new THREE.BoxGeometry(.18, .24, .08), chestIron);
-  lock.position.set(0, .58, .45);
-  chest.add(lock);
-  for (const side of [-1, 1]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(.12, .86, .88), chestIron);
-    band.position.x = side * .39;
-    band.position.y = .47;
-    chest.add(band);
-  }
-  chest.position.set(x, 0, z);
-  chest.userData = { id, requiresClear, lidPivot, opened: false };
-  chest.visible = false;
-  scene.add(chest);
-  dungeonChests.push(chest);
-}
-
-makeDungeonChest('crypt_cache', -22.1, -85.2);
-makeDungeonChest('warden_treasure', -33.6, -88.4, true);
-
-function updateDungeonChests() {
-  for (const chest of dungeonChests) {
-    chest.visible = dungeonActive && !state.dungeonLoot[chest.userData.id] &&
-      (!chest.userData.requiresClear || state.dungeonCleared);
-  }
-}
-
-function openDungeonChest(chest) {
-  if (!chest.visible || chest.userData.opened) return false;
-  const id = chest.userData.id;
-  if (chest.userData.requiresClear && !state.dungeonCleared) {
-    toast('ผนึกสมบัติจะคลายเมื่อผู้คุมถ้ำพ่ายแพ้');
-    return true;
-  }
-  chest.userData.opened = true;
-  audio.play('chest');
-  chest.userData.lidPivot.rotation.x = -.9;
-  state.dungeonLoot[id] = true;
-  if (id === 'crypt_cache') {
-    systems.addItem('darkShard', 3);
-    systems.addItem('ore', 2);
-    state.gold += 80;
-    toast('ค้นพบหีบสุสาน · ได้เศษเงามืด แร่ และทอง');
-  } else {
-    systems.addItem('bossRelic', 1);
-    systems.addItem('essence', 3);
-    state.crystals += 3;
-    toast('พบสมบัติผู้คุม · ได้เศษโบราณ แก่นวิญญาณ และผลึก');
-  }
-  updateHud();
-  return true;
-}
 
 // ---------- Pixel Art Player ----------
 const player = new THREE.Group();
@@ -1454,239 +790,12 @@ playerShadow.rotation.x = -Math.PI / 2;
 playerShadow.position.y = 0.025;
 player.add(playerShadow);
 
-player.position.set(0, 0, 3);
+player.position.set(18, 0, 12);
 scene.add(player);
 
-const horse = new THREE.Group();
-const horseCoat = new THREE.MeshStandardMaterial({ color: 0x704832, roughness: .92, flatShading: true });
-const horseMane = new THREE.MeshStandardMaterial({ color: 0x2b211d, roughness: 1, flatShading: true });
-const horseGear = new THREE.MeshStandardMaterial({ color: 0x9b7749, roughness: .8, flatShading: true });
-const horseBody = new THREE.Mesh(new THREE.CapsuleGeometry(.45, .85, 4, 8), horseCoat);
-horseBody.rotation.x = Math.PI / 2;
-horseBody.position.y = 1.18;
-horseBody.castShadow = true;
-horse.add(horseBody);
-const horseNeck = new THREE.Mesh(new THREE.CapsuleGeometry(.25, .66, 4, 7), horseCoat);
-horseNeck.rotation.x = .55;
-horseNeck.position.set(0, 1.55, .62);
-horseNeck.castShadow = true;
-horse.add(horseNeck);
-const horseHead = new THREE.Mesh(new THREE.CapsuleGeometry(.21, .42, 4, 7), horseCoat);
-horseHead.rotation.x = .35;
-horseHead.position.set(0, 1.78, 1.05);
-horse.add(horseHead);
-const horseMuzzle = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), horseCoat);
-horseMuzzle.scale.set(1.15, .7, .8);
-horseMuzzle.position.set(0, 1.62, 1.4);
-horse.add(horseMuzzle);
-const horseManeMesh = new THREE.Mesh(new THREE.ConeGeometry(.3, .9, 5), horseMane);
-horseManeMesh.position.set(0, 1.95, .48);
-horseManeMesh.rotation.x = -.35;
-horse.add(horseManeMesh);
-const horseTail = new THREE.Mesh(new THREE.ConeGeometry(.19, .8, 5), horseMane);
-horseTail.position.set(0, .95, -.86);
-horseTail.rotation.x = -.35;
-horse.add(horseTail);
-const saddle = new THREE.Mesh(new THREE.BoxGeometry(.76, .18, .75), horseGear);
-saddle.position.set(0, 1.58, -.02);
-horse.add(saddle);
-const horseLegPivots = [];
-for (const side of [-1, 1]) {
-  for (const front of [-1, 1]) {
-    const leg = new THREE.Group();
-    leg.position.set(side * .27, .95, front * .55);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(.11, .075, .7, 6), horseCoat);
-    upper.position.y = -.33;
-    const hoof = new THREE.Mesh(new THREE.BoxGeometry(.19, .18, .24), horseMane);
-    hoof.position.set(0, -.72, .03);
-    leg.add(upper, hoof);
-    horse.add(leg);
-    horseLegPivots.push(leg);
-  }
-}
-horse.position.set(1.5, 0, 6);
-scene.add(horse);
-state.horsePosition = [horse.position.x, horse.position.y, horse.position.z];
-let campGroup = null;
-let campFireLight = null;
-let campClock = 0;
-let campSmoke = null;
-let footstepTimer = 0;
-
-function updateHorse(dt, moving) {
-  if (!state.mounted) return;
-  horse.position.set(player.position.x, player.position.y, player.position.z);
-  horse.rotation.y = player.rotation.y;
-  const gait = moving ? Math.sin(performance.now() * .018) * .42 : Math.sin(performance.now() * .002) * .035;
-  horseLegPivots.forEach((leg, index) => { leg.rotation.x = moving ? (index % 2 ? -gait : gait) : 0; });
-  state.horsePosition = [horse.position.x, horse.position.y, horse.position.z];
-}
-
-function toggleHorseMount() {
-  if (state.mounted) {
-    state.mounted = false;
-    body.position.y = 0;
-    horse.position.set(player.position.x + 1.2, player.position.y, player.position.z);
-    state.horsePosition = [horse.position.x, horse.position.y, horse.position.z];
-    toast('ลงจากม้าแล้ว');
-    return;
-  }
-  if (player.position.distanceTo(horse.position) > 4) return false;
-  state.mounted = true;
-  body.position.y = 1.35;
-  horse.position.set(player.position.x, player.position.y, player.position.z);
-  state.horsePosition = [horse.position.x, horse.position.y, horse.position.z];
-  toast('ขึ้นม้าแล้ว · กด Shift เพื่อควบม้าเร็ว');
-  return true;
-}
-
-function buildCamp(position) {
-  if (campGroup) scene.remove(campGroup);
-  campGroup = new THREE.Group();
-  const canvas = new THREE.MeshStandardMaterial({ color: 0x786045, roughness: 1, side: THREE.DoubleSide });
-  const firewood = new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 1 });
-  const tent = new THREE.Mesh(new THREE.ConeGeometry(1.25, 1.85, 4), canvas);
-  tent.position.set(-1.35, .92, -.25);
-  tent.rotation.y = Math.PI / 4;
-  tent.castShadow = true;
-  campGroup.add(tent);
-  for (let i = 0; i < 3; i++) {
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 1.05, 6), firewood);
-    log.position.set(.7, .18 + i * .04, .1);
-    log.rotation.z = Math.PI / 2;
-    log.rotation.y = i * Math.PI / 3;
-    campGroup.add(log);
-    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(.22, 0), mats.stone);
-    const angle = i / 8 * Math.PI * 2;
-    stone.position.set(.7 + Math.cos(angle) * .72, .16, .1 + Math.sin(angle) * .72);
-    campGroup.add(stone);
-  }
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(.28, .85, 5), new THREE.MeshBasicMaterial({ color: 0xff8b39 }));
-  flame.position.set(.7, .62, .1);
-  campGroup.add(flame);
-  const smokeGeometry = new THREE.BufferGeometry();
-  const smokePositions = new Float32Array(18 * 3);
-  for (let i = 0; i < 18; i++) {
-    smokePositions[i * 3] = (random() - .5) * .35;
-    smokePositions[i * 3 + 1] = .8 + random() * 2.2;
-    smokePositions[i * 3 + 2] = (random() - .5) * .35;
-  }
-  smokeGeometry.setAttribute('position', new THREE.BufferAttribute(smokePositions, 3));
-  campSmoke = new THREE.Points(smokeGeometry, new THREE.PointsMaterial({ color: 0xaaa9a5, size: .19, transparent: true, opacity: .3, depthWrite: false }));
-  campSmoke.position.set(.7, .3, .1);
-  campGroup.add(campSmoke);
-  campFireLight = new THREE.PointLight(0xff923f, 2.1, 13);
-  campFireLight.position.set(.7, 1.1, .1);
-  campGroup.add(campFireLight);
-  campGroup.position.set(position[0], position[1] || 0, position[2]);
-  scene.add(campGroup);
-}
-
-function placeCamp() {
-  if (dungeonActive) return toast('ตั้งแคมป์ไม่ได้ภายในดันเจียน');
-  if (state.campPosition && campGroup) return toast('ค่ายของคุณตั้งไว้แล้ว · เดินทางกลับไปใช้ได้');
-  if (systems.getCount('wood') < 3 || systems.getCount('herb') < 1) {
-    return toast('ต้องใช้ไม้ 3 ชิ้นและสมุนไพร 1 ชิ้นเพื่อตั้งแคมป์');
-  }
-  systems.addItem('wood', -3);
-  systems.addItem('herb', -1);
-  state.campPosition = [player.position.x, player.position.y, player.position.z];
-  buildCamp(state.campPosition);
-  toast('ตั้งแคมป์แล้ว · กด E ที่กองไฟเพื่อพักหรือทำอาหาร');
-}
-
-function openCampPanel() {
-  closePanels('camp');
-  $('#camp-panel').classList.remove('hidden');
-  const meat = systems.getCount('meat');
-  const herb = systems.getCount('herb');
-  $('#camp-status').textContent = `เนื้อสด ${meat} · สมุนไพร ${herb} · อาหารบัฟ ${Math.ceil(state.foodBuff / 60)} นาที`;
-}
-
-function restAtCamp() {
-  if (!campGroup || player.position.distanceTo(campGroup.position) > 5) return toast('ต้องอยู่ใกล้ค่ายเพื่อพักผ่อน');
-  if (dungeonActive || enemies.some(enemy => enemy.userData.alive && player.position.distanceTo(enemy.position) < 16)) return toast('บริเวณนี้ยังไม่ปลอดภัยพอสำหรับพัก');
-  state.hp = state.maxHp;
-  state.stamina = 100;
-  state.mana = state.maxMana;
-  state.dayTime = .25;
-  dayNightMode = 'auto';
-  settings.dayNightMode = 'auto';
-  systems.rememberAction('campRest');
-  updateHud();
-  openCampPanel();
-  toast('พักผ่อนจนรุ่งเช้า · ฟื้นฟูพลังแล้ว');
-}
-
-function cookAtCamp() {
-  if (!campGroup || player.position.distanceTo(campGroup.position) > 5) return toast('ต้องอยู่ใกล้ค่ายเพื่อทำอาหาร');
-  if (systems.getCount('meat') < 1 || systems.getCount('herb') < 1) return toast('ต้องใช้เนื้อสด 1 ชิ้นและสมุนไพร 1 ชิ้น');
-  systems.addItem('meat', -1);
-  systems.addItem('herb', -1);
-  state.foodBuff = 180;
-  systems.rememberAction('cookedMeal');
-  state.hp = Math.min(state.maxHp, state.hp + 25);
-  updateHud();
-  openCampPanel();
-  toast('ปรุงอาหารสำเร็จ · เพิ่มพลังโจมตี 3 นาที');
-}
-
 // ---------- Terrain Height Query ----------
-
-
 function getTerrainHeight(x, z, referenceY) {
-  if (!importedWorld || !importedWorldBounds) {
-    return sampleDefaultTerrainHeight(x, z);
-  }
-
-  const origin = new THREE.Vector3(
-    x,
-    importedWorldBounds.max.y + 50,
-    z
-  );
-
-  terrainRaycaster.set(
-    origin,
-    new THREE.Vector3(0, -1, 0)
-  );
-
-  terrainRaycaster.near = 0;
-  terrainRaycaster.far =
-    importedWorldBounds.max.y -
-    importedWorldBounds.min.y + 100;
-
-  const hits = terrainRaycaster.intersectObject(
-    importedWorld,
-    true
-  );
-
-  let bestHeight = null;
-  let bestDistance = Infinity;
-
-  for (const hit of hits) {
-    if (!hit.face) continue;
-
-    const normal = hit.face.normal.clone();
-
-    normal.applyMatrix3(
-      new THREE.Matrix3().getNormalMatrix(
-        hit.object.matrixWorld
-      )
-    ).normalize();
-
-    if (normal.y <= 0.6) continue;
-
-    const distance = Math.abs(
-      hit.point.y - referenceY
-    );
-
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestHeight = hit.point.y;
-    }
-  }
-
-  return bestHeight;
+  return worldStreamer.getHeight(x, z);
 }
 
 // ---------- Collectibles ----------
@@ -1754,44 +863,92 @@ const enemyTypes = {
   }
 };
 
+const enemySpriteStyles = {
+  guardian: {
+    kind: 'humanoid',
+    palette: {
+      body: '#332a36', light: '#514052', dark: '#1d1a24',
+      accent: '#7d2e40', skin: '#8c6f70', hood: '#241e2b',
+      eye: '#ff443e', boot: '#15131b', metal: '#a9906a'
+    }
+  },
+  wraith: {
+    kind: 'wraith',
+    palette: {
+      body: '#2c3b4a', light: '#406075', dark: '#18242f',
+      accent: '#6fa8c4', hood: '#23323e', eye: '#8ce8ff'
+    }
+  },
+  brute: {
+    kind: 'brute',
+    palette: {
+      body: '#4a2f2a', light: '#6b4535', dark: '#2a1b19',
+      accent: '#a85d34', eye: '#ffa24a'
+    }
+  },
+  boss: {
+    kind: 'humanoid', boss: true,
+    palette: {
+      body: '#3a2246', light: '#6a3a78', dark: '#21132c',
+      accent: '#c05ba8', skin: '#8e6c92', hood: '#2c1938',
+      eye: '#ff4fd8', boot: '#180f21', metal: '#e2b45c'
+    }
+  },
+  dungeonBoss: {
+    kind: 'humanoid', boss: true,
+    palette: {
+      body: '#263347', light: '#3c5873', dark: '#151e2c',
+      accent: '#5aa6c8', skin: '#7d94ad', hood: '#1c2838',
+      eye: '#8ce8ff', boot: '#0f1621', metal: '#9fd8e8'
+    }
+  },
+  wolf: {
+    kind: 'wolf',
+    palette: {
+      body: '#30343d', light: '#4a505c', dark: '#1c1f27',
+      accent: '#6b6f78', eye: '#ffb35c'
+    }
+  },
+  deer: {
+    kind: 'deer',
+    palette: {
+      body: '#58715c', light: '#7c9a7f', dark: '#314434',
+      accent: '#b6d9a2', eye: '#baff91'
+    }
+  }
+};
+
+const enemyTextures = new Map();
+
+function getEnemyTexture(type) {
+  if (!enemyTextures.has(type)) {
+    enemyTextures.set(
+      type,
+      createCharacterAtlas(enemySpriteStyles[type] || enemySpriteStyles.guardian)
+    );
+  }
+  return enemyTextures.get(type);
+}
+
 function spawnEnemy(type, x, z) {
   const stats = enemyTypes[type];
   const enemy = new THREE.Group();
 
-  const material = new THREE.MeshStandardMaterial({
-    color: stats.color,
-    roughness: .8,
-    emissive: stats.emissive
-  });
+  const sprite = createCharacterSprite(getEnemyTexture(type));
+  enemy.add(sprite);
 
-  const torso = new THREE.Mesh(
-    new THREE.CapsuleGeometry(.48, .65, 4, 7),
-    material
+  const enemyShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(.48, 16),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false
+    })
   );
-  torso.position.y = .95;
-  torso.castShadow = true;
-  enemy.add(torso);
-
-  const eyes = new THREE.Mesh(
-    new THREE.SphereGeometry(.09, 8, 8),
-    new THREE.MeshBasicMaterial({ color: stats.eye })
-  );
-  eyes.position.set(0, 1.55, .36);
-  enemy.add(eyes);
-
-  let crown = null;
-  if (type === 'boss' || type === 'dungeonBoss') {
-    crown = new THREE.Mesh(
-      new THREE.ConeGeometry(.42, .8, 6),
-      new THREE.MeshStandardMaterial({
-        color: 0xc992f0,
-        emissive: 0x8c3ad0,
-        emissiveIntensity: 1.4
-      })
-    );
-    crown.position.y = 2.05;
-    enemy.add(crown);
-  }
+  enemyShadow.rotation.x = -Math.PI / 2;
+  enemyShadow.position.y = 0.025;
+  enemy.add(enemyShadow);
 
   const healthBar = new THREE.Group();
   const healthBack = new THREE.Mesh(
@@ -1813,7 +970,7 @@ function spawnEnemy(type, x, z) {
   healthFill.position.z = .01;
   healthBar.add(healthBack);
   healthBar.add(healthFill);
-  healthBar.position.y = 2.05;
+  healthBar.position.y = 2.25;
   enemy.add(healthBar);
 
   const y = getTerrainHeight(x, z, 0) ?? 0;
@@ -1833,9 +990,18 @@ function spawnEnemy(type, x, z) {
     cooldown: 0,
     phase: 1,
     phaseMultiplier: 1,
-    crown,
+    crown: null,
     healthBar,
     healthFill,
+    sprite,
+    animTime: 0,
+    hurtTimer: 0,
+    attackTimer: 0,
+    deathTimer: 0,
+    deathDuration: .55,
+    directionRow: 0,
+    moving: false,
+    baseTint: 0xffffff,
     kind: ['wolf', 'deer'].includes(type) ? 'animal' : 'enemy',
     dungeon: false
   };
@@ -1858,7 +1024,33 @@ const enemySpawns = [
   ['wolf', -14, -22],
   ['wolf', 14, -34],
   ['deer', -19, -9],
-  ['deer', 18, -17]
+  ['deer', 18, -17],
+  ['guardian', -42, -48],
+  ['guardian', -52, -38],
+  ['wraith', -58, -56],
+  ['brute', -36, -62],
+  ['wolf', -150, -148],
+  ['wolf', -178, -168],
+  ['wraith', -162, -132],
+  ['brute', -188, -180],
+  ['deer', -138, -172],
+  ['guardian', 150, 48],
+  ['guardian', 172, 62],
+  ['wraith', 142, 72],
+  ['brute', 178, 32],
+  ['deer', 128, 40],
+  ['brute', 150, -170],
+  ['wraith', 174, -188],
+  ['guardian', 138, -196],
+  ['wolf', 192, -154],
+  ['wraith', -170, 152],
+  ['brute', -192, 178],
+  ['wolf', -146, 188],
+  ['deer', -188, 132],
+  ['guardian', 20, 10],
+  ['deer', -8, 24],
+  ['boss', 160, -177],
+  ['dungeonBoss', -170, 160]
 ];
 
 for (const [type, x, z] of enemySpawns) spawnEnemy(type, x, z);
@@ -1891,28 +1083,18 @@ const systems = createSystems({
   defeatEnemy,
   getTerrainHeight,
   audio,
+  worldBounds: WORLD_BOUNDS,
   staticLandmarks: [
-    { position: tower.position, color: '#c9a86a', size: 4.5, name: 'หอคอย', region: 'tower' },
-    { position: ruinGroup.position, color: '#9d9fb4', size: 4, name: 'ซากวิหาร', region: 'ruins' },
-    { position: hamletMarker, color: '#dfa96f', size: 4, name: 'หมู่บ้านร้าง', region: 'hamlet' },
-    { position: waystoneMarker, color: '#83dbc0', size: 4, name: 'ศิลานำทางแดนไกล', region: 'far_wilds' },
-    { position: skeletonMarker, color: '#ded4ad', size: 5, name: 'ซากยักษ์โบราณ', region: 'forest' },
-    { position: shrine.position, color: '#d6a8f0', size: 3.5, name: 'ศาลเจ้า', region: 'tower' },
-    { position: dungeonPortal.position, color: '#b57ce8', size: 5, name: 'ประตูถ้ำต้องสาป', region: 'dungeon' },
-    { position: new THREE.Vector3(-28, 0, -87), color: '#7cd9e8', size: 4, name: 'ถ้ำต้องสาป', region: 'dungeon' }
+    ...LANDMARKS.map((landmark) => ({
+      ...landmark,
+      position: new THREE.Vector3(landmark.position.x, 0, landmark.position.z)
+    })),
+    { position: shrine.position, color: '#d6a8f0', size: 3.5, name: 'ศาลเจ้าแห่งคำสาป', region: 'wasteland' },
+    { position: dungeonPortal.position, color: '#b57ce8', size: 5, name: 'ประตูถ้ำต้องสาป', region: 'deadwood' },
+    { position: new THREE.Vector3(-28, 0, -87), color: '#7cd9e8', size: 4, name: 'ถ้ำต้องสาป', region: 'deadwood' }
   ],
-  regions: [
-    { id: 'tower', name: 'หอคอยแห่งผู้สูญหาย', center: tower.position, radius: 10 },
-    { id: 'ruins', name: 'วิหารโบราณ', center: ruinGroup.position, radius: 12 },
-    { id: 'river', name: 'ริมแม่น้ำโบราณ', center: new THREE.Vector3(0, 0, -72), radius: 18 },
-    { id: 'forest', name: 'ป่าต้องสาป', center: new THREE.Vector3(-12, 0, -30), radius: 25 },
-    { id: 'hamlet', name: 'หมู่บ้านร้าง', center: hamletMarker, radius: 14 },
-    { id: 'far_wilds', name: 'แดนไกล', center: waystoneMarker, radius: 24 },
-    { id: 'dungeon', name: 'ถ้ำต้องสาป', center: new THREE.Vector3(-28, 0, -87), radius: 14 },
-    { id: 'wilderness', name: 'ทุ่งรกร้าง', center: new THREE.Vector3(0, 0, 0), radius: 25 }
-  ]
+  regions: REGIONS
 });
-updateLivingWorld();
 
 // ---------- Rain ----------
 const rainCount = isTouch ? 180 : 420;
@@ -1940,21 +1122,6 @@ const rain = new THREE.Points(
   })
 );
 scene.add(rain);
-let wetness = 0;
-const puddleMaterial = new THREE.MeshStandardMaterial({ color: 0x607e8d, metalness: .12, roughness: .22, transparent: true, opacity: 0, depthWrite: false });
-const puddles = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 10), puddleMaterial, 34);
-puddles.geometry.rotateX(-Math.PI / 2);
-const puddleTransform = new THREE.Object3D();
-for (let i = 0; i < 34; i++) {
-  const x = (random() - .5) * 94;
-  const z = (random() - .5) * 150;
-  puddleTransform.position.set(x, (getTerrainHeight(x, z, 0) ?? 0) + .035, z);
-  puddleTransform.rotation.y = random() * Math.PI;
-  puddleTransform.scale.set(.8 + random() * 2.2, 1, .5 + random() * 1.2);
-  puddleTransform.updateMatrix();
-  puddles.setMatrixAt(i, puddleTransform.matrix);
-}
-scene.add(puddles);
 
 
 // ---------- Fireflies ----------
@@ -1993,36 +1160,6 @@ const fireflies = new THREE.Points(
 
 fireflies.visible = false;
 scene.add(fireflies);
-
-const airCount = isTouch ? 48 : 96;
-const airGeometry = new THREE.BufferGeometry();
-const airPositions = new Float32Array(airCount * 3);
-const airData = Array.from({ length: airCount }, () => ({ x: (random() - .5) * 42, y: .3 + random() * 7, z: (random() - .5) * 42, phase: random() * Math.PI * 2 }));
-airGeometry.setAttribute('position', new THREE.BufferAttribute(airPositions, 3));
-const airMotes = new THREE.Points(airGeometry, new THREE.PointsMaterial({ color: 0xe5d7ad, size: .055, transparent: true, opacity: .28, depthWrite: false }));
-scene.add(airMotes);
-const leafMotes = new THREE.Points(airGeometry.clone(), new THREE.PointsMaterial({ color: 0x78964b, size: .12, transparent: true, opacity: .75, depthWrite: false }));
-scene.add(leafMotes);
-
-function updateAirEffects(dt) {
-  const raining = settings.weather && (weatherType === 'rain' || weatherType === 'storm');
-  airMotes.visible = !raining && !dungeonActive;
-  leafMotes.visible = !dungeonActive;
-  const activeCount = Math.floor(airCount * qualityEffectScale);
-  airMotes.geometry.setDrawRange(0, activeCount);
-  leafMotes.geometry.setDrawRange(0, Math.floor(activeCount * .25));
-  for (let i = 0; i < activeCount; i++) {
-    const mote = airData[i];
-    const t = clock.elapsedTime + mote.phase;
-    const x = player.position.x + mote.x + Math.sin(t * .3) * .55;
-    const y = mote.y + Math.sin(t * .7) * .12;
-    const z = player.position.z + mote.z - t * .08 % 42;
-    airPositions.set([x, y, z], i * 3);
-  }
-  airMotes.geometry.attributes.position.needsUpdate = true;
-  leafMotes.geometry.attributes.position.array.set(airPositions);
-  leafMotes.geometry.attributes.position.needsUpdate = true;
-}
     
 
 addEventListener('pointerdown', () => audio.unlock(), { once: true });
@@ -2070,7 +1207,6 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyQ') usePotion();
     if (e.code === 'KeyC') input.dodgePressed = true;
     if (e.code === 'KeyR') systems.castSpell();
-    if (e.code === 'KeyG') placeCamp();
     if (e.code === 'KeyB') systems.toggleShop();
     if (e.code === 'KeyM') toggleMapPanel();
     if (e.code === 'Escape') closePanels();
@@ -2311,10 +1447,8 @@ function loadGame(slot = currentSlot) {
     }
 
     currentSlot = slot;
-    Object.assign(state, data.state);
     player.position.set(...data.player);
     dungeonActive = Boolean(data.dungeonActive);
-    dungeonArena.visible = dungeonActive;
 
     const numberFields = [
       'hp', 'stamina', 'crystals', 'potions', 'gold',
@@ -2328,21 +1462,9 @@ function loadGame(slot = currentSlot) {
     }
 
     state.dungeonCleared = Boolean(data.state.dungeonCleared);
-    state.dungeonStarted = Boolean(data.state.dungeonStarted);
-    state.dungeonRewarded = Boolean(data.state.dungeonRewarded);
-    state.dungeonLoot = data.state.dungeonLoot && typeof data.state.dungeonLoot === 'object' ? data.state.dungeonLoot : {};
-    state.mounted = Boolean(data.state.mounted);
-    state.foodBuff = Math.max(0, Number(data.state.foodBuff) || 0);
-    state.campPosition = Array.isArray(data.state.campPosition) && data.state.campPosition.length === 3 && data.state.campPosition.every(Number.isFinite) ? data.state.campPosition : null;
-    state.horsePosition = Array.isArray(data.state.horsePosition) && data.state.horsePosition.length === 3 && data.state.horsePosition.every(Number.isFinite) ? data.state.horsePosition : [1.5, 0, 6];
-    horse.position.set(...state.horsePosition);
-    body.position.y = state.mounted ? 1.35 : 0;
-    if (state.mounted) horse.position.set(player.position.x, player.position.y, player.position.z);
-    if (state.campPosition) buildCamp(state.campPosition);
 
     systems.restoreState();
     systems.deserializeWorld(data.systems);
-    updateLivingWorld();
 
     state.hp = THREE.MathUtils.clamp(state.hp, 0, state.maxHp);
     state.stamina = THREE.MathUtils.clamp(state.stamina, 0, 100);
@@ -2359,6 +1481,9 @@ function loadGame(slot = currentSlot) {
     state.questStage = THREE.MathUtils.clamp(state.questStage, 0, 2);
     state.discoveredRegions = Array.isArray(data.state.discoveredRegions)
       ? data.state.discoveredRegions.filter(id => typeof id === 'string')
+      : [];
+    state.discoveredSecrets = Array.isArray(data.state.discoveredSecrets)
+      ? data.state.discoveredSecrets.filter(id => typeof id === 'string')
       : [];
 
     if (Array.isArray(data.collectibles)) {
@@ -2398,6 +1523,8 @@ function loadGame(slot = currentSlot) {
         enemy.userData.healthFill.position.x =
           -(1 - enemy.userData.hp / maxHp) * 0.46;
 
+        resetEnemySprite(enemy);
+
         if (enemy.userData.alive) {
           scene.add(enemy);
         } else {
@@ -2414,7 +1541,6 @@ function loadGame(slot = currentSlot) {
       if (['low', 'medium', 'high'].includes(data.settings.quality)) {
         settings.quality = data.settings.quality;
       }
-      settings.postProcessing = Boolean(data.settings.postProcessing);
       if (Number.isFinite(Number(data.settings.sensitivity))) {
         settings.sensitivity = THREE.MathUtils.clamp(
           Number(data.settings.sensitivity), 1, 12
@@ -2422,11 +1548,9 @@ function loadGame(slot = currentSlot) {
       }
       settings.weather = Boolean(data.settings.weather);
       settings.sound = Boolean(data.settings.sound);
-      settings.fpsLimit = ['auto', '30', '45', '60'].includes(String(data.settings.fpsLimit)) ? String(data.settings.fpsLimit) : 'auto';
       if (['auto', 'day', 'night'].includes(data.settings.dayNightMode)) {
         settings.dayNightMode = data.settings.dayNightMode;
       }
-      settings.mobileLayout = data.settings.mobileLayout === 'left' ? 'left' : 'right';
     }
 
     dayNightMode = settings.dayNightMode || 'auto';
@@ -2475,21 +1599,17 @@ function gainXp(amount) {
 function completeDungeonIfReady() {
   if (!dungeonActive) return;
   if (!dungeonEnemies.every(enemy => !enemy.userData.alive)) return;
-  const firstClear = !state.dungeonCleared;
+
+  dungeonActive = false;
   state.dungeonCleared = true;
-  if (firstClear) {
-    systems.rememberAction('dungeonClear');
-    updateLivingWorld();
-  }
-  if (!state.dungeonRewarded) {
-    state.dungeonRewarded = true;
-    state.crystals += 6;
-    state.gold += 180;
-    gainXp(250);
-    audio.play('quest');
-      toast('ดันเจียนเคลียร์ · คำสาปสลาย หมู่บ้านเริ่มปลอดภัย · ค้นหาหีบสมบัติแล้วกลับไปที่ประตู');
-  }
-  updateDungeonChests();
+  state.crystals += 6;
+  state.gold += 180;
+  gainXp(250);
+
+  const exitY = getTerrainHeight(-24, -70, 0) ?? 0;
+  player.position.set(-24, exitY, -70);
+  audio.play('quest');
+  toast('ถ้ำต้องสาปสงบแล้ว · ได้ผลึก 6 · ทอง 180');
   updateHud();
 }
 
@@ -2497,9 +1617,15 @@ function defeatEnemy(enemy) {
   if (!enemy.userData.alive) return;
 
   const type = enemy.userData.type;
-  enemy.userData.hp = 0;
-  enemy.userData.alive = false;
-  scene.remove(enemy);
+  const data = enemy.userData;
+  data.hp = 0;
+  data.alive = false;
+  data.deathTimer = data.deathDuration;
+  data.hurtTimer = 0;
+  data.attackTimer = 0;
+  data.moving = false;
+  data.healthBar.visible = false;
+  setSpriteFrame(data.sprite, data.directionRow || 0, 0, 'death');
 
   const crystals = type === 'boss' ? 5
     : type === 'dungeonBoss' ? 6
@@ -2538,23 +1664,9 @@ function attack() {
     const d = Math.hypot(dx, dz);
 
     if (d < weapon.range) {
-      let damage = weapon.damage + state.attackBonus;
-      if (state.foodBuff > 0) damage += .65;
-      if (state.characterClass === 'warrior') damage *= 1.12;
-      if (state.characterClass === 'ranger' && state.weapon === 'bow') damage *= 1.2 + (state.skills.precision || 0) * .15;
-      damage += Number((state.equipmentUpgrades || {})[state.weapon] || 0) * .35;
-      enemy.userData.hp -= damage;
-      systems.impact(enemy.position, weapon.element === 'ice' ? 0x9bdcff : weapon.element === 'earth' ? 0xd3bd91 : 0xffbb8b);
-      if (weapon.element) {
-        const status = weapon.element === 'ice' ? 'slow' : weapon.element === 'earth' ? 'stun' : 'wind_mark';
-        enemy.userData.statusEffect = { type: status, time: status === 'stun' ? .8 : 3 };
-        toast(`${weapon.name} · ${status === 'slow' ? 'แช่แข็ง' : status === 'stun' ? 'ชะงัก' : 'ทำเครื่องหมายลม'}`);
-      }
+      enemy.userData.hp -= weapon.damage + state.attackBonus;
       hit = true;
-      const baseScale = enemy.userData.baseScale || 1;
-      enemy.scale.setScalar(baseScale * .92);
-
-      setTimeout(() => enemy.scale.setScalar(baseScale), 100);
+      enemy.userData.hurtTimer = .3;
 
       if (enemy.userData.hp <= 0) {
         defeatEnemy(enemy);
@@ -2570,8 +1682,22 @@ function attack() {
   updateHud();
 }
 
+function resetEnemySprite(enemy) {
+  const data = enemy.userData;
+  data.deathTimer = 0;
+  data.hurtTimer = 0;
+  data.attackTimer = 0;
+  data.moving = false;
+  data.baseTint = 0xffffff;
+  data.healthBar.visible = true;
+  data.sprite.material.opacity = 1;
+  data.sprite.material.color.setHex(0xffffff);
+  setSpriteFrame(data.sprite, data.directionRow || 0, 0, 'walk');
+}
+
 function setDungeonEnemies(active) {
   for (const enemy of dungeonEnemies) {
+    resetEnemySprite(enemy);
     enemy.userData.hp = active ? enemy.userData.maxHp : 0;
     enemy.userData.alive = active;
     enemy.userData.cooldown = 0;
@@ -2592,37 +1718,16 @@ function setDungeonEnemies(active) {
 
 function enterDungeon() {
   dungeonActive = true;
-  dungeonArena.visible = true;
-  state.mounted = false;
-  body.position.y = 0;
-  if (!state.dungeonCleared) setDungeonEnemies(true);
-  state.dungeonStarted = true;
-  const entranceY = getTerrainHeight(dungeonPortal.position.x, dungeonPortal.position.z + 2, 0) ?? 0;
-  player.position.set(dungeonPortal.position.x, entranceY, dungeonPortal.position.z + 2);
-  updateDungeonChests();
+  setDungeonEnemies(true);
+
+  const arenaY = getTerrainHeight(-28, -90, 0) ?? 0;
+  player.position.set(-28, arenaY, -90);
   audio.play('boss');
-  toast(state.dungeonCleared
-    ? 'กลับเข้าสู่ดันเจียน · สมบัติที่ยังไม่พบรออยู่ในห้องลึก'
-    : 'เข้าสู่ดันเจียน · สำรวจซากและค้นหาหีบสมบัติ');
+  toast('คุณเข้าสู่ถ้ำต้องสาป · กำจัดผู้คุมถ้ำให้หมด');
 }
 
 function interact() {
   if (systems.interact()) return;
-
-  if (player.position.distanceTo(horse.position) < 4) {
-    toggleHorseMount();
-    return;
-  }
-
-  if (campGroup && player.position.distanceTo(campGroup.position) < 4) {
-    openCampPanel();
-    return;
-  }
-
-  if (dungeonActive) {
-    const chest = dungeonChests.find(item => item.visible && player.position.distanceTo(item.position) < 3.2);
-    if (chest && openDungeonChest(chest)) return;
-  }
 
   const portalDistance = Math.hypot(
     player.position.x - dungeonPortal.position.x,
@@ -2631,15 +1736,7 @@ function interact() {
 
   if (portalDistance < 5) {
     if (dungeonActive) {
-      if (state.dungeonCleared) {
-        dungeonActive = false;
-        dungeonArena.visible = false;
-        player.position.set(dungeonPortal.position.x, player.position.y, dungeonPortal.position.z + 2);
-        updateDungeonChests();
-        toast('ออกจากดันเจียนแล้ว · เดินทางต่อได้');
-      } else {
-        toast('ทางออกถูกผนึก · กำจัดผู้คุมถ้ำก่อน');
-      }
+      toast('กำจัดสิ่งมีชีวิตในถ้ำให้หมดก่อนออกไป');
     } else {
       enterDungeon();
     }
@@ -2658,9 +1755,7 @@ function interact() {
       state.questStage = 2;
       gainXp(100);
       state.potions++;
-      systems.rememberAction('mainQuestComplete');
-      updateLivingWorld();
-      toast('ภารกิจสำเร็จ · หมู่บ้านเริ่มฟื้นฟู · ได้รับยาฟื้นฟู');
+      toast('ภารกิจสำเร็จ · ได้รับยาฟื้นฟู');
     } else {
       toast('พลังบางอย่างยังปกป้องซากโบราณอยู่');
     }
@@ -2690,19 +1785,11 @@ function updateDayNight(dt) {
   }
 
   
-moon.intensity = .72 * (1 - sun);
-sunLight.intensity = 2.45 * sun;
-hemi.intensity = .78 + .88 * sun;
-ambient.intensity = .3 + .19 * sun;
-moonGlow.intensity = .34 * (1 - sun);
-const sunAngle = (state.dayTime - .25) * Math.PI * 2;
-sunLight.position.set(player.position.x + Math.cos(sunAngle) * 48, player.position.y + 34 + sun * 12, player.position.z + Math.sin(sunAngle) * 48);
-sunLight.target.position.copy(player.position);
-moon.position.set(player.position.x - Math.cos(sunAngle) * 42, player.position.y + 34 + (1 - sun) * 10, player.position.z - Math.sin(sunAngle) * 42);
-moon.target.position.copy(player.position);
-hemi.color.setRGB(.33 + .30 * sun, .43 + .42 * sun, .69 + .25 * sun);
-hemi.groundColor.setRGB(.13 + .19 * sun, .18 + .2 * sun, .24 + .04 * sun);
-sunLight.color.setRGB(1, .77 + .17 * sun, .57 + .38 * sun);
+moon.intensity = 2.0 * (1 - sun);
+sunLight.intensity = 2.2 * sun;
+hemi.intensity = 1.05 + 0.9 * sun;
+ambient.intensity = 0.62 + 0.23 * sun;
+moonGlow.intensity = 0.65 * (1 - sun);
   
   // Use only one directional shadow light at a time
   moon.castShadow = sun < 0.5;
@@ -2711,14 +1798,13 @@ sunLight.color.setRGB(1, .77 + .17 * sun, .57 + .38 * sun);
   // Keep ground visible at night
   ground.material.color.copy(groundNightColor)
     .lerp(groundDayColor, sun);
-  ground.material.roughness = 1 - wetness * .5;
-  ground.material.metalness = wetness * .08;
   
 
 
-  const twilight = THREE.MathUtils.smoothstep(sun, 0, .2) * (1 - THREE.MathUtils.smoothstep(sun, .2, .55));
-  const daylight = new THREE.Color(0x172540).lerp(new THREE.Color(0x9ed6e8), sun);
-  daylight.lerp(new THREE.Color(0xe0a16a), twilight * .42);
+  const daylight = new THREE.Color(0x101a2b).lerp(
+  new THREE.Color(0x87b8e8),
+  sun
+);
 
 sky.visible = true;
 sky.material.uniforms.uSun.value = sun;
@@ -2728,10 +1814,9 @@ fireflies.visible = sun < 0.65;
 fireflyMaterial.opacity = 0.75 * (1 - sun);
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
-  const weatherFog = weatherType === 'fog' ? .009 : weatherType === 'storm' ? .0068 : 0;
-  scene.fog.density = THREE.MathUtils.lerp(
-  0.00135 + weatherFog * .45,
-  0.0032 + weatherFog,
+scene.fog.density = THREE.MathUtils.lerp(
+  0.0045,
+  0.0058,
   nightFog
 );
 
@@ -2747,82 +1832,7 @@ const nightFog = 1 - sun;
 }
 
 // ---------- Weather ----------
-let weatherType = 'clear';
-let weatherCycleTimer = 38 + random() * 28;
-let weatherCycleTime = 0;
-let lightningTimer = 0;
-let worldEventTimer = 55 + random() * 35;
-let worldEventObject = null;
-let worldEventData = null;
-
-function setWeather(type) {
-  weatherType = type;
-  audio.setWeather(settings.weather, type);
-  const labels = { clear: 'อากาศแจ่มใส', rain: 'ฝนตก', fog: 'หมอกลงจัด', storm: 'พายุฝนฟ้าคะนอง' };
-  toast(`สภาพอากาศเปลี่ยน: ${labels[type]}`);
-  if (type === 'storm') lightningTimer = 2 + random() * 4;
-}
-
-function updateWorldEvents(dt) {
-  weatherCycleTimer -= dt;
-  if (weatherCycleTimer <= 0) {
-    const choices = ['clear', 'rain', 'fog', 'storm'];
-    let next = choices[Math.floor(random() * choices.length)];
-    if (next === weatherType) next = choices[(choices.indexOf(next) + 1) % choices.length];
-    setWeather(next);
-    weatherCycleTimer = 45 + random() * 65;
-  }
-
-  if (weatherType === 'storm') {
-    lightningTimer -= dt;
-    if (lightningTimer <= 0) {
-      lightningTimer = 4 + random() * 8;
-      audio.play('thunder');
-      sunLight.intensity = 5.5;
-      setTimeout(() => { sunLight.intensity = Math.max(.1, 2.2 * Math.max(0, Math.sin(state.dayTime * Math.PI * 2))); }, 100);
-    }
-  }
-
-  if (!worldEventObject) {
-    worldEventTimer -= dt;
-    if (worldEventTimer <= 0) {
-      worldEventTimer = 100 + random() * 80;
-      const events = [
-        { name: 'เศษแก่นวิญญาณตกจากฟ้า', item: 'essence', color: 0x76d9ef },
-        { name: 'สมุนไพรเรืองแสงผลิบาน', item: 'herb', color: 0x77e58c },
-        { name: 'แร่โบราณโผล่พ้นดิน', item: 'ore', color: 0xc5d2dc }
-      ];
-      worldEventData = events[Math.floor(random() * events.length)];
-      const x = player.position.x + (random() - .5) * 18;
-      const z = player.position.z - 7 - random() * 10;
-      const y = getTerrainHeight(x, z, 0) || 0;
-      worldEventObject = new THREE.Mesh(new THREE.OctahedronGeometry(.55, 0), new THREE.MeshStandardMaterial({ color: worldEventData.color, emissive: worldEventData.color, emissiveIntensity: 1.4 }));
-      worldEventObject.position.set(x, y + .8, z);
-      worldEventObject.userData.baseY = y + .8;
-      scene.add(worldEventObject);
-      toast(`เหตุการณ์โลก: ${worldEventData.name} · ตามหาแสงที่ปรากฏ`);
-    }
-  } else {
-    worldEventObject.rotation.y += dt * 1.4;
-    worldEventObject.position.y = worldEventObject.userData.baseY + Math.sin(performance.now() * .002) * .18;
-    if (player.position.distanceTo(worldEventObject.position) < 1.8) {
-      systems.addItem(worldEventData.item, worldEventData.item === 'herb' ? 3 : 1);
-      const itemNames = { herb: 'สมุนไพร', essence: 'แก่นวิญญาณ', ore: 'แร่เหล็ก' };
-      toast(`พบเหตุการณ์: ${worldEventData.name} · ได้รับ${itemNames[worldEventData.item] || worldEventData.item}`);
-      scene.remove(worldEventObject);
-      worldEventObject.geometry.dispose();
-      worldEventObject.material.dispose();
-      worldEventObject = null;
-      worldEventData = null;
-    }
-  }
-}
-
 function updateWeather(dt) {
-  const rainingNow = settings.weather && (weatherType === 'rain' || weatherType === 'storm');
-  wetness = THREE.MathUtils.clamp(wetness + dt * (rainingNow ? .055 : -.004), 0, 1);
-  puddleMaterial.opacity = wetness * .32;
-  puddles.visible = wetness > .025;
   if (!settings.weather) {
     rain.visible = false;
     return;
@@ -2831,13 +1841,10 @@ function updateWeather(dt) {
   
 
 
-  rain.visible = weatherType === 'rain' || weatherType === 'storm';
-  rain.position.set(player.position.x, player.position.y, player.position.z);
-  if (!rain.visible) return;
+  rain.visible = true;
   const p = rainGeometry.attributes.position;
 
-  const activeRainCount = Math.floor(rainCount * qualityEffectScale);
-  for (let i = 0; i < activeRainCount; i++) {
+  for (let i = 0; i < rainCount; i++) {
     p.array[i * 3 + 1] -= dt * 15;
     p.array[i * 3] -= dt * 1.8;
 
@@ -2853,11 +1860,9 @@ function updateWeather(dt) {
 
 // ---------- Update Fireflies ----------
 function updateFireflies(dt) {
-  if (!fireflies.visible) return;
   const p = fireflyGeometry.attributes.position;
 
-  const activeFireflyCount = Math.floor(fireflyCount * qualityEffectScale);
-  for (let i = 0; i < activeFireflyCount; i++) {
+  for (let i = 0; i < fireflyCount; i++) {
     const f = fireflyOffsets[i];
     const t = clock.elapsedTime + f.phase;
 
@@ -2875,42 +1880,11 @@ function updateFireflies(dt) {
 }
 
 // ---------- World Discovery ----------
-const worldRegions = [
-  {
-    id: 'tower',
-    name: 'หอคอยแห่งผู้สูญหาย',
-    isInside: () => player.position.distanceTo(tower.position) < 10
-  },
-  {
-    id: 'ruins',
-    name: 'วิหารโบราณ',
-    isInside: () => player.position.distanceTo(ruinGroup.position) < 12
-  },
-  {
-    id: 'river',
-    name: 'ริมแม่น้ำโบราณ',
-    isInside: () => player.position.z < -65
-  },
-  {
-    id: 'forest',
-    name: 'ป่าต้องสาป',
-    isInside: () => Math.abs(player.position.x) > 8
-      && player.position.z >= -65
-  },
-  {
-    id: 'dungeon',
-    name: 'ถ้ำต้องสาป',
-    isInside: () => Math.hypot(
-      player.position.x + 28,
-      player.position.z + 87
-    ) < 13
-  },
-  {
-    id: 'wilderness',
-    name: 'ทุ่งรกร้าง',
-    isInside: () => true
-  }
-];
+const worldRegions = REGIONS.map((region) => ({
+  id: region.id,
+  name: region.name,
+  isInside: () => regionAt(player.position.x, player.position.z)?.id === region.id
+}));
 
 function updateRegionDiscovery() {
   const region = worldRegions.find(area => area.isInside());
@@ -2930,7 +1904,8 @@ function updateBossPhase(data) {
   data.healthFill.material.color.setHex(
     phase === 3 ? 0xff3030 : phase === 2 ? 0xff9a3d : 0xff4fd8
   );
-  if (data.crown) data.crown.material.emissiveIntensity = 1.4 + phase * .6;
+  data.baseTint = phase === 3 ? 0xff7a7a
+    : phase === 2 ? 0xffb37a : 0xffffff;
 
   if (phase > 1) {
     toast(`${data.name} เข้าเฟส ${phase} · โจมตีรุนแรงขึ้น`);
@@ -2938,9 +1913,8 @@ function updateBossPhase(data) {
   }
 }
 
-function updateWorld(dt) {
+function updateWorld(dt, yaw) {
   updateRegionDiscovery();
-  updateDungeonChests();
 
   portalRing.rotation.z += dt * .35;
   portalCore.material.opacity = .72 + Math.sin(clock.elapsedTime * 2) * .12;
@@ -2965,47 +1939,48 @@ function updateWorld(dt) {
   }
 
   for (const enemy of enemies) {
-    if (!enemy.userData.alive) continue;
-
     const data = enemy.userData;
+
+    if (data.deathTimer > 0) {
+      data.deathTimer = Math.max(0, data.deathTimer - dt);
+      data.moving = false;
+      updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
+      if (data.deathTimer <= 0) scene.remove(enemy);
+      continue;
+    }
+
+    if (!data.alive) continue;
+
     const stats = data.stats;
     const dx = player.position.x - enemy.position.x;
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
-    if (distance > 105) {
-      enemy.visible = false;
-      continue;
-    }
-    enemy.visible = true;
     const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
 
     if (isBoss) updateBossPhase(data);
 
-    if (data.statusEffect) {
-      data.statusEffect.time -= dt;
-      if (data.statusEffect.time <= 0) data.statusEffect = null;
-    }
-    const wildlifeFactor = data.kind === 'animal'
-      ? (data.type === 'wolf' ? (state.dayTime < .25 || state.dayTime > .75 ? 1.25 : .68) : (state.dayTime > .22 && state.dayTime < .78 ? 1.15 : .72))
-      : 1;
-    const weatherFactor = weatherType === 'storm' && data.kind === 'animal' ? .8 : 1;
-    const speed = stats.speed * data.phaseMultiplier * wildlifeFactor * weatherFactor * (data.statusEffect?.type === 'slow' ? .55 : data.statusEffect?.type === 'stun' ? 0 : 1);
+    const speed = stats.speed * data.phaseMultiplier;
     const attackDamage = stats.damage * data.phaseMultiplier;
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
     data.healthFill.scale.x = hpRatio;
     data.healthFill.position.x = -(1 - hpRatio) * 0.46;
 
-    data.healthBar.quaternion.copy(camera.quaternion);
+    const barWorldRotation = camera.quaternion.clone();
+    barWorldRotation.premultiply(enemy.quaternion.clone().invert());
+    data.healthBar.quaternion.copy(barWorldRotation);
     data.healthBar.visible = distance < stats.aggro + 2;
 
     data.cooldown = Math.max(0, data.cooldown - dt);
+
+    data.moving = false;
 
     if (data.kind === 'animal' && data.type === 'deer') {
       if (distance < stats.aggro) {
         const away = new THREE.Vector3(-dx, 0, -dz).normalize();
         enemy.position.addScaledVector(away, dt * speed);
         enemy.rotation.y = Math.atan2(away.x, away.z);
+        data.moving = true;
       } else {
         const t = performance.now() * 0.0004 + data.homeZ;
         enemy.position.x = data.homeX + Math.sin(t) * 1.6;
@@ -3017,29 +1992,25 @@ function updateWorld(dt) {
 
       if (distance > stats.reach) {
         enemy.position.addScaledVector(direction, dt * speed);
-      } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0 && data.statusEffect?.type !== 'stun') {
+        data.moving = true;
+      } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         const armor = armorStats[state.armor] || armorStats.leather;
-        const incomingDamage = attackDamage * (1 - Math.min(.85, armor.reduction + ((state.equipmentUpgrades || {})[`armor:${state.armor}`] || 0) * .025));
+        const incomingDamage = attackDamage * (1 - armor.reduction);
         state.hp = Math.max(0, state.hp - incomingDamage);
         data.cooldown = stats.cooldown;
+        data.attackTimer = .4;
         hurtAnimTimer = .3;
         audio.play('hit');
-        systems.impact(player.position, 0xff9b83);
-        audio.play('enemy');
         toast(`${data.name}โจมตีคุณ`);
 
         if (state.hp <= 0) {
           state.hp = state.maxHp;
           const respawnY = getTerrainHeight(0, 3, 0) ?? 0;
           player.position.set(0, respawnY, 3);
-          state.mounted = false;
-          body.position.y = 0;
           if (dungeonActive) {
             dungeonActive = false;
-            dungeonArena.visible = false;
+            state.dungeonCleared = true;
             setDungeonEnemies(false);
-            state.dungeonStarted = false;
-            updateDungeonChests();
           }
           toast('คุณกลับมาที่จุดพัก');
         }
@@ -3052,28 +2023,14 @@ function updateWorld(dt) {
       enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
     }
 
-    data.terrainCheckTimer = (data.terrainCheckTimer || 0) + dt;
-    if (data.terrainCheckTimer >= .18) {
-      data.terrainCheckTimer = 0;
-      const terrainY = getTerrainHeight(enemy.position.x, enemy.position.z, data.baseY);
-      enemy.position.y = terrainY === null ? data.baseY : terrainY;
-    }
-  }
-}
+    const terrainY = getTerrainHeight(
+      enemy.position.x,
+      enemy.position.z,
+      data.baseY
+    );
+    enemy.position.y = terrainY === null ? data.baseY : terrainY;
 
-function updateDistanceLod(dt) {
-  lodTimer += dt;
-  if (lodTimer < .4) return;
-  lodTimer = 0;
-  for (const tree of environmentalTrees) {
-    const distance = Math.hypot(tree.position.x - camera.position.x, tree.position.z - camera.position.z);
-    tree.visible = distance < 105;
-    const crowns = tree.userData.crowns;
-    if (crowns) crowns.forEach((crown, index) => { crown.visible = distance < 52 || index === 0; });
-  }
-  for (const rock of environmentalRocks) {
-    const distance = Math.hypot(rock.position.x - camera.position.x, rock.position.z - camera.position.z);
-    rock.visible = distance < 90;
+    updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
   }
 }
 
@@ -3081,79 +2038,27 @@ function updateDistanceLod(dt) {
 function applySettings() {
   sensitivity = Number(settings.sensitivity) * .001;
 
-  const pixelRatioCap = settings.quality === 'high' ? (isTouch ? 1.4 : 1.75)
-    : settings.quality === 'low' ? (isTouch ? .8 : .95) : (isTouch ? 1.05 : 1.3);
-  const ratio = Math.min(devicePixelRatio || 1, pixelRatioCap);
+  const ratio = settings.quality === 'high'
+    ? Math.min(devicePixelRatio || 1, 2)
+    : settings.quality === 'low'
+      ? 1
+      : Math.min(devicePixelRatio || 1, 1.5);
 
   renderer.setPixelRatio(ratio);
   renderer.shadowMap.enabled = settings.quality !== 'low';
-  renderer.shadowMap.type = settings.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-  const shadowSize = settings.quality === 'high' ? (isTouch ? 1024 : 1536)
-    : settings.quality === 'low' ? 512 : 768;
-  moon.shadow.mapSize.setScalar(shadowSize);
-  sunLight.shadow.mapSize.setScalar(shadowSize);
-  const shadowExtent = settings.quality === 'high' ? (isTouch ? 42 : 36)
-    : settings.quality === 'low' ? 56 : 48;
-  for (const light of [moon, sunLight]) {
-    Object.assign(light.shadow.camera, {
-      left: -shadowExtent, right: shadowExtent,
-      top: shadowExtent, bottom: -shadowExtent,
-      near: .5, far: 150
-    });
-    light.shadow.camera.updateProjectionMatrix();
-  }
-  grass.count = settings.quality === 'high' ? grassCount
-    : settings.quality === 'low' ? Math.min(grassCount, isTouch ? 700 : 1200)
-      : Math.min(grassCount, isTouch ? 1200 : 2400);
-  clouds.forEach((cloud, index) => { cloud.visible = settings.quality !== 'low' || index < 4; });
-  qualityEffectScale = settings.quality === 'high' ? 1 : settings.quality === 'low' ? .3 : .65;
-  rain.geometry.setDrawRange(0, Math.floor(rainCount * qualityEffectScale));
-  fireflies.geometry.setDrawRange(0, Math.floor(fireflyCount * qualityEffectScale));
-  const fpsSelect = $('#fps-limit');
-  if (fpsSelect) fpsSelect.value = settings.fpsLimit;
-  const selectedFps = settings.fpsLimit;
-  targetFps = selectedFps === 'auto'
-    ? (isTouch ? (settings.quality === 'high' ? 60 : settings.quality === 'low' ? 30 : 40) : settings.quality === 'low' ? 45 : 60)
-    : THREE.MathUtils.clamp(Number(selectedFps) || 45, 30, 60);
+  moon.shadow.mapSize.setScalar(settings.quality === 'high' ? 1536 : 1024);
 
   settings.weather = Boolean(settings.weather);
   settings.sound = Boolean(settings.sound);
-  settings.postProcessing = Boolean(settings.postProcessing);
 
   audio.setEnabled(settings.sound);
-  settings.music = settings.music !== false;
-  audio.setMusicEnabled(settings.music);
-  audio.setWeather(settings.weather, weatherType);
-
-  const postFxToggle = $('#postfx-toggle');
-  if (postFxToggle) {
-    postFxToggle.checked = settings.postProcessing;
-    postFxToggle.disabled = settings.quality === 'low';
-  }
-  if (settings.postProcessing && settings.quality !== 'low') {
-    createPostProcessing();
-    const effectPixelRatio = Math.min(ratio, isTouch ? .78 : 1.0);
-    composer.setPixelRatio(effectPixelRatio);
-    composer.setSize(innerWidth, innerHeight);
-    bloomPass.strength = settings.quality === 'high' ? (isTouch ? .17 : .28) : (isTouch ? .08 : .15);
-    bloomPass.radius = .42;
-    bloomPass.threshold = .86;
-    vignettePass.uniforms.strength.value = settings.quality === 'high' ? .19 : .12;
-  } else {
-    disposePostProcessing();
-  }
+  audio.setWeather(settings.weather);
 
   $('#quality').value = settings.quality;
-  if (fpsSelect) fpsSelect.value = settings.fpsLimit;
   $('#sensitivity').value = String(settings.sensitivity);
   $('#rain-toggle').checked = settings.weather;
-  const layoutSelect = $('#mobile-layout');
-  if (layoutSelect) layoutSelect.value = settings.mobileLayout;
-  $('#mobile-controls').classList.toggle('actions-left', settings.mobileLayout === 'left');
   const soundToggle = $('#sound-toggle');
   if (soundToggle) soundToggle.checked = settings.sound;
-  const musicToggle = $('#music-toggle');
-  if (musicToggle) musicToggle.checked = settings.music;
 }
 
 // ---------- Main Update ----------
@@ -3163,21 +2068,6 @@ function update(dt) {
   if (autoSaveTimer >= 30) {
     saveGame(false);
     autoSaveTimer = 0;
-  }
-  state.foodBuff = Math.max(0, (Number(state.foodBuff) || 0) - dt);
-  if (campFireLight && campGroup) {
-    campClock += dt;
-    campFireLight.intensity = 1.8 + Math.sin(campClock * 9) * .25 + Math.sin(campClock * 17) * .12;
-    const smoke = campSmoke?.geometry.attributes.position;
-    if (smoke) {
-      for (let i = 0; i < smoke.count; i++) {
-        const phase = (campClock * .22 + i / smoke.count) % 1;
-        smoke.array[i * 3 + 1] = phase * 2.8;
-        smoke.array[i * 3] = Math.sin(campClock * .7 + i) * phase * .32;
-        smoke.array[i * 3 + 2] = Math.cos(campClock * .55 + i) * phase * .24;
-      }
-      smoke.needsUpdate = true;
-    }
   }
   
   let mx = input.x;
@@ -3190,12 +2080,6 @@ function update(dt) {
 
   const len = Math.hypot(mx, my);
   const moving = len > .08;
-  footstepTimer = Math.max(0, footstepTimer - dt);
-  if (moving && footstepTimer <= 0 && state.hp > 0) {
-    footstepTimer = state.mounted ? .38 : keys.ShiftLeft || keys.ShiftRight ? .31 : .48;
-    const onPath = Math.abs(player.position.x - (player.position.z * .23 + 1)) < 2.2;
-    audio.playFootstep(dungeonActive ? 'stone' : wetness > .3 ? 'wet' : onPath ? 'dirt' : 'grass');
-  }
 
   // Dodge is a short burst and grants brief damage protection.
   dodgeCooldown = Math.max(0, dodgeCooldown - dt);
@@ -3235,7 +2119,7 @@ function update(dt) {
   if (dodgeTimer > 0) {
     const moveX = dodgeDirection.x * 8.5 * dt;
     const moveZ = dodgeDirection.z * 8.5 * dt;
-    const canDodgeTo = (x, z) => (!dungeonActive || (x >= -40.5 && x <= -15.5 && z >= -102.5 && z <= -71.5)) && obstacles.every(obstacle => {
+    const canDodgeTo = (x, z) => obstacles.every(obstacle => {
       const dx = x - obstacle.x;
       const dz = z - obstacle.z;
       const minDistance = .55 + obstacle.radius;
@@ -3259,12 +2143,12 @@ function update(dt) {
 
     const wantsRun = input.run || keys.ShiftLeft || keys.ShiftRight;
     const canRun = wantsRun && state.stamina > 1;
-    const speed = state.mounted ? (canRun ? 13.5 : 9.0) : (canRun ? 7.5 : 4.0);
+    const speed = canRun ? 7.5 : 4.0;
     const moveX = wx * speed * dt;
     const moveZ = wz * speed * dt;
     const playerRadius = 0.55;
 
-    const canMoveTo = (x, z) => (!dungeonActive || (x >= -40.5 && x <= -15.5 && z >= -102.5 && z <= -71.5)) && obstacles.every(obstacle => {
+    const canMoveTo = (x, z) => obstacles.every(obstacle => {
       const dx = x - obstacle.x;
       const dz = z - obstacle.z;
       const minDistance = playerRadius + obstacle.radius;
@@ -3288,26 +2172,8 @@ function update(dt) {
   
 // Pixel Art direction and walking animation
 playerAnimTime += dt;
-updateHorse(dt, moving);
 
-const relativeFacing = Math.atan2(
-  Math.sin(player.rotation.y - yaw),
-  Math.cos(player.rotation.y - yaw)
-);
-
-let directionRow = 0;
-
-if (relativeFacing > Math.PI / 4 &&
-    relativeFacing < Math.PI * 3 / 4) {
-  directionRow = 1;
-} else if (
-  relativeFacing > -Math.PI * 3 / 4 &&
-  relativeFacing < -Math.PI / 4
-) {
-  directionRow = 3;
-} else if (Math.abs(relativeFacing) >= Math.PI * 3 / 4) {
-  directionRow = 2;
-}
+const directionRow = facingRow(player.rotation.y, yaw);
 
 
 const isDodging = dodgeTimer > 0;
@@ -3399,8 +2265,27 @@ body.rotation.x = -attackGlow * .22;
     grounded = true;
   }
 
-  player.position.x = THREE.MathUtils.clamp(player.position.x, -65, 65);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, -160, 12);
+  player.position.x = THREE.MathUtils.clamp(
+    player.position.x,
+    WORLD_BOUNDS.minX + 10,
+    WORLD_BOUNDS.maxX - 10
+  );
+  player.position.z = THREE.MathUtils.clamp(
+    player.position.z,
+    WORLD_BOUNDS.minZ + 10,
+    WORLD_BOUNDS.maxZ - 10
+  );
+
+  worldStreamer.update(player.position);
+
+  if (!fallbackHidden && worldStreamer.loadedCount > 0) {
+    fallbackHidden = true;
+    fallbackWorld.visible = false;
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      if (obstacles[i].fallback) obstacles.splice(i, 1);
+    }
+    toast('เปิดโลกกว้าง 6 เขต · ค้นพบจุดลับและสมบัติได้ทั่วแผนที่');
+  }
 
   if (input.attackPressed || keys.KeyF) {
     attack();
@@ -3416,7 +2301,7 @@ body.rotation.x = -attackGlow * .22;
 
   cameraTarget.set(
     player.position.x,
-    player.position.y + (state.mounted ? 2.15 : 1.25),
+    player.position.y + 1.25,
     player.position.z
   );
 
@@ -3432,6 +2317,20 @@ body.rotation.x = -attackGlow * .22;
   camera.lookAt(cameraTarget);
 
   sky.position.copy(camera.position);
+  sunLight.position.set(
+    player.position.x + 25,
+    35,
+    player.position.z - 20
+  );
+  sunLight.target.position.copy(player.position);
+  sunLight.target.updateMatrixWorld();
+  moon.position.set(
+    player.position.x - 18,
+    28,
+    player.position.z + 12
+  );
+  moon.target.position.copy(player.position);
+  moon.target.updateMatrixWorld();
   moonGlow.position.set(
     player.position.x - 16,
     12,
@@ -3439,25 +2338,14 @@ body.rotation.x = -attackGlow * .22;
   );
 
   ui.hint.textContent = '';
+  if (worldStreamer.pendingCount > 0) {
+    ui.hint.textContent = 'กำลังโหลดพื้นที่...';
+  }
 
   updateDayNight(dt);
-  const sunLevel = dayNightMode === 'day' ? 1 : dayNightMode === 'night' ? 0 : Math.max(0, Math.sin(state.dayTime * Math.PI * 2));
-  const position = player.position;
-  const inVillage = position.x > 14 && position.x < 43 && position.z > -44 && position.z < -12;
-  const inForest = position.x < -10 && position.z > -58 && position.z < -12;
-  const inRiver = Math.abs(position.z + 71) < 9;
-  const biome = dungeonActive ? 'dungeon' : inVillage ? 'village' : inRiver ? 'river' : inForest ? 'forest' : 'meadow';
-  const nearCampfire = Boolean(campGroup && position.distanceTo(campGroup.position) < 18);
-  audio.setEnvironment(biome, sunLevel < .2, nearCampfire);
-  const inCombat = enemies.some(enemy => enemy.userData.alive && position.distanceTo(enemy.position) < 16);
-  audio.setMusicMode(inCombat ? 'battle' : dungeonActive ? 'dungeon' : inVillage ? 'village' : 'explore');
-  updateClouds(dt);
   updateWeather(dt);
-  updateWorldEvents(dt);
-  updateDistanceLod(dt);
   updateFireflies(dt);
-  updateAirEffects(dt);
-  updateWorld(dt);
+  updateWorld(dt, yaw);
   systems.update(dt, yaw);
 
   const portalHintDistance = Math.hypot(
@@ -3467,14 +2355,15 @@ body.rotation.x = -attackGlow * .22;
 
   if (portalHintDistance < 5) {
     ui.hint.textContent = dungeonActive
-      ? (state.dungeonCleared ? 'กด E / ใช้ เพื่อออกจากดันเจียน' : 'กำจัดผู้คุมถ้ำให้หมดก่อนออกไป')
+      ? 'กำจัดสิ่งมีชีวิตในถ้ำให้หมดก่อนออกไป'
       : 'กด E / ใช้เพื่อเข้าถ้ำต้องสาป';
-  } else if (player.position.distanceTo(horse.position) < 4) {
-    ui.hint.textContent = state.mounted ? 'กด E / ใช้ เพื่อลงจากม้า' : 'กด E / ใช้ เพื่อขี่ม้า · กด Shift ควบม้า';
-  } else if (campGroup && player.position.distanceTo(campGroup.position) < 4) {
-    ui.hint.textContent = 'กด E / ใช้ เพื่อพักผ่อนหรือปรุงอาหาร';
   } else if (player.position.distanceTo(shrine.position) < 5) {
     ui.hint.textContent = 'กด E / ใช้ เพื่อโต้ตอบ';
+  } else {
+    const secretName = systems.getNearbySecretName();
+    if (secretName) {
+      ui.hint.textContent = `กด E / ใช้เพื่อค้นพบ ${secretName}`;
+    }
   }
 
   updateHud();
@@ -3517,7 +2406,6 @@ function closePanels(except = null) {
     mapOpenButton.setAttribute('aria-expanded', 'false');
   }
   if (except !== 'settings') ui.settings.classList.add('hidden');
-  if (except !== 'camp') $('#camp-panel').classList.add('hidden');
   if (except !== 'shop') systems.closeShop();
 }
 
@@ -3557,33 +2445,16 @@ $('#map-close').addEventListener('click', () => {
 });
 
 $('#settings-open').addEventListener('click', () => {
-  audio.play('ui');
   closePanels('settings');
   ui.settings.classList.remove('hidden');
 });
 
 $('#settings-close').addEventListener('click', () => {
-  audio.play('ui');
   closePanels();
 });
 
-$('#camp').addEventListener('click', placeCamp);
-$('#camp-rest').addEventListener('click', restAtCamp);
-$('#camp-cook').addEventListener('click', cookAtCamp);
-$('#camp-close').addEventListener('click', () => closePanels());
-
 $('#quality').addEventListener('change', (e) => {
   settings.quality = e.target.value;
-  applySettings();
-});
-
-$('#fps-limit').addEventListener('change', (e) => {
-  settings.fpsLimit = e.target.value;
-  applySettings();
-});
-
-$('#postfx-toggle').addEventListener('change', (e) => {
-  settings.postProcessing = e.target.checked;
   applySettings();
 });
 
@@ -3601,16 +2472,6 @@ $('#sound-toggle').addEventListener('change', (e) => {
   settings.sound = e.target.checked;
   applySettings();
   if (settings.sound) audio.play('pickup');
-});
-
-$('#music-toggle').addEventListener('change', (e) => {
-  settings.music = e.target.checked;
-  applySettings();
-});
-
-$('#mobile-layout').addEventListener('change', (e) => {
-  settings.mobileLayout = e.target.value === 'left' ? 'left' : 'right';
-  $('#mobile-controls').classList.toggle('actions-left', settings.mobileLayout === 'left');
 });
 
 const saveSlotSelect = $('#save-slot');
@@ -3646,11 +2507,6 @@ if (skillTree) {
     if (button) upgradeSkill(button.dataset.skill);
   });
 }
-document.querySelectorAll('[data-class]').forEach((button) => button.addEventListener('click', () => {
-  state.characterClass = button.dataset.class;
-  document.querySelectorAll('[data-class]').forEach((item) => item.classList.toggle('selected', item === button));
-  toast(`เลือกสายอาชีพ: ${button.textContent}`);
-}));
 
 // ---------- Screen Resize / Rotation ----------
 function resizeGame() {
@@ -3662,15 +2518,13 @@ function resizeGame() {
 
   renderer.setSize(width, height);
 
-  const ratioCap = settings.quality === 'high' ? (isTouch ? 1.4 : 1.75)
-    : settings.quality === 'low' ? (isTouch ? .8 : .95) : (isTouch ? 1.05 : 1.3);
-  const ratio = Math.min(devicePixelRatio || 1, ratioCap);
+  const ratio = settings.quality === 'high'
+    ? Math.min(devicePixelRatio || 1, 2)
+    : settings.quality === 'low'
+      ? 1
+      : Math.min(devicePixelRatio || 1, 1.5);
 
   renderer.setPixelRatio(ratio);
-  if (composer) {
-    composer.setPixelRatio(Math.min(ratio, isTouch ? .78 : 1.0));
-    composer.setSize(width, height);
-  }
 }
 
 addEventListener('resize', resizeGame);
@@ -3684,7 +2538,6 @@ if (window.visualViewport) {
 
 // ---------- Start ----------
 dayNightMode = settings.dayNightMode || 'auto';
-$('#mobile-controls').classList.toggle('actions-left', settings.mobileLayout === 'left');
 if (saveSlotSelect) saveSlotSelect.value = String(currentSlot);
 applySettings();
 updateHud();
@@ -3692,18 +2545,12 @@ refreshEquipmentUI();
 refreshSkillUI();
 resizeGame();
 
-let lastFrameTimestamp = 0;
-function animate(timestamp = performance.now()) {
+function animate() {
   requestAnimationFrame(animate);
-
-  const frameInterval = 1000 / targetFps;
-  if (timestamp - lastFrameTimestamp < frameInterval) return;
-  lastFrameTimestamp = timestamp - ((timestamp - lastFrameTimestamp) % frameInterval);
 
   const dt = Math.min(clock.getDelta(), .05);
   update(dt);
-  if (composer) composer.render();
-  else renderer.render(scene, camera);
+  renderer.render(scene, camera);
 }
 
 animate();

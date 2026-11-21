@@ -105,122 +105,79 @@ button {
 
 .status {
   position: absolute;
-  top: 67px;
+  top: 82px;
   left: 18px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 7px;
-  width: 250px;
-  padding: 5px 0;
-  border: 0;
-  background: linear-gradient(90deg, #090806bb, #09080645 82%, transparent);
-  box-shadow: none;
-  backdrop-filter: none;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 13px;
+  border: 1px solid #ffffff20;
+  border-radius: 13px;
+  background: #090d16d9;
+  box-shadow: 0 8px 25px #0005;
+  backdrop-filter: blur(10px);
 }
 
 .stat {
   display: grid;
-  position: relative;
-  grid-template-columns: 31px 1fr;
-  grid-template-rows: 14px 23px;
-  gap: 0 5px;
+  grid-template-columns: 28px 92px;
+  gap: 5px 7px;
   align-items: center;
   font-size: 10px;
 }
 
 .stat label {
-  grid-column: 2;
-  grid-row: 1;
-  color: #d6c8a8;
-  font-weight: 700;
-  font-size: 11px;
-  text-shadow: 0 1px 3px #000;
+  color: #c9b991;
+  font-weight: 800;
 }
-
-.stat label::before {
-  position: absolute;
-  left: -29px;
-  top: 13px;
-  display: grid;
-  width: 27px;
-  height: 27px;
-  place-items: center;
-  border: 2px solid #81755d;
-  border-radius: 50%;
-  color: #f5dfb1;
-  background: radial-gradient(circle at 35% 30%, #62513c, #191817 72%);
-  box-shadow: 0 1px 5px #000, inset 0 0 4px #000;
-  font-size: 13px;
-}
-.stat:nth-child(1) label::before { content: '✹'; color: #ffb0a2; }
-.stat:nth-child(2) label::before { content: '◈'; color: #f1cd88; }
-.stat:nth-child(3) label::before { content: '✦'; color: #a8ceff; }
 
 .stat b {
-  position: absolute;
-  right: 7px;
-  bottom: 6px;
-  z-index: 2;
-  color: #fff;
-  font-size: 8px;
-  text-shadow: 0 1px 3px #000;
+  grid-column: 2;
+  color: #ddd;
+  font-size: 9px;
 }
 
 .meter {
-  grid-column: 1 / 3;
-  grid-row: 2;
-  height: 18px;
+  height: 7px;
   overflow: hidden;
-  border: 2px solid #746f64;
-  border-radius: 3px 11px 11px 3px;
-  background: linear-gradient(#171717, #050505);
-  box-shadow: inset 0 1px 4px #000, 0 1px 2px #000;
-  clip-path: polygon(0 0, 96% 0, 100% 50%, 96% 100%, 0 100%);
+  border-radius: 10px;
+  background: #30333a;
 }
 
 .meter i {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 0;
-  background: linear-gradient(180deg, #ef5f58, #ae2927 48%, #731b1b);
-  box-shadow: inset 0 2px 2px #ffffff55, inset 0 -2px 2px #300;
-  transition: width .2s;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #873b40, #e16b62);
+  transition: width .15s;
 }
 
 .meter.stamina i {
-  background: linear-gradient(180deg, #f5ca6e, #be8137 52%, #805024);
+  background: linear-gradient(90deg, #88703d, #e0c36c);
 }
 
 .meter.mana i {
-  background: linear-gradient(180deg, #69c5ff, #2679c2 52%, #174d91);
+  background: linear-gradient(90deg, #3d5a88, #7aa6e8);
 }
 
 .level-box {
-  position: absolute;
-  left: calc(100% + 4px);
-  top: 14px;
-  width: 37px;
-  height: 39px;
+  min-width: 44px;
   display: grid;
   justify-items: center;
-  align-content: center;
-  gap: 1px;
-  border: 2px solid #625b4b;
-  border-radius: 5px;
-  background: linear-gradient(145deg, #3a3b3d, #090a0b);
-  box-shadow: 0 2px 6px #000;
+  gap: 3px;
+  padding-left: 12px;
+  border-left: 1px solid #ffffff25;
 }
 
 .level-box small {
-  color: #d5c394;
-  font-size: 6px;
+  color: #c7b487;
+  font-size: 8px;
   letter-spacing: 1px;
 }
 
 .level-box b {
-  font-size: 16px;
+  font-size: 19px;
   color: #f0d69a;
 }
 
@@ -254,9 +211,6 @@ button {
   color: #eee8dc;
   line-height: 1.5;
 }
-
-#quest .side-quest-tracker { margin-top: 5px; color: #9dd8c0; font-size: 10px; }
-#quest .side-quest-tracker:empty { display: none; }
 
 #toast {
   position: absolute;
@@ -359,8 +313,6 @@ button {
   pointer-events: auto;
 }
 
-#mobile-controls.actions-left { flex-direction: row-reverse; }
-
 .mobile-actions button {
   height: 49px;
   border: 1px solid #c6b17c77;
@@ -418,9 +370,6 @@ button {
 .panel-head b {
   font-size: 16px;
 }
-
-.camp-panel { left: 50%; right: auto; top: 50%; transform: translate(-50%, -50%); display: grid; gap: 10px; }
-.camp-panel p { margin: 0 0 4px; color: #d9d0bc; font-size: 12px; line-height: 1.5; }
 
 .close-btn {
   width: 35px;
@@ -621,14 +570,6 @@ button {
     top: 112px;
     right: 10px;
   }
-}
-
-@media (max-width: 650px) {
-  .status { top: 62px; left: 12px; width: 190px; flex-direction: column; flex-wrap: nowrap; gap: 5px; padding: 4px 0; }
-  .stat { grid-template-columns: 31px 1fr; grid-template-rows: 13px 20px; gap: 0 5px; }
-  .meter { height: 16px; }
-  .level-box { left: calc(100% + 4px); top: 12px; width: 32px; height: 34px; padding: 0; border: 2px solid #625b4b; }
-  .level-box b { font-size: 14px; }
 }
 
 @media (orientation: landscape) and (pointer: coarse) {
@@ -921,10 +862,6 @@ body {
   line-height: 1.6;
 }
 
-.dialogue-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.dialogue-choice { border: 1px solid #c5ad7955; border-radius: 9px; padding: 9px; background: #20283a; color: #f0d9a4; font-size: 11px; }
-.dialogue-choice:active { background: #55452d; }
-
 @media (max-width: 650px) {
   #minimap-wrap {
     right: 10px;
@@ -1052,14 +989,12 @@ body {
   display: grid;
   gap: 8px;
   min-height: 0;
-  justify-items: center;
 }
 
 #world-map {
   display: block;
   width: 100%;
-  height: min(62dvh, 640px);
-  object-fit: contain;
+  height: auto;
   border: 1px solid #c5ad7955;
   border-radius: 10px;
   background: #070b12;
@@ -1166,71 +1101,3 @@ body {
     font-size: 8px;
   }
 }
-
-
-/* ---------- UI interaction and stacking fix ---------- */
-/* Keep the HUD above the WebGL canvas while allowing world input
-   through empty HUD areas. Interactive controls and panels receive clicks. */
-#hud {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-}
-
-#hud .top-actions,
-#hud .top-actions *,
-#hud .panel,
-#hud .panel *,
-#hud button,
-#hud select,
-#hud input,
-#hud [role="button"] {
-  pointer-events: auto;
-}
-
-#hud .panel {
-  z-index: 30;
-  visibility: visible;
-  opacity: 1;
-}
-
-#hud .panel.hidden,
-#hud .hidden {
-  display: none !important;
-}
-
-/* Preserve each panel's original display mode (grid/flex/block). */
-#game {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-
-
-/* FIX HUD LAYER */
-#hud {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-}
-
-#hud .top-actions,
-#hud .top-actions *,
-#hud .panel,
-#hud .panel *,
-#hud button,
-#hud select,
-#hud input {
-  pointer-events: auto;
-}
-
-#hud .panel {
-  z-index: 30;
-}
-
-#game {
-  z-index: 0;
-}
-
