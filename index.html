@@ -15,12 +15,20 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · COMPLETE UPDATE 0.4</small>
+        <small>ASHEN WILDS · UPDATE 0.5</small>
       </div>
 
       <div class="top-actions">
         <button id="time-toggle" class="top-btn" type="button">
           ☾ NIGHT
+        </button>
+        <button id="quest-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="quest-panel">
+  📜 ภารกิจ
+        </button>
+        <button id="map-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="map-panel">
+  🗺 แผนที่
         </button>
         <button id="inventory-open" class="top-btn" type="button"
   aria-expanded="false" aria-controls="inventory">
@@ -45,6 +53,12 @@
         <b id="stamina-text">100 / 100</b>
       </div>
 
+      <div class="stat">
+        <label>MP</label>
+        <div class="meter mana"><i id="mana-fill"></i></div>
+        <b id="mana-text">100 / 100</b>
+      </div>
+
       <div class="level-box">
         <small>LEVEL</small>
         <b id="level-text">1</b>
@@ -59,6 +73,11 @@
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="interaction-hint"></div>
 
+    <div id="minimap-wrap" aria-label="แผนที่ย่อและเข็มทิศ">
+      <canvas id="minimap" width="160" height="160"></canvas>
+      <div id="compass-text">N · 000°</div>
+    </div>
+
     <section id="mobile-controls">
       <div id="stick-zone" aria-label="จอยสติ๊กเดิน">
         <div id="stick"><i></i></div>
@@ -70,11 +89,12 @@
         <button id="interact" type="button">ใช้ / คุย</button>
         <button id="run" type="button">วิ่ง</button>
         <button id="dodge" type="button">หลบหลีก</button>
+        <button id="cast" type="button" disabled>✦ ร่ายเวท</button>
       </div>
     </section>
 
     <div id="desktop-help">
-      WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ · Q ใช้ยา
+       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · M แผนที่
     </div>
 
     <section id="settings-panel" class="panel hidden">
@@ -145,7 +165,70 @@
         <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
         <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
       </div>
-      <button id="spend-skill-point" class="skill-button" type="button">ใช้แต้มเพิ่มพลังโจมตี +0.5</button>
+      <div class="equipment-block">
+        <small class="equipment-heading">🌳 ต้นไม้ทักษะ <small>(<span id="skill-points-tree">0</span> แต้ม)</small></small>
+        <div id="skill-tree" class="skill-tree"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">วัตถุดิบในกระเป๋า</small>
+        <div id="material-list" class="material-list"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">⚒ คราฟต์</small>
+        <div id="craft-list" class="craft-list"></div>
+      </div>
+
+      <div class="equipment-block">
+        <small class="equipment-heading">✦ เวทมนตร์ <small>(R)</small></small>
+        <div id="spell-list" class="spell-list">
+          <button id="spell-firebolt" data-spell="firebolt" type="button" disabled>ลูกไฟ</button>
+          <button id="spell-heal" data-spell="heal" type="button" disabled>รักษา</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="quest-panel" class="panel quest-panel hidden" aria-label="บันทึกภารกิจ">
+      <div class="panel-head">
+        <div>
+          <small>QUEST LOG</small>
+          <b>📜 ภารกิจ</b>
+        </div>
+        <button id="quest-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div id="quest-list" class="quest-list"></div>
+    </section>
+
+    <section id="map-panel" class="panel map-panel hidden" aria-label="แผนที่โลก">
+      <div class="panel-head">
+        <div>
+          <small>WORLD MAP</small>
+          <b>🗺 อาณาจักรที่ถูกลืม</b>
+        </div>
+        <button id="map-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div class="map-stage">
+        <canvas id="world-map" width="720" height="900"></canvas>
+        <div class="map-legend">
+          <span><i class="dot player"></i>คุณ</span>
+          <span><i class="dot enemy"></i>ศัตรู</span>
+          <span><i class="dot boss"></i>BOSS</span>
+          <span><i class="dot npc"></i>NPC</span>
+          <span><i class="dot node"></i>วัตถุดิบ</span>
+        </div>
+      </div>
+      <div id="map-coords">ตำแหน่ง: 0, 0</div>
+      <p class="note">พื้นที่ที่ยังไม่เคยไปจะถูกปกปิดด้วยหมอก</p>
+    </section>
+
+    <section id="dialogue-panel" class="panel dialogue-panel hidden" role="dialog" aria-label="บทสนทนา">
+      <div class="panel-head">
+        <b id="dialogue-name">—</b>
+        <button id="dialogue-close" class="close-btn" type="button">✕</button>
+      </div>
+      <p id="dialogue-text"></p>
+      <button id="dialogue-next" class="wide-btn" type="button">ถัดไป</button>
     </section>
   </main>
 
