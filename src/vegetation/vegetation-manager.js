@@ -77,11 +77,16 @@ export function createVegetationManager({
       count = density.middle;
     }
 
-    const region = getRegion
-      ? getRegion(centerX, centerZ)
-      : 'ravenhold';
+    const regionData = getRegion
+  ? getRegion(centerX, centerZ)
+  : null;
 
-    const biome = getVegetationBiome(region);
+const regionId =
+  typeof regionData === 'string'
+    ? regionData
+    : regionData?.id;
+
+const biome = getVegetationBiome(regionId);
 
     count = Math.max(
       0,
