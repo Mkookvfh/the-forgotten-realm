@@ -1,25 +1,51 @@
-import * as THREE from 'three';
+// THE FORGOTTEN REALM
+// Procedural Vegetation Biomes
 
-const BIOME_PALETTES = {
-  wasteland: ['#657344', '#829052', '#a0a36a'],
-  ravenhold: ['#536b3d', '#71884a', '#9a9b5c'],
-  deadwood: ['#3f5540', '#596d4b', '#7b8060'],
-  varnhal: ['#667d3d', '#87964b', '#b0a36a'],
-  emberpeak: ['#66583a', '#8b7041', '#ad8950'],
-  mirefall: ['#3d6651', '#56816a', '#7a9871']
+export const VEGETATION_BIOMES = {
+  wasteland: {
+    name: "Wasteland",
+    colors: [0x77734b, 0x9b8954, 0x5f633b],
+    densityMultiplier: 0.65,
+    heightMultiplier: 0.75
+  },
+
+  ravenhold: {
+    name: "Ravenhold",
+    colors: [0x526b3c, 0x71834a, 0x3e5835],
+    densityMultiplier: 1.0,
+    heightMultiplier: 1.0
+  },
+
+  deadwood: {
+    name: "Deadwood",
+    colors: [0x465b32, 0x66733c, 0x354b2d],
+    densityMultiplier: 1.15,
+    heightMultiplier: 1.1
+  },
+
+  varnhal: {
+    name: "Varnhal",
+    colors: [0x596b3d, 0x879052, 0x435532],
+    densityMultiplier: 0.95,
+    heightMultiplier: 0.9
+  },
+
+  emberpeak: {
+    name: "Emberpeak",
+    colors: [0x77765b, 0x999078, 0x5d624d],
+    densityMultiplier: 0.55,
+    heightMultiplier: 0.65
+  },
+
+  mirefall: {
+    name: "Mirefall",
+    colors: [0x52634a, 0x71805a, 0x3e5141],
+    densityMultiplier: 1.05,
+    heightMultiplier: 0.85
+  }
 };
 
-const DEFAULT_PALETTE = ['#526b3d', '#71874a', '#92985b'];
-
-export function getBiomeColor(region, randomValue = 0.5) {
-  const palette = BIOME_PALETTES[region?.id] || DEFAULT_PALETTE;
-  const index = Math.min(
-    palette.length - 1,
-    Math.floor(THREE.MathUtils.clamp(randomValue, 0, 0.9999) * palette.length)
-  );
-
-  const color = new THREE.Color(palette[index]);
-  const variation = (randomValue - 0.5) * 0.08;
-  color.offsetHSL(variation * 0.25, variation, variation);
-  return color;
+export function getVegetationBiome(region) {
+  return VEGETATION_BIOMES[region]
+    || VEGETATION_BIOMES.ravenhold;
 }
