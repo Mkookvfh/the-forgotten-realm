@@ -2284,6 +2284,7 @@ body.rotation.x = -attackGlow * .22;
   );
 
   worldStreamer.update(player.position);
+  vegetation.update(player.position, dt);
 
   if (!fallbackHidden && worldStreamer.loadedCount > 0) {
     fallbackHidden = true;
