@@ -10,6 +10,7 @@ import {
   setSpriteFrame
 } from './pixelSprites.js';
 import { createWorldStreamer } from './worldStreamer.js';
+import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
 
@@ -346,6 +347,12 @@ fallbackWorld.add(ground);
 const worldStreamer = createWorldStreamer({
   scene,
   baseUrl: `${import.meta.env.BASE_URL}assets/world/`
+});
+const vegetation = createVegetationManager({
+  scene,
+  getHeight: (x, z) => worldStreamer.getHeight(x, z),
+  getRegion: (x, z) => worldStreamer.getRegion(x, z),
+  mobile: isTouch
 });
 let fallbackHidden = false;
 
