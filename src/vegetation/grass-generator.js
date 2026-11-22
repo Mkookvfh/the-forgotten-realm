@@ -88,12 +88,16 @@ function createGrassMaterial() {
 
        float grassHeight = position.y;
 
+       
        float windWave =
-         sin(uGrassTime * 1.2 + instanceMatrix[3][0] * 0.15
-         + instanceMatrix[3][2] * 0.15);
+         sin(uGrassTime * 1.8
+         + instanceMatrix[3][0] * 0.15
+         + instanceMatrix[3][2] * 0.15) * 0.7
+         + sin(uGrassTime * 0.9
+         + instanceMatrix[3][0] * 0.08) * 0.3;
 
-       transformed.x += windWave * grassHeight * 0.045;
-       transformed.z += windWave * grassHeight * 0.025;
+       transformed.x += windWave * grassHeight * 0.18;
+       transformed.z += windWave * grassHeight * 0.10;
       `
     );
 
