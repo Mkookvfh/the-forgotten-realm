@@ -1,129 +1,170 @@
 import * as THREE from 'three';
-import { createGrassTile } from './grass-generator.js';
-import { VEGETATION_CONFIG } from './vegetation-config.js';
+
+import {
+  VEGETATION_CONFIG,
+  getVegetationDensity
+} from './vegetation-config.js';
+
+import {
+  getVegetationBiome
+} from './vegetation-biomes.js';
+
+import {
+  createGrassTile,
+  updateGrassWind
+} from './grass-generator.js';
 
 export function createVegetationManager({
   scene,
   getHeight,
   getRegion,
-  mobile = false
+  mobile = true
 }) {
-  if (!scene || typeof getHeight !== 'function' || typeof getRegion !== 'function') {
-    throw new TypeError('VegetationManager requires scene, getHeight and getRegion');
+  if (!scene || typeof getHeight !== 'function') {
+    throw new Error(
+      'VegetationManager requires scene and getHeight'
+    );
   }
 
   const root = new THREE.Group();
   root.name = 'ProceduralVegetation';
+
   scene.add(root);
 
   const tiles = new Map();
-  const tileSize = VEGETATION_CONFIG.tileSize;
-  const radius = VEGETATION_CONFIG.tileRadius;
-  const profile = mobile ? VEGETATION_CONFIG.mobile : VEGETATION_CONFIG.desktop;
-  let lastCenterKey = '';
-  let elapsed = 0;
-  let disposed = false;
+  const config = VEGETATION_CONFIG;
+  const density = getVegetationDensity(mobile);
 
-  function densityForDistance(distanceInTiles) {
-    if (distanceInTiles <= 1.1) return profile.near;
-    if (distanceInTiles <= 2.1) return profile.middle;
-    return profile.far;
+  let elapsedTime = 0;
+  let lastUpdateX = NaN;
+  let lastUpdateZ = NaN;
+
+  const tileSize = config.tileSize;
+  const radius = config.renderRadius;
+
+  function tileKey(x, z) {
+    return `${x},${z}`;
   }
 
-  function tileKey(tx, tz) {
-    return `${tx},${tz}`;
-  }
+  function buildTile(tileX, tileZ) {
+    const key = tileKey(tileX, tileZ);
 
-  function buildTile(tx, tz, playerX, playerZ) {
-    const key = tileKey(tx, tz);
     if (tiles.has(key)) return;
 
-    const centerX = tx * tileSize + tileSize / 2;
-    const centerZ = tz * tileSize + tileSize / 2;
-    const distance = Math.hypot(centerX - playerX, centerZ - playerZ) / tileSize;
-    const density = densityForDistance(distance);
+    const centerX = tileX * tileSize + tileSize / 2;
+    const centerZ = tileZ * tileSize + tileSize / 2;
 
-    const tile = createGrassTile({
-      x: tx * tileSize + tileSize / 2,
-      z: tz * tileSize + tileSize / 2,
+    const groundHeight = getHeight(centerX, centerZ);
+
+    // รอจนกว่าระบบภูมิประเทศจะพร้อม
+    if (
+      groundHeight === null ||
+      !Number.isFinite(groundHeight)
+    ) {
+      return;
+    }
+
+    const distance = Math.max(
+      Math.abs(tileX - Math.floor(lastUpdateX / tileSize)),
+      Math.abs(tileZ - Math.floor(lastUpdateZ / tileSize))
+    );
+
+    let count = density.far;
+
+    if (distance <= 1) {
+      count = density.near;
+    } else if (distance <= 2) {
+      count = density.middle;
+    }
+
+    const region = getRegion
+      ? getRegion(centerX, centerZ)
+      : 'ravenhold';
+
+    const biome = getVegetationBiome(region);
+
+    count = Math.max(
+      0,
+      Math.floor(count * biome.densityMultiplier)
+    );
+
+    const mesh = createGrassTile({
+      centerX,
+      centerZ,
       tileSize,
-      density,
-      seed: ((tx * 73856093) ^ (tz * 19349663) ^ 0x5f3759df) >>> 0,
+      count,
       getHeight,
-      getRegion,
-      mobile
+      biome
     });
 
-    if (tile.count > 0) {
-      root.add(tile);
-      tiles.set(key, tile);
-    } else {
-      tile.geometry.dispose();
-      tile.material.dispose();
-    }
+    mesh.name = `Grass_${key}`;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = true;
+
+    root.add(mesh);
+    tiles.set(key, mesh);
   }
 
-  function rebuildAround(position) {
-    const centerTileX = Math.floor(position.x / tileSize);
-    const centerTileZ = Math.floor(position.z / tileSize);
-    const nextCenterKey = tileKey(centerTileX, centerTileZ);
-    if (nextCenterKey === lastCenterKey) return;
-    lastCenterKey = nextCenterKey;
+  function removeOldTiles(playerTileX, playerTileZ) {
+    for (const [key, mesh] of tiles) {
+      const [x, z] = key.split(',').map(Number);
 
-    const keep = new Set();
+      const outside =
+        Math.abs(x - playerTileX) > radius ||
+        Math.abs(z - playerTileZ) > radius;
 
-    for (let tz = centerTileZ - radius; tz <= centerTileZ + radius; tz++) {
-      for (let tx = centerTileX - radius; tx <= centerTileX + radius; tx++) {
-        const centerX = tx * tileSize + tileSize / 2;
-        const centerZ = tz * tileSize + tileSize / 2;
-        const distance = Math.hypot(
-          centerX - position.x,
-          centerZ - position.z
-        ) / tileSize;
+      if (outside) {
+        root.remove(mesh);
 
-        if (distance > radius + 0.75) continue;
+        mesh.geometry.dispose();
+        mesh.material.dispose();
 
-        const key = tileKey(tx, tz);
-        keep.add(key);
-        buildTile(tx, tz, position.x, position.z);
+        tiles.delete(key);
       }
-    }
-
-    for (const [key, tile] of tiles) {
-      if (keep.has(key)) continue;
-      root.remove(tile);
-      tile.geometry.dispose();
-      tile.material.dispose();
-      tiles.delete(key);
     }
   }
 
   function update(position, deltaTime = 0) {
-    if (disposed || !position || !Number.isFinite(position.x) || !Number.isFinite(position.z)) {
-      return;
+    if (!position) return;
+
+    elapsedTime += Math.max(0, deltaTime);
+
+    const playerTileX = Math.floor(position.x / tileSize);
+    const playerTileZ = Math.floor(position.z / tileSize);
+
+    const moved =
+      playerTileX !== Math.floor(lastUpdateX / tileSize) ||
+      playerTileZ !== Math.floor(lastUpdateZ / tileSize);
+
+    if (moved || tiles.size === 0) {
+      lastUpdateX = position.x;
+      lastUpdateZ = position.z;
+
+      removeOldTiles(playerTileX, playerTileZ);
+
+      for (let x = -radius; x <= radius; x++) {
+        for (let z = -radius; z <= radius; z++) {
+          buildTile(
+            playerTileX + x,
+            playerTileZ + z
+          );
+        }
+      }
     }
 
-    const playerGround = getHeight(position.x, position.z);
-    if (!Number.isFinite(playerGround)) return;
-
-    elapsed += Math.max(0, Math.min(deltaTime, 0.05));
-    rebuildAround(position);
-
-    for (const tile of tiles.values()) {
-      const uniforms = tile.material.userData.windUniforms;
-      if (uniforms) uniforms.uGrassTime.value = elapsed;
+    for (const mesh of tiles.values()) {
+      updateGrassWind(mesh, elapsedTime);
     }
   }
 
   function dispose() {
-    if (disposed) return;
-    disposed = true;
-
-    for (const tile of tiles.values()) {
-      root.remove(tile);
-      tile.geometry.dispose();
-      tile.material.dispose();
+    for (const mesh of tiles.values()) {
+      root.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
     }
+
     tiles.clear();
     scene.remove(root);
   }
@@ -132,13 +173,9 @@ export function createVegetationManager({
     update,
     dispose,
     root,
+
     get tileCount() {
       return tiles.size;
-    },
-    get bladeCount() {
-      let total = 0;
-      for (const tile of tiles.values()) total += tile.count;
-      return total;
     }
   };
 }
