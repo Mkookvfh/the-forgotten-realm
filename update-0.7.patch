@@ -1,0 +1,3231 @@
+diff --git a/CHANGELOG_0.7.md b/CHANGELOG_0.7.md
+new file mode 100644
+index 0000000..ffe5de5
+--- /dev/null
++++ b/CHANGELOG_0.7.md
+@@ -0,0 +1,70 @@
++# The Forgotten Realm — Update 0.7 (Systems Expansion)
++
++สรุปการพัฒนาระบบรอบนี้ จัดกลุ่มตามระบบเกม พร้อมไฟล์ที่แก้ไข
++
++## ระบบใหม่
++
++### 1. อาวุธและเกราะครบตาม UI เดิม
++UI มีปุ่มอาวุธ/เกราะหลายชิ้นแต่ไม่เคยผูกกับระบบจริง ตอนนี้ใช้งานได้ทั้งหมด
++- อาวุธ: ขวาน, ธนูพรานป่า (ยิงลูกธนู), คทาเหมันต์ (ยิงน้ำแข็ง + ศัตรูช้าลง 55% เป็นเวลา 2.5 วินาที)
++- เกราะ: เกราะพราน (−32% ดาเมจ), ผ้าคลุมรูน (−45% ดาเมจ)
++- เพิ่มสูตรคราฟต์และสินค้าในร้านค้าสำหรับไอเท็มใหม่ทั้งหมด
++- `src/main.js` `weaponStats` / `armorStats`, `src/systems.js` `RECIPES` / `SHOP_ITEMS`
++
++### 2. สายอาชีพ (Class)
++ปุ่ม "สายอาชีพ" ในกระเป๋าเดิมกดไม่ได้ ตอนนี้เลือก/ยกเลิกได้ และมีผลจริง
++- นักรบ: ดาเมจระยะประชิด +20%, ลดความเสียหายที่ได้รับ 10%
++- พราน: ดาเมจระยะไกล +25%, ฟื้นพละกำลังเร็วขึ้น 60%
++- จอมเวท: พลังเวท +25%, ฟื้นมนตราเร็วขึ้น 50%
++- บันทึก/โหลดค่าสายอาชีพได้
++
++### 3. ระบบตั้งแคมป์ (Camp) — ปุ่ม G / ปุ่ม ⛺
++- วางกองไฟ ณ ตำแหน่งผู้เล่น และตั้งเป็น **จุดเกิดใหม่** (respawn point)
++- พักผ่อนจนรุ่งเช้า: ฟื้น HP/STA/MP เต็ม และเลื่อนเวลาไปเช้า
++- ปรุงอาหาร: เนื้อสด 1 + สมุนไพร 1 → ยาฟื้นฟู 2
++- ตั้งแคมป์/พักไม่ได้ระหว่างอยู่ในถ้ำ หรือมีศัตรูอยู่ในรัศมี 12 หน่วย (ปรุงอาหารได้)
++- เพิ่มวัตถุดิบ "เนื้อสด" ดรอปจากหมาป่า/กวาง และขายได้ในร้านค้า
++- ตายแล้วเกิดที่กองไฟ (ถ้ามี) พร้อมฟื้นฟูเต็มหลอด เสียทองไม่เกิน 10
++
++### 4. การต่อสู้
++- โจมตีระยะประชิดตรวจ "ทิศทาง" แล้ว (เดิมตีศัตรูด้านหลังได้) และเลือกเป้าที่ใกล้ที่สุดในระยะ
++- อาวุธระยะไกลสร้างโปรเจกไทล์จริง มีเอฟเฟกต์เรืองแสง ตรวจการชน และใช้พละกำลังต่อนัด
++- ศัตรูมีระยะห่างระหว่างกัน ไม่ยืนซ้อนทับกันเป็นกอง
++- โจมตีศัตรูมีเสียงกระทบ, ตัวเลขดาเมจในข้อความ, และศัตรูที่โดนน้ำแข็งจะช้าลง
++
++### 5. ระบบที่ UI มีอยู่แล้วแต่ไม่ทำงาน
++- **ปุ่มร้านค้าบนแถบด้านบน**: เดิมกดแล้วไม่เปิด (มี listener ซ้อนกันจนเปิดแล้วปิดทันที) — แก้แล้ว เปิด/ปิดได้
++- **จำกัด FPS**: auto / 30 / 45 / 60 ใช้งานได้จริง
++- **ตำแหน่งปุ่มมือถือ**: สลับซ้าย/ขวาได้ (เพิ่ม CSS `body.layout-left`)
++- **ดนตรีประกอบ**: เพิ่ม ambient pad ใน `src/audio.js` เปิด/ปิดตามสวิตช์
++- **ตัวติดตามภารกิจรอง**: แสดงความคืบหน้าใน HUD (`#side-quest-text`)
++- **หยุดเกมชั่วคราวเมื่อเปิดแผง**: กระเป๋า/ภารกิจ/แผนที่/ร้านค้า/แคมป์/บทสนทนา
++
++## Bug fixes สำคัญ
++1. **โหลดเซฟแล้วกระเป๋า/สกิล/เวท/ภารกิจหาย** — `loadGame()` คัดลอกแค่ฟิลด์ตัวเลข ไม่ได้คัดลอก inventory/skills/spells/quests ทำให้ของที่ซื้อ/คราฟต์หายหลังโหลด แก้แล้วพร้อม bump save เป็น v7 (เซฟ v6 เดิมยังโหลดได้)
++2. **หลอด HP เกิน 100%** — width คำนวณจาก HP ดิบ ไม่หารด้วย maxHP ทำให้หลอดล้นเมื่ออัป Vitality
++3. **แผนที่ไม่วาดเมื่อเปิด** — การวาดอยู่ใน update loop ซึ่งถูกพักเมื่อเปิดแผง ตอนนี้วาดทันทีตอนเปิดแผนที่
++4. **ตายในถ้ำแล้วถือว่าผ่านดันเจี้ยน** — เดิมตั้ง `dungeonCleared = true` ตอนตาย ตอนนี้แค่ถูกขับออกจากถ้ำ
++5. **เวทรักษาเผามานาเปล่าเมื่อ HP เต็ม** — บล็อกพร้อมข้อความแจ้ง
++6. **เปิดแผงซ้อนกัน** — กด B/G จากแผงอื่นตอนนี้ปิดแผงเดิมก่อน
++7. **กดปุ่มค้างในแผง** — คีย์เกมถูกบล็อกขณะหยุดชั่วคราว (ยกเว้น Esc/M/B/G)
++
++## ไฟล์ที่แก้ไข
++| ไฟล์ | รายละเอียด |
++| --- | --- |
++| `src/main.js` | อาวุธ/เกราะ/อาชีพ/แคมป์/โปรเจกไทล์/หยุดเกม/FPS/เซฟ-โหลด/จุดเกิด |
++| `src/systems.js` | ไอเท็มใหม่, สูตรคราฟต์, ร้านค้า, เนื้อสด, โบนัสเวทจอมเวท, กันเปิดร้านซ้ำ |
++| `src/audio.js` | ระบบดนตรีประกอบ ambience + `setMusic()` |
++| `src/style.css` | เลย์เอาต์ปุ่มมือถือซ้าย/ขวา, สไตล์แผงแคมป์ |
++| `index.html` | ข้อความช่วยเหลือคีย์, เลขเวอร์ชัน 0.7 |
++| `package.json` | เวอร์ชัน 0.7.0 |
++
++## การทดสอบ
++รัน `npm run build` ผ่าน และทดสอบใน Chromium (Xvfb + SwiftShader) โดยตรวจ:
++- เปิด/ปิดร้านค้า, เลือกสายอาชีพ, เปิดแคมป์, ปรุงอาหาร (+2 ยา), พักผ่อน
++- ยิงธนูโดนศัตรู (ดาเมจ 1.8 = 1.4 × 1.25 พราน), ฟันดาบนักรบ (1.2 = 1.0 × 1.2)
++- ศัตรูโจมตีผู้เล่น (8 × 0.75 เกราะ × 0.9 อาชีพ ≈ 5), ฆ่าศัตรูแล้วได้ผลึก/ทอง/ดรอป
++- โหลดเซฟ v7: อาวุธ/เกราะ/อาชีพ/กระเป๋า/ภารกิจติดมาครบ
++- ไม่มี console error
++
++> หมายเหตุ: เฟรมเรตใน sandbox ทดสอบต่ำมากเพราะใช้ software WebGL (0.5–4 FPS) จึงทดสอบด้วยการเว้นจังหวะ ไม่ใช่ตัวชี้วัดประสิทธิภาพจริง
+diff --git a/README.md b/README.md
+index 439a7ba..f9c637a 100644
+--- a/README.md
++++ b/README.md
+@@ -3,5 +3,8 @@
+ Playable 3D dark-fantasy third-person prototype for web and Android.
+ 
+ See [README_TH.md](README_TH.md) for Thai setup instructions, included systems, limitations, and the GitHub Actions Android debug APK workflow.
++See [CHANGELOG_0.7.md](CHANGELOG_0.7.md) for the systems upgrade in update 0.7.
++
++Update 0.7 highlights: seven weapons and six armors (axe, bow, frost staff, ranger gear, rune robe and more), three classes, a camp/rest/cook system with respawn point, real projectiles, directional melee, pause-on-panel, working shop button / FPS limit / mobile layout / music toggle, and save-load fixes that keep inventory, skills, spells and quests.
+ 
+ This is a prototype, not a production-ready open-world game. Android builds from the included workflow are debug APKs for testing only.
+diff --git a/README_TH.md b/README_TH.md
+index f637dfd..bf660b5 100644
+--- a/README_TH.md
++++ b/README_TH.md
+@@ -8,8 +8,10 @@
+ - ตัวละคร Sprite 4 ทิศทาง พร้อมแอนิเมชันเดิน วิ่ง หลบหลีก โจมตี และรับความเสียหาย
+ - เดิน วิ่ง กระโดด หลบหลีก พร้อมกล้องติดตาม ปรับมุมและระยะกล้องได้
+ - ระบบต่อสู้ ศัตรู AI หลายเฟส บอส 2 ตัว และสัตว์ป่า (กวางวิญญาณ/หมาป่ามืด)
+-- ระบบอาวุธ 4 แบบ: ดาบ ดาบใหญ่ คทาเวท และดาบเงาว่าง (ตำนาน)
+-- ระบบเกราะ 4 แบบ: หนัง เหล็ก เงา และเกราะมังกรร้าง (ตำนาน)
++- ระบบอาวุธ 7 แบบ: ดาบ ดาบใหญ่ ขวาน คทาเวท ธนูพรานป่า (ยิงลูกธนู) คทาเหมันต์ (ยิงน้ำแข็งและทำให้ศัตรูช้าลง) และดาบเงาว่าง (ตำนาน)
++- ระบบเกราะ 6 แบบ: หนัง เหล็ก เกราะพราน ผ้าคลุมรูน เงา และเกราะมังกรร้าง (ตำนาน)
++- สายอาชีพ 3 สาย เลือกได้จากกระเป๋า: นักรบ (โจมตีระยะประชิดแรงขึ้น ลดความเสียหาย) พราน (โจมตีระยะไกลแรงขึ้น ฟื้นพละกำลังเร็ว) จอมเวท (พลังเวทแรงขึ้น ฟื้นมนตราเร็ว)
++- ระบบตั้งแคมป์ (G): กองไฟเป็นจุดเกิดใหม่ พักผ่อนจนรุ่งเช้าเพื่อฟื้น HP/STA/MP และปรุงอาหารจากเนื้อสด+สมุนไพรเป็นยาฟื้นฟู (ตั้งแคมป์/พักไม่ได้เมื่อมีศัตรูใกล้หรืออยู่ในถ้ำ)
+ - เวทมนตร์ 2 แบบ: ลูกไฟและการรักษา พร้อมแต้มทักษะ 3 สาย
+ - ระบบคราฟต์ ดรอปตามความหายาก วัตถุดิบ และร้านค้าซื้อ/ขายของด้วยทอง
+ - NPC เดินตามตารางเวลา 3 คน: นักพรต ช่างตีเหล็ก และพ่อค้าเร่ร่อน
+@@ -22,8 +24,9 @@
+ 
+ ## การควบคุม
+ - WASD/ลูกศร เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก
+-- F โจมตี · E โต้ตอบ/เก็บของ/คุย/เข้าถ้ำ · Q ใช้ยา · R ร่ายเวท · B เปิดร้านค้า · M แผนที่
++- F โจมตี (ธนู/คทาเหมันต์จะยิงเป็นวิถี) · E โต้ตอบ/เก็บของ/คุย/เข้าถ้ำ · G ตั้งแคมป์ · Q ใช้ยา · R ร่ายเวท · B เปิดร้านค้า · M แผนที่
+ - ลากเมาส์/นิ้วหมุนกล้อง · ล้อเมาส์ปรับระยะกล้อง
++- เปิดแผงใด ๆ เกมจะหยุดชั่วคราว (กระเป๋า ภารกิจ แผนที่ ร้านค้า แคมป์ บทสนทนา)
+ 
+ ## ข้อจำกัดที่ควรทราบ
+ โปรเจกต์นี้ยังเป็นต้นแบบ ไม่ใช่เกม Open World เต็มรูปแบบหรือเกมระดับผลิตจริง
+diff --git a/index.html b/index.html
+index 3d1f3d8..3d945ff 100644
+--- a/index.html
++++ b/index.html
+@@ -16,7 +16,7 @@
+     <header class="topbar">
+       <div class="brand">
+         <strong>THE FORGOTTEN REALM</strong>
+-        <small>ASHEN WILDS · UPDATE 0.6</small>
++        <small>ASHEN WILDS · UPDATE 0.7</small>
+       </div>
+ 
+       <div class="top-actions">
+@@ -102,7 +102,7 @@
+     </section>
+ 
+     <div id="desktop-help">
+-       WASD เดิน · Shift วิ่ง/ควบม้า · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/ขี่ม้า · G ตั้งแคมป์ · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
++       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ · G ตั้งแคมป์ · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
+     </div>
+ 
+     <section id="settings-panel" class="panel hidden">
+diff --git a/package-lock.json b/package-lock.json
+index a3841c2..238f513 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -19,7 +19,7 @@
+     },
+     "node_modules/@capacitor/android": {
+       "version": "7.6.10",
+-      "resolved": "https://registry.npmjs.org/@capacitor/android/-/android-7.6.10.tgz",
++      "resolved": "https://registry.npmmirror.com/@capacitor/android/-/android-7.6.10.tgz",
+       "integrity": "sha512-94DBImYZyDA9RnO5ks3MI/j6rRFs1uK5DR2ft/rBIsvsltDT4w1CSuM8U7vKmKEGRmAfP6vH/woJkBF69fZa4A==",
+       "license": "MIT",
+       "peerDependencies": {
+@@ -28,7 +28,7 @@
+     },
+     "node_modules/@capacitor/cli": {
+       "version": "7.6.10",
+-      "resolved": "https://registry.npmjs.org/@capacitor/cli/-/cli-7.6.10.tgz",
++      "resolved": "https://registry.npmmirror.com/@capacitor/cli/-/cli-7.6.10.tgz",
+       "integrity": "sha512-8S0h44+339hCJyDw0EWqKz4ivR08tzSY35WzSs49pQ4gNOrGiyKpBUaZc08zlJgvN8yfzMY1pi8QfKDsSn1eHg==",
+       "dev": true,
+       "license": "MIT",
+@@ -61,7 +61,7 @@
+     },
+     "node_modules/@capacitor/core": {
+       "version": "7.6.10",
+-      "resolved": "https://registry.npmjs.org/@capacitor/core/-/core-7.6.10.tgz",
++      "resolved": "https://registry.npmmirror.com/@capacitor/core/-/core-7.6.10.tgz",
+       "integrity": "sha512-foYHd//t6E3RTELVG8wdkp5jVnmLcHKUurAa9BA8EUSNd2eY0SijCHpfO0bFwYBP5DrCeXwgSFYi3NJw413gtQ==",
+       "license": "MIT",
+       "dependencies": {
+@@ -70,7 +70,7 @@
+     },
+     "node_modules/@esbuild/aix-ppc64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/aix-ppc64/-/aix-ppc64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/aix-ppc64/-/aix-ppc64-0.28.2.tgz",
+       "integrity": "sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==",
+       "cpu": [
+         "ppc64"
+@@ -87,7 +87,7 @@
+     },
+     "node_modules/@esbuild/android-arm": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/android-arm/-/android-arm-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-arm/-/android-arm-0.28.2.tgz",
+       "integrity": "sha512-kXXoiPVVGQcnIYGOeaovwOURpniDBpSq4A03qkQ+BMQqtGG6HYap3xne9C1O1yo4TR3qxlCX5IqqmX6fFo2Lqg==",
+       "cpu": [
+         "arm"
+@@ -104,7 +104,7 @@
+     },
+     "node_modules/@esbuild/android-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/android-arm64/-/android-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-arm64/-/android-arm64-0.28.2.tgz",
+       "integrity": "sha512-5YfKeeI8qWfBZIX+u2xZC3Zlb3Os/gLS2sbEKM+I4ZOcsWmHS2WLysCcQZDAFRslDUU5Oiq44gf6PYN1vGwG5A==",
+       "cpu": [
+         "arm64"
+@@ -121,7 +121,7 @@
+     },
+     "node_modules/@esbuild/android-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/android-x64/-/android-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-x64/-/android-x64-0.28.2.tgz",
+       "integrity": "sha512-O387ite7SzUyCcy3JQX4P4bLtEA7bLLkx+esve5JHnyYfNTxcVpXZo9jhdB0lTKN44gztELTdU7nS8Nr16Fs1Q==",
+       "cpu": [
+         "x64"
+@@ -138,7 +138,7 @@
+     },
+     "node_modules/@esbuild/darwin-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/darwin-arm64/-/darwin-arm64-0.28.2.tgz",
+       "integrity": "sha512-n4KqkOQrraxHJcgjM1RvwbigfQKIKJVpM7xp+KsxiyUSrRdIXnt73VhrPAx0fV44hgfmIVKjxMN9J1t5jySVkw==",
+       "cpu": [
+         "arm64"
+@@ -155,7 +155,7 @@
+     },
+     "node_modules/@esbuild/darwin-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/darwin-x64/-/darwin-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/darwin-x64/-/darwin-x64-0.28.2.tgz",
+       "integrity": "sha512-uq6suIWYP37qzGddBKPw5QEQPi6HiLGsO7UmkpfyaYNQ3D+rN6w6WfwH+nuqcGXWvawGwxOEroO4YGnFh95azw==",
+       "cpu": [
+         "x64"
+@@ -172,7 +172,7 @@
+     },
+     "node_modules/@esbuild/freebsd-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/freebsd-arm64/-/freebsd-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/freebsd-arm64/-/freebsd-arm64-0.28.2.tgz",
+       "integrity": "sha512-n+I0BTSRIoy+d6RPKnEVwql5UwBJolytvY4mAOIEJorKlqgPII8ix6slVVrfZ5Tnj7glIZvloylbB/EJPMWEXw==",
+       "cpu": [
+         "arm64"
+@@ -189,7 +189,7 @@
+     },
+     "node_modules/@esbuild/freebsd-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/freebsd-x64/-/freebsd-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/freebsd-x64/-/freebsd-x64-0.28.2.tgz",
+       "integrity": "sha512-78XJTJkvPs0kz2w61301PJjXl4g7q3JqiYMZ/M/yVI73EHBrCRTgkhu9oqG7vPqq+a/yadEW8aD+agKlk5xrmg==",
+       "cpu": [
+         "x64"
+@@ -206,7 +206,7 @@
+     },
+     "node_modules/@esbuild/linux-arm": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-arm/-/linux-arm-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-arm/-/linux-arm-0.28.2.tgz",
+       "integrity": "sha512-XlDnu2q5yoqems+xay6wSAcg9DDD7K9RLKZEBOMZm3ckNpJBvOX20tSfby8KfrrhINDyv9V2YVZKY/SpoGJI8w==",
+       "cpu": [
+         "arm"
+@@ -223,7 +223,7 @@
+     },
+     "node_modules/@esbuild/linux-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-arm64/-/linux-arm64-0.28.2.tgz",
+       "integrity": "sha512-pW4AC0P3it8c7do9MVM4p51FzHzdM/TZrerurgRcHJ2WTa1VQ1CIq18xncfpBJw4ojkiZZrKW2yIBWBP92j6Ug==",
+       "cpu": [
+         "arm64"
+@@ -240,7 +240,7 @@
+     },
+     "node_modules/@esbuild/linux-ia32": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-ia32/-/linux-ia32-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-ia32/-/linux-ia32-0.28.2.tgz",
+       "integrity": "sha512-CYbnj78HsIeA+DhgUKgFCfvNsTHFhMMrinUrMZpDXJXKN8T3XViTZ/+wtHeVxEWY8ewSzTFN+nRmSwO2tZaLUQ==",
+       "cpu": [
+         "ia32"
+@@ -257,7 +257,7 @@
+     },
+     "node_modules/@esbuild/linux-loong64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-loong64/-/linux-loong64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-loong64/-/linux-loong64-0.28.2.tgz",
+       "integrity": "sha512-buwkd8nsph4R+ajRvw0qM5Hja/TXQow3ptzWO2EbG/cqcIkHloRrdlBtQlshyYGTNFvfkfJ5tpPLVkY4DtsPfQ==",
+       "cpu": [
+         "loong64"
+@@ -274,7 +274,7 @@
+     },
+     "node_modules/@esbuild/linux-mips64el": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-mips64el/-/linux-mips64el-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-mips64el/-/linux-mips64el-0.28.2.tgz",
+       "integrity": "sha512-ZVykbDyk7519VwiNb9Lcj9m8XM6v5V9uKPvrEMkkEedVewf+0itkhahp4HDpgERXhwLRpWFypsGbG/J8s0QjJA==",
+       "cpu": [
+         "mips64el"
+@@ -291,7 +291,7 @@
+     },
+     "node_modules/@esbuild/linux-ppc64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-ppc64/-/linux-ppc64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-ppc64/-/linux-ppc64-0.28.2.tgz",
+       "integrity": "sha512-CAXl+Dtd9UUuJd8pKKdwh6MLm3MUMiqMPmhZ3tTSXPqfyQ3vDl6R5hZdZ/kYojK4ofXtdfSv1tFq8XzWx3heNQ==",
+       "cpu": [
+         "ppc64"
+@@ -308,7 +308,7 @@
+     },
+     "node_modules/@esbuild/linux-riscv64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-riscv64/-/linux-riscv64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-riscv64/-/linux-riscv64-0.28.2.tgz",
+       "integrity": "sha512-GeXCej4IQtU1B+QlDV8W/RRvbzI3O/Stss+/bCXv4lZls5WGRtu2a+3JkA3i4qIUlMXpcHebWpF8AkJhATowuA==",
+       "cpu": [
+         "riscv64"
+@@ -325,7 +325,7 @@
+     },
+     "node_modules/@esbuild/linux-s390x": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-s390x/-/linux-s390x-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-s390x/-/linux-s390x-0.28.2.tgz",
+       "integrity": "sha512-3H1weTYZPxt/WOhByszQZybS9w5lKzUn1FDMsgEChbHWQwHYQQRfBxgCcZvPhjHfKyJjIievvMmEUawJrdY9Dg==",
+       "cpu": [
+         "s390x"
+@@ -342,7 +342,7 @@
+     },
+     "node_modules/@esbuild/linux-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-x64/-/linux-x64-0.28.2.tgz",
+       "integrity": "sha512-4xTZr1FUmSoQW4XIWmit3tzQrUTZM+N3P0XV8xROKYF50XfI7xeO90+1bZvNwxIufQ9hDQVRJH5YhgPVF8A/HQ==",
+       "cpu": [
+         "x64"
+@@ -359,7 +359,7 @@
+     },
+     "node_modules/@esbuild/netbsd-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/netbsd-arm64/-/netbsd-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/netbsd-arm64/-/netbsd-arm64-0.28.2.tgz",
+       "integrity": "sha512-sSATRjPeDBg3pdgHoQfoYBob11Kk1FGa9lui5RIHZCoCkJa9QKlvl3/vKz2usCmYYjs7ymJR/2Nnsqe+Hjt5nw==",
+       "cpu": [
+         "arm64"
+@@ -376,7 +376,7 @@
+     },
+     "node_modules/@esbuild/netbsd-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/netbsd-x64/-/netbsd-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/netbsd-x64/-/netbsd-x64-0.28.2.tgz",
+       "integrity": "sha512-lqnzCV+mM0gIADaKihiCg6ifgfU2L3h5E33rNQBN1Y4MaVGnzryzmvvf7UHxprpQdE8hpqLolJ9Rl+SkIRDpyw==",
+       "cpu": [
+         "x64"
+@@ -393,7 +393,7 @@
+     },
+     "node_modules/@esbuild/openbsd-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/openbsd-arm64/-/openbsd-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/openbsd-arm64/-/openbsd-arm64-0.28.2.tgz",
+       "integrity": "sha512-AL2qJILH7lNjrDmCQDvdxMfAUIv8KMNZOvrwAQ8i8//ntL9FflhOyMJ8OZSMBb8/AWXe3/5v5S20y3zCoZWKoQ==",
+       "cpu": [
+         "arm64"
+@@ -410,7 +410,7 @@
+     },
+     "node_modules/@esbuild/openbsd-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/openbsd-x64/-/openbsd-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/openbsd-x64/-/openbsd-x64-0.28.2.tgz",
+       "integrity": "sha512-QtiuPytchRyC4rwUKhexJdQKvDuZ6hWloi3igqPQNUJCS1/v9EiO3UTOXR6A3FoMo4fnAKbWJdqaIwhOzh8qEw==",
+       "cpu": [
+         "x64"
+@@ -427,7 +427,7 @@
+     },
+     "node_modules/@esbuild/openharmony-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/openharmony-arm64/-/openharmony-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/openharmony-arm64/-/openharmony-arm64-0.28.2.tgz",
+       "integrity": "sha512-WkhYDmpTjLvGlScA1rwjRUmhl4k8oXR3cIbtqWmELgU/dFeHHlEllxDvdWcNJV9rbzCexB5vz8gtNewWLgCT7Q==",
+       "cpu": [
+         "arm64"
+@@ -444,7 +444,7 @@
+     },
+     "node_modules/@esbuild/sunos-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/sunos-x64/-/sunos-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/sunos-x64/-/sunos-x64-0.28.2.tgz",
+       "integrity": "sha512-GPMSkTOtMnv2U2F8gxe4Io6qmVs+YKyp832Etqqxr0hFngmXQ3rzwytelm3GIn7T4VviRUlf3sOgBOiTdvaf7g==",
+       "cpu": [
+         "x64"
+@@ -461,7 +461,7 @@
+     },
+     "node_modules/@esbuild/win32-arm64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/win32-arm64/-/win32-arm64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-arm64/-/win32-arm64-0.28.2.tgz",
+       "integrity": "sha512-PIhhEkE9uPBleRBrQEJpUn7MBnibZzbGzYWPmY3x+YoVg/95zbjB4CxPPOQ8l5tYYM4mMaCthF8/1DIfBQQyWQ==",
+       "cpu": [
+         "arm64"
+@@ -478,7 +478,7 @@
+     },
+     "node_modules/@esbuild/win32-ia32": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/win32-ia32/-/win32-ia32-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-ia32/-/win32-ia32-0.28.2.tgz",
+       "integrity": "sha512-YmJbfTlvU7Sdn9BB+4PRES4oB6pxgS37MAONj+hBr/cpXS1aBPKXxNnDbu+QCWPj0o9dgyxeq79g6c5P8KeuYA==",
+       "cpu": [
+         "ia32"
+@@ -495,7 +495,7 @@
+     },
+     "node_modules/@esbuild/win32-x64": {
+       "version": "0.28.2",
+-      "resolved": "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.28.2.tgz",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-x64/-/win32-x64-0.28.2.tgz",
+       "integrity": "sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==",
+       "cpu": [
+         "x64"
+@@ -512,7 +512,7 @@
+     },
+     "node_modules/@ionic/cli-framework-output": {
+       "version": "2.2.8",
+-      "resolved": "https://registry.npmjs.org/@ionic/cli-framework-output/-/cli-framework-output-2.2.8.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/cli-framework-output/-/cli-framework-output-2.2.8.tgz",
+       "integrity": "sha512-TshtaFQsovB4NWRBydbNFawql6yul7d5bMiW1WYYf17hd99V6xdDdk3vtF51bw6sLkxON3bDQpWsnUc9/hVo3g==",
+       "dev": true,
+       "license": "MIT",
+@@ -527,7 +527,7 @@
+     },
+     "node_modules/@ionic/utils-array": {
+       "version": "2.1.6",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-array/-/utils-array-2.1.6.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-array/-/utils-array-2.1.6.tgz",
+       "integrity": "sha512-0JZ1Zkp3wURnv8oq6Qt7fMPo5MpjbLoUoa9Bu2Q4PJuSDWM8H8gwF3dQO7VTeUj3/0o1IB1wGkFWZZYgUXZMUg==",
+       "dev": true,
+       "license": "MIT",
+@@ -541,7 +541,7 @@
+     },
+     "node_modules/@ionic/utils-fs": {
+       "version": "3.1.7",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-fs/-/utils-fs-3.1.7.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-fs/-/utils-fs-3.1.7.tgz",
+       "integrity": "sha512-2EknRvMVfhnyhL1VhFkSLa5gOcycK91VnjfrTB0kbqkTFCOXyXgVLI5whzq7SLrgD9t1aqos3lMMQyVzaQ5gVA==",
+       "dev": true,
+       "license": "MIT",
+@@ -557,7 +557,7 @@
+     },
+     "node_modules/@ionic/utils-fs/node_modules/fs-extra": {
+       "version": "9.1.0",
+-      "resolved": "https://registry.npmjs.org/fs-extra/-/fs-extra-9.1.0.tgz",
++      "resolved": "https://registry.npmmirror.com/fs-extra/-/fs-extra-9.1.0.tgz",
+       "integrity": "sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ==",
+       "dev": true,
+       "license": "MIT",
+@@ -573,7 +573,7 @@
+     },
+     "node_modules/@ionic/utils-object": {
+       "version": "2.1.6",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-object/-/utils-object-2.1.6.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-object/-/utils-object-2.1.6.tgz",
+       "integrity": "sha512-vCl7sl6JjBHFw99CuAqHljYJpcE88YaH2ZW4ELiC/Zwxl5tiwn4kbdP/gxi2OT3MQb1vOtgAmSNRtusvgxI8ww==",
+       "dev": true,
+       "license": "MIT",
+@@ -587,7 +587,7 @@
+     },
+     "node_modules/@ionic/utils-process": {
+       "version": "2.1.12",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-process/-/utils-process-2.1.12.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-process/-/utils-process-2.1.12.tgz",
+       "integrity": "sha512-Jqkgyq7zBs/v/J3YvKtQQiIcxfJyplPgECMWgdO0E1fKrrH8EF0QGHNJ9mJCn6PYe2UtHNS8JJf5G21e09DfYg==",
+       "dev": true,
+       "license": "MIT",
+@@ -605,7 +605,7 @@
+     },
+     "node_modules/@ionic/utils-stream": {
+       "version": "3.1.7",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-stream/-/utils-stream-3.1.7.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-stream/-/utils-stream-3.1.7.tgz",
+       "integrity": "sha512-eSELBE7NWNFIHTbTC2jiMvh1ABKGIpGdUIvARsNPMNQhxJB3wpwdiVnoBoTYp+5a6UUIww4Kpg7v6S7iTctH1w==",
+       "dev": true,
+       "license": "MIT",
+@@ -619,7 +619,7 @@
+     },
+     "node_modules/@ionic/utils-subprocess": {
+       "version": "3.0.1",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-subprocess/-/utils-subprocess-3.0.1.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-subprocess/-/utils-subprocess-3.0.1.tgz",
+       "integrity": "sha512-cT4te3AQQPeIM9WCwIg8ohroJ8TjsYaMb2G4ZEgv9YzeDqHZ4JpeIKqG2SoaA3GmVQ3sOfhPM6Ox9sxphV/d1A==",
+       "dev": true,
+       "license": "MIT",
+@@ -639,7 +639,7 @@
+     },
+     "node_modules/@ionic/utils-terminal": {
+       "version": "2.3.5",
+-      "resolved": "https://registry.npmjs.org/@ionic/utils-terminal/-/utils-terminal-2.3.5.tgz",
++      "resolved": "https://registry.npmmirror.com/@ionic/utils-terminal/-/utils-terminal-2.3.5.tgz",
+       "integrity": "sha512-3cKScz9Jx2/Pr9ijj1OzGlBDfcmx7OMVBt4+P1uRR0SSW4cm1/y3Mo4OY3lfkuaYifMNBW8Wz6lQHbs1bihr7A==",
+       "dev": true,
+       "license": "MIT",
+@@ -660,4 +660,1626 @@
+     },
+     "node_modules/@isaacs/fs-minipass": {
+       "version": "4.0.1",
+-      "resolved": "https://registry.npmjs.org/@isaacs/fs-
+\ No newline at end of file
++      "resolved": "https://registry.npmmirror.com/@isaacs/fs-minipass/-/fs-minipass-4.0.1.tgz",
++      "integrity": "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==",
++      "dev": true,
++      "license": "ISC",
++      "dependencies": {
++        "minipass": "^7.0.4"
++      },
++      "engines": {
++        "node": ">=18.0.0"
++      }
++    },
++    "node_modules/@isaacs/nonrecursive-glob-match": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmmirror.com/@isaacs/nonrecursive-glob-match/-/nonrecursive-glob-match-1.1.0.tgz",
++      "integrity": "sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0"
++    },
++    "node_modules/@rollup/rollup-android-arm-eabi": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.68.8.tgz",
++      "integrity": "sha512-7l9FdeCGjhmMTVePgndK4t9u5tLR+VuTTMoyc0PscqZDdYjS07ZsQ0vQYsWsODu/ZZYPG7WVJwbUZ77n1hVT+w==",
++      "cpu": [
++        "arm"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ]
++    },
++    "node_modules/@rollup/rollup-android-arm64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-android-arm64/-/rollup-android-arm64-4.68.8.tgz",
++      "integrity": "sha512-kXkkIiJujBjArHwEToz99BQqIqibn4xdV6SjsoaxuZzvLUCVEzoHQ1Lp62m7xOhpLRpWpCtxL2ZUy/ADKuz9/g==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ]
++    },
++    "node_modules/@rollup/rollup-android-x64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-android-x64/-/rollup-android-x64-4.68.8.tgz",
++      "integrity": "sha512-KYoBygnHs3zUOLR0z7SaqhMnUrSF9pbuTOJT/uHK3PrgCXdv/xaMubZD8jCpg6NTo46deasLgZRq38xFTyu8uw==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ]
++    },
++    "node_modules/@rollup/rollup-darwin-arm64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.68.8.tgz",
++      "integrity": "sha512-YmBUNjgm5bsjOByO+H1TFbuGZe+ZnHcYtPXYj9+L1cwTu/BG8zjuUzO2PH9KwS85P0UH+WJDSb+mQ2hqjp5uBQ==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ]
++    },
++    "node_modules/@rollup/rollup-darwin-x64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-darwin-x64/-/rollup-darwin-x64-4.68.8.tgz",
++      "integrity": "sha512-XMX5ybuOmkwiM13KJtsBxakZ69pyaR9thRYU2fMejhaB0VuzLMIkIc+9TBsu2rv34eEf6XaSMOaLOyEgHGWHTQ==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ]
++    },
++    "node_modules/@rollup/rollup-freebsd-arm64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-freebsd-arm64/-/rollup-freebsd-arm64-4.68.8.tgz",
++      "integrity": "sha512-WuBXScWJDaqPJKwVrotUe1sM9DHWMN937C23RClt0MVHVt7A1rBy285ZfZTLccPEVMxmGJMt2jvdHMOI33lrKA==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ]
++    },
++    "node_modules/@rollup/rollup-freebsd-x64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-freebsd-x64/-/rollup-freebsd-x64-4.68.8.tgz",
++      "integrity": "sha512-kegwGqP3rMenEMaKo8OzMBb5WvLW2h2jrQ3iKuYptTTF8C/yuxz+hinjBPrtYuIPLJDwxHc/hv2e4u5pmrqo9A==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-arm-gnueabihf": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm-gnueabihf/-/rollup-linux-arm-gnueabihf-4.68.8.tgz",
++      "integrity": "sha512-Qct0oLM1zGNbvqs1udQnuchg+Q9uHbkMcQqCfs3M7foNn7HvEkUypfFn9o5fklimUI5OF3A2nMknd4/vrEyeVg==",
++      "cpu": [
++        "arm"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-arm-musleabihf": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm-musleabihf/-/rollup-linux-arm-musleabihf-4.68.8.tgz",
++      "integrity": "sha512-xTH5vD+lW/5MU3kL/Op8RSSG/O9fxUQZuJcSBmmBeYem9uXYvCq6PDHx/oDSNeyLD/p4pGujG2PVI0R8MjAhSw==",
++      "cpu": [
++        "arm"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-arm64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm64-gnu/-/rollup-linux-arm64-gnu-4.68.8.tgz",
++      "integrity": "sha512-lPPStmynSHvwWpSrAsuemPFB+EWFObXjwz44EK4Hph47U6SBAk1Kehq5MkI7i8EYVjrXddaAV7YkJH8mX8QSZQ==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-arm64-musl": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm64-musl/-/rollup-linux-arm64-musl-4.68.8.tgz",
++      "integrity": "sha512-kZkvIYAihM6l6M+giSUHayDDf/JL+TYR5bYWiAX7/jUFWvMkMmysA4GV2F0HOsXQNEyctW3x1xLjww1GqW7Q1w==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-loong64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-loong64-gnu/-/rollup-linux-loong64-gnu-4.68.8.tgz",
++      "integrity": "sha512-XZKLEIY977OJr6zUtK6nlQcLXme34c8HqVp3+WmKQxKVN6Nj+b9qE3ZHWIDHXznHJsGl2AsaMOgB0GL0fkZGUg==",
++      "cpu": [
++        "loong64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-loong64-musl": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-loong64-musl/-/rollup-linux-loong64-musl-4.68.8.tgz",
++      "integrity": "sha512-+sN+Fj6F9suk8SkL6boIfXDmj9iJwSKPCTeCy8/pfTOHuzNX+duhTb9uyj6154oVK8Odl5zgL4DXRZzXjsRKcw==",
++      "cpu": [
++        "loong64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-ppc64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-ppc64-gnu/-/rollup-linux-ppc64-gnu-4.68.8.tgz",
++      "integrity": "sha512-EBCu3uDFaGwSodUl+XR8yubvVFUkSo6QK9YAIOV1vljqntzTF2/mXLM6utgLaSGf/8oM+qEe8Ai0Jd4+tyMoIQ==",
++      "cpu": [
++        "ppc64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-ppc64-musl": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-ppc64-musl/-/rollup-linux-ppc64-musl-4.68.8.tgz",
++      "integrity": "sha512-hRC0jWdsLBckCijx2wiUfk7zW1SqEW47yMsCNoDGmQfoqq0AjW+9UYZqxg3LTmG76PyHNdNGBSuspB3CqrhGIA==",
++      "cpu": [
++        "ppc64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-riscv64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-riscv64-gnu/-/rollup-linux-riscv64-gnu-4.68.8.tgz",
++      "integrity": "sha512-OZKrTRWyGnLITUTipbeXDdtb2dxQPyFk/Fbw9qER8pIvd2Ja9hHELkY0Fv5p9yYYkimqtzVhApKKXGv0cWGQGw==",
++      "cpu": [
++        "riscv64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-riscv64-musl": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-riscv64-musl/-/rollup-linux-riscv64-musl-4.68.8.tgz",
++      "integrity": "sha512-HmhSRSQ+dOeOntPfmYux4rCpOQLtsGbcGLQu4nm8ig3tuVqe/bKfDHorg36LKAqYq4X/nwFr79ImtaFHHsn4ug==",
++      "cpu": [
++        "riscv64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-s390x-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-s390x-gnu/-/rollup-linux-s390x-gnu-4.68.8.tgz",
++      "integrity": "sha512-wk1Ci1hsMREaBELoKPSnzRAh1oUULI+8kfb2F5vVmTD2IcfR9AKMskCusizZhIAvojOtPZihPj4OdKy6ifZwhQ==",
++      "cpu": [
++        "s390x"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-x64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.68.8.tgz",
++      "integrity": "sha512-mDufoUJ6fnKZnCyjV3sGEDvXQQkM6j1UmINHheGX4Emau3TZWJzX3sCVmbzkNB+W2G84BiFQdDCcF09lv0i0VA==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-x64-musl": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.68.8.tgz",
++      "integrity": "sha512-7EGVL9rYRYQZe3UC8JQzfBN9rxk484Rfs4u/yGWumTYKUdJt6tmdP+0Y3qHvAvzJCQ+JQM5rSqZbVyrJARlGpA==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-openbsd-x64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-openbsd-x64/-/rollup-openbsd-x64-4.68.8.tgz",
++      "integrity": "sha512-Umklz+QSGwKWQVlVrsMJrwFx1oNRYHgrxSGiZM8pJCMpzWnMDMinDhPILf0BvRXfA1QOArsDcs+AE7Jd6dQxvA==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "openbsd"
++      ]
++    },
++    "node_modules/@rollup/rollup-openharmony-arm64": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-openharmony-arm64/-/rollup-openharmony-arm64-4.68.8.tgz",
++      "integrity": "sha512-BlRp6uzQDK5rczAdaXQ8dlSIRFRlkDRBqpb8GGtv8iwZxQdOjoigdFU5t5dcxpnpU0caMoT9mH27MyAl4dWwKw==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "openharmony"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-arm64-msvc": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-arm64-msvc/-/rollup-win32-arm64-msvc-4.68.8.tgz",
++      "integrity": "sha512-Sc8Mkf/fVfcV0hBJNDRIM82BjS4kJn2Of0jP8dgQ+TodquxtCZ/5D6FgSsY3uN5IBmNi8Zrb/OHd60IEYKaw+Q==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-ia32-msvc": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-ia32-msvc/-/rollup-win32-ia32-msvc-4.68.8.tgz",
++      "integrity": "sha512-XPTFXclN+I+Cfu3ONWDsw+uvgSZjTJa1B2u2EvtdKlSdgNU6mrOZdgeaMkvN+2T2KPTEXn6fnRY8IODlRg3/Tg==",
++      "cpu": [
++        "ia32"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-x64-gnu": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-x64-gnu/-/rollup-win32-x64-gnu-4.68.8.tgz",
++      "integrity": "sha512-63dWiHgvpWcienfdr465lT3SIn4u3535vbDfaLKhSn0F2KJ06bbcUsewDGJZUPZCbJ67qESrPDhb85UnWdb5ew==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-x64-msvc": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.68.8.tgz",
++      "integrity": "sha512-/W1LBsMeQAdiCuH3Z2gkRspl3mlxL+butknhq4vXjmxO45vuT08BqhehxDoE4YS+m6s9lhpq6M9/PjTEAg8PYw==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
++    },
++    "node_modules/@types/estree": {
++      "version": "1.0.10",
++      "resolved": "https://registry.npmmirror.com/@types/estree/-/estree-1.0.10.tgz",
++      "integrity": "sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/@types/fs-extra": {
++      "version": "8.1.5",
++      "resolved": "https://registry.npmmirror.com/@types/fs-extra/-/fs-extra-8.1.5.tgz",
++      "integrity": "sha512-0dzKcwO+S8s2kuF5Z9oUWatQJj5Uq/iqphEtE3GQJVRRYm/tD1LglU2UnXi2A8jLq5umkGouOXOR9y0n613ZwQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/node": "*"
++      }
++    },
++    "node_modules/@types/node": {
++      "version": "26.6.6",
++      "resolved": "https://registry.npmmirror.com/@types/node/-/node-26.6.6.tgz",
++      "integrity": "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "undici-types": "~8.9.0"
++      }
++    },
++    "node_modules/@types/slice-ansi": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmmirror.com/@types/slice-ansi/-/slice-ansi-4.0.0.tgz",
++      "integrity": "sha512-+OpjSaq85gvlZAYINyzKpLeiFkSC4EsC6IIiT6v6TLSU5k5U83fHGj9Lel8oKEXM0HqgrMVCjXPDPVICtxF7EQ==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/@xmldom/xmldom": {
++      "version": "0.9.12",
++      "resolved": "https://registry.npmmirror.com/@xmldom/xmldom/-/xmldom-0.9.12.tgz",
++      "integrity": "sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=14.6"
++      }
++    },
++    "node_modules/ansi-regex": {
++      "version": "5.0.1",
++      "resolved": "https://registry.npmmirror.com/ansi-regex/-/ansi-regex-5.0.1.tgz",
++      "integrity": "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/ansi-styles": {
++      "version": "4.3.0",
++      "resolved": "https://registry.npmmirror.com/ansi-styles/-/ansi-styles-4.3.0.tgz",
++      "integrity": "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "color-convert": "^2.0.1"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "funding": {
++        "url": "https://github.com/chalk/ansi-styles?sponsor=1"
++      }
++    },
++    "node_modules/astral-regex": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmmirror.com/astral-regex/-/astral-regex-2.0.0.tgz",
++      "integrity": "sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/at-least-node": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmmirror.com/at-least-node/-/at-least-node-1.0.0.tgz",
++      "integrity": "sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==",
++      "dev": true,
++      "license": "ISC",
++      "engines": {
++        "node": ">= 4.0.0"
++      }
++    },
++    "node_modules/balanced-match": {
++      "version": "4.0.4",
++      "resolved": "https://registry.npmmirror.com/balanced-match/-/balanced-match-4.0.4.tgz",
++      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": "18 || 20 || >=22"
++      }
++    },
++    "node_modules/base64-js": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmmirror.com/base64-js/-/base64-js-1.5.1.tgz",
++      "integrity": "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==",
++      "dev": true,
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/feross"
++        },
++        {
++          "type": "patreon",
++          "url": "https://www.patreon.com/feross"
++        },
++        {
++          "type": "consulting",
++          "url": "https://feross.org/support"
++        }
++      ],
++      "license": "MIT"
++    },
++    "node_modules/big-integer": {
++      "version": "1.6.52",
++      "resolved": "https://registry.npmmirror.com/big-integer/-/big-integer-1.6.52.tgz",
++      "integrity": "sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==",
++      "dev": true,
++      "license": "Unlicense",
++      "engines": {
++        "node": ">=0.6"
++      }
++    },
++    "node_modules/bplist-parser": {
++      "version": "0.3.2",
++      "resolved": "https://registry.npmmirror.com/bplist-parser/-/bplist-parser-0.3.2.tgz",
++      "integrity": "sha512-apC2+fspHGI3mMKj+dGevkGo/tCqVB8jMb6i+OX+E29p0Iposz07fABkRIfVUPNd5A5VbuOz1bZbnmkKLYF+wQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "big-integer": "1.6.x"
++      },
++      "engines": {
++        "node": ">= 5.10.0"
++      }
++    },
++    "node_modules/brace-expansion": {
++      "version": "5.0.13",
++      "resolved": "https://registry.npmmirror.com/brace-expansion/-/brace-expansion-5.0.13.tgz",
++      "integrity": "sha512-Vh3dmFbc4wZeox7M9I/0L9GfFd83Su4+yCck/OF9Gi/P/dAHn0RT7X4K9R7gMNMhDck3DvhR6QXsnQdjjgwNvQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "balanced-match": "^4.0.2"
++      },
++      "engines": {
++        "node": "20 || >=22"
++      }
++    },
++    "node_modules/buffer-crc32": {
++      "version": "0.2.13",
++      "resolved": "https://registry.npmmirror.com/buffer-crc32/-/buffer-crc32-0.2.13.tgz",
++      "integrity": "sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": "*"
++      }
++    },
++    "node_modules/chownr": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmmirror.com/chownr/-/chownr-3.0.0.tgz",
++      "integrity": "sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": ">=18"
++      }
++    },
++    "node_modules/color-convert": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmmirror.com/color-convert/-/color-convert-2.0.1.tgz",
++      "integrity": "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "color-name": "~1.1.4"
++      },
++      "engines": {
++        "node": ">=7.0.0"
++      }
++    },
++    "node_modules/color-name": {
++      "version": "1.1.4",
++      "resolved": "https://registry.npmmirror.com/color-name/-/color-name-1.1.4.tgz",
++      "integrity": "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/commander": {
++      "version": "12.1.0",
++      "resolved": "https://registry.npmmirror.com/commander/-/commander-12.1.0.tgz",
++      "integrity": "sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      }
++    },
++    "node_modules/cross-spawn": {
++      "version": "7.0.6",
++      "resolved": "https://registry.npmmirror.com/cross-spawn/-/cross-spawn-7.0.6.tgz",
++      "integrity": "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "path-key": "^3.1.0",
++        "shebang-command": "^2.0.0",
++        "which": "^2.0.1"
++      },
++      "engines": {
++        "node": ">= 8"
++      }
++    },
++    "node_modules/debug": {
++      "version": "4.4.3",
++      "resolved": "https://registry.npmmirror.com/debug/-/debug-4.4.3.tgz",
++      "integrity": "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "ms": "^2.1.3"
++      },
++      "engines": {
++        "node": ">=6.0"
++      },
++      "peerDependenciesMeta": {
++        "supports-color": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/define-lazy-prop": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmmirror.com/define-lazy-prop/-/define-lazy-prop-2.0.0.tgz",
++      "integrity": "sha512-Ds09qNh8yw3khSjiJjiUInaGX9xlqZDY7JVryGxdxV7NPeuqQfplOpQ66yJFZut3jLa5zOwkXw1g9EI2uKh4Og==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/elementtree": {
++      "version": "0.1.7",
++      "resolved": "https://registry.npmmirror.com/elementtree/-/elementtree-0.1.7.tgz",
++      "integrity": "sha512-wkgGT6kugeQk/P6VZ/f4T+4HB41BVgNBq5CDIZVbQ02nvTVqAiVTbskxxu3eA/X96lMlfYOwnLQpN2v5E1zDEg==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "sax": "1.1.4"
++      },
++      "engines": {
++        "node": ">= 0.4.0"
++      }
++    },
++    "node_modules/emoji-regex": {
++      "version": "8.0.0",
++      "resolved": "https://registry.npmmirror.com/emoji-regex/-/emoji-regex-8.0.0.tgz",
++      "integrity": "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/env-paths": {
++      "version": "2.2.1",
++      "resolved": "https://registry.npmmirror.com/env-paths/-/env-paths-2.2.1.tgz",
++      "integrity": "sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=6"
++      }
++    },
++    "node_modules/esbuild": {
++      "version": "0.28.2",
++      "resolved": "https://registry.npmmirror.com/esbuild/-/esbuild-0.28.2.tgz",
++      "integrity": "sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "bin": {
++        "esbuild": "bin/esbuild"
++      },
++      "engines": {
++        "node": ">=18"
++      },
++      "optionalDependencies": {
++        "@esbuild/aix-ppc64": "0.28.2",
++        "@esbuild/android-arm": "0.28.2",
++        "@esbuild/android-arm64": "0.28.2",
++        "@esbuild/android-x64": "0.28.2",
++        "@esbuild/darwin-arm64": "0.28.2",
++        "@esbuild/darwin-x64": "0.28.2",
++        "@esbuild/freebsd-arm64": "0.28.2",
++        "@esbuild/freebsd-x64": "0.28.2",
++        "@esbuild/linux-arm": "0.28.2",
++        "@esbuild/linux-arm64": "0.28.2",
++        "@esbuild/linux-ia32": "0.28.2",
++        "@esbuild/linux-loong64": "0.28.2",
++        "@esbuild/linux-mips64el": "0.28.2",
++        "@esbuild/linux-ppc64": "0.28.2",
++        "@esbuild/linux-riscv64": "0.28.2",
++        "@esbuild/linux-s390x": "0.28.2",
++        "@esbuild/linux-x64": "0.28.2",
++        "@esbuild/netbsd-arm64": "0.28.2",
++        "@esbuild/netbsd-x64": "0.28.2",
++        "@esbuild/openbsd-arm64": "0.28.2",
++        "@esbuild/openbsd-x64": "0.28.2",
++        "@esbuild/openharmony-arm64": "0.28.2",
++        "@esbuild/sunos-x64": "0.28.2",
++        "@esbuild/win32-arm64": "0.28.2",
++        "@esbuild/win32-ia32": "0.28.2",
++        "@esbuild/win32-x64": "0.28.2"
++      }
++    },
++    "node_modules/fd-slicer": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmmirror.com/fd-slicer/-/fd-slicer-1.1.0.tgz",
++      "integrity": "sha512-cE1qsB/VwyQozZ+q1dGxR8LBYNZeofhEdUNGSMbQD3Gw2lAzX9Zb3uIU6Ebc/Fmyjo9AWWfnn0AUCHqtevs/8g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "pend": "~1.2.0"
++      }
++    },
++    "node_modules/fdir": {
++      "version": "6.5.0",
++      "resolved": "https://registry.npmmirror.com/fdir/-/fdir-6.5.0.tgz",
++      "integrity": "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=12.0.0"
++      },
++      "peerDependencies": {
++        "picomatch": "^3 || ^4"
++      },
++      "peerDependenciesMeta": {
++        "picomatch": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/fs-extra": {
++      "version": "11.4.1",
++      "resolved": "https://registry.npmmirror.com/fs-extra/-/fs-extra-11.4.1.tgz",
++      "integrity": "sha512-KYAb4c9BJQI6QqGKthV68OHe0badztdXJWKo0WtBA9IuCFPTKvE5ZdUBglP833aMjhaSPNO4A5j/EkzZtGlKjA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "graceful-fs": "^4.2.0",
++        "jsonfile": "^6.0.1",
++        "universalify": "^2.0.0"
++      },
++      "engines": {
++        "node": ">=14.14"
++      }
++    },
++    "node_modules/fsevents": {
++      "version": "2.3.3",
++      "resolved": "https://registry.npmmirror.com/fsevents/-/fsevents-2.3.3.tgz",
++      "integrity": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
++      }
++    },
++    "node_modules/glob": {
++      "version": "14.0.6",
++      "resolved": "https://registry.npmmirror.com/glob/-/glob-14.0.6.tgz",
++      "integrity": "sha512-OwXjVP2svY5EyLY75Vek96C8qK43gqrt4xsZ+qSILdnaEiJPXkd62mcfUSNx/TQErQRdu5uM5kF67sfONragKw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "minimatch": "^11.0.5",
++        "minipass": "^7.1.3",
++        "path-scurry": "^3.0.0"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/graceful-fs": {
++      "version": "4.2.12",
++      "resolved": "https://registry.npmmirror.com/graceful-fs/-/graceful-fs-4.2.12.tgz",
++      "integrity": "sha512-iuyGF2E4oafQfPsRrG2wtY2ILupMhvtdrhzrxB+0VcjsPpSPttpfYdjnGFGsTi5MaJFjI1jOKHPQ6UTbTj9TAw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0"
++    },
++    "node_modules/inherits": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmmirror.com/inherits/-/inherits-2.0.4.tgz",
++      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==",
++      "dev": true,
++      "license": "ISC"
++    },
++    "node_modules/ini": {
++      "version": "4.1.3",
++      "resolved": "https://registry.npmmirror.com/ini/-/ini-4.1.3.tgz",
++      "integrity": "sha512-X7rqawQBvfdjS10YU1y1YVreA3SsLrW9dX2CewP2EbBJM4ypVNLDkO5y04gejPwKIY9lR+7r9gn3rFPt/kmWFg==",
++      "dev": true,
++      "license": "ISC",
++      "engines": {
++        "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
++      }
++    },
++    "node_modules/is-docker": {
++      "version": "2.2.1",
++      "resolved": "https://registry.npmmirror.com/is-docker/-/is-docker-2.2.1.tgz",
++      "integrity": "sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==",
++      "dev": true,
++      "license": "MIT",
++      "bin": {
++        "is-docker": "cli.js"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/sindresorhus"
++      }
++    },
++    "node_modules/is-fullwidth-code-point": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmmirror.com/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
++      "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/is-wsl": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmmirror.com/is-wsl/-/is-wsl-2.2.0.tgz",
++      "integrity": "sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "is-docker": "^2.0.0"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/isexe": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmmirror.com/isexe/-/isexe-2.0.0.tgz",
++      "integrity": "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==",
++      "dev": true,
++      "license": "ISC"
++    },
++    "node_modules/jsonfile": {
++      "version": "6.2.1",
++      "resolved": "https://registry.npmmirror.com/jsonfile/-/jsonfile-6.2.1.tgz",
++      "integrity": "sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "universalify": "^2.0.0"
++      },
++      "optionalDependencies": {
++        "graceful-fs": "^4.1.6"
++      }
++    },
++    "node_modules/kleur": {
++      "version": "4.1.5",
++      "resolved": "https://registry.npmmirror.com/kleur/-/kleur-4.1.5.tgz",
++      "integrity": "sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=6"
++      }
++    },
++    "node_modules/lru-cache": {
++      "version": "11.5.3",
++      "resolved": "https://registry.npmmirror.com/lru-cache/-/lru-cache-11.5.3.tgz",
++      "integrity": "sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": "20 || >=22"
++      }
++    },
++    "node_modules/minimatch": {
++      "version": "11.0.9",
++      "resolved": "https://registry.npmmirror.com/minimatch/-/minimatch-11.0.9.tgz",
++      "integrity": "sha512-KCFkfyjqerNlSstjlhIGNXIKZGA/6O4V4RlhZ+Dsr621SPPw0mzlypE9D9ZOoPiVefHID+j7/XuMMlqfD/F60Q==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "@isaacs/nonrecursive-glob-match": "^1.1.0",
++        "brace-expansion": "^5.0.12"
++      },
++      "engines": {
++        "node": "20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/minipass": {
++      "version": "7.1.3",
++      "resolved": "https://registry.npmmirror.com/minipass/-/minipass-7.1.3.tgz",
++      "integrity": "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": ">=16 || 14 >=14.17"
++      }
++    },
++    "node_modules/minizlib": {
++      "version": "3.1.0",
++      "resolved": "https://registry.npmmirror.com/minizlib/-/minizlib-3.1.0.tgz",
++      "integrity": "sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "minipass": "^7.1.2"
++      },
++      "engines": {
++        "node": ">= 18"
++      }
++    },
++    "node_modules/ms": {
++      "version": "2.1.3",
++      "resolved": "https://registry.npmmirror.com/ms/-/ms-2.1.3.tgz",
++      "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/nanoid": {
++      "version": "3.3.20",
++      "resolved": "https://registry.npmmirror.com/nanoid/-/nanoid-3.3.20.tgz",
++      "integrity": "sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==",
++      "dev": true,
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/ai"
++        }
++      ],
++      "license": "MIT",
++      "bin": {
++        "nanoid": "bin/nanoid.cjs"
++      },
++      "engines": {
++        "node": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1"
++      }
++    },
++    "node_modules/native-run": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmmirror.com/native-run/-/native-run-2.1.0.tgz",
++      "integrity": "sha512-JhEph/fyMwBHmMLiZ1OZX8X92+N1gt5+/ecLtgeRbyDHIyIW7EDt0A3kBZu594y1P4yKDr1CIHe+DDYQ7ZlKjg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@ionic/utils-fs": "^3.1.7",
++        "@ionic/utils-terminal": "^2.3.4",
++        "bplist-parser": "^0.3.2",
++        "debug": "^4.3.4",
++        "elementtree": "^0.1.7",
++        "ini": "^4.1.1",
++        "plist": "^3.1.0",
++        "split2": "^4.2.0",
++        "through2": "^4.0.2",
++        "tslib": "^2.6.2",
++        "yauzl": "^2.10.0"
++      },
++      "bin": {
++        "native-run": "bin/native-run"
++      },
++      "engines": {
++        "node": ">=16.0.0"
++      }
++    },
++    "node_modules/open": {
++      "version": "8.4.2",
++      "resolved": "https://registry.npmmirror.com/open/-/open-8.4.2.tgz",
++      "integrity": "sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "define-lazy-prop": "^2.0.0",
++        "is-docker": "^2.1.1",
++        "is-wsl": "^2.2.0"
++      },
++      "engines": {
++        "node": ">=12"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/sindresorhus"
++      }
++    },
++    "node_modules/package-json-from-dist": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmmirror.com/package-json-from-dist/-/package-json-from-dist-1.0.1.tgz",
++      "integrity": "sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0"
++    },
++    "node_modules/path-key": {
++      "version": "3.1.1",
++      "resolved": "https://registry.npmmirror.com/path-key/-/path-key-3.1.1.tgz",
++      "integrity": "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/path-scurry": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmmirror.com/path-scurry/-/path-scurry-3.0.0.tgz",
++      "integrity": "sha512-1pTbQqH1wIwMi/eleQ5leFTTCkzFsPcgXNjwOA8YGGW/W4/kHT3dssE7Z6NH+zuqNLOzOB0uaD61yl7cAcVhgg==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "lru-cache": "^11.0.0",
++        "minipass": "^7.1.2"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/pend": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmmirror.com/pend/-/pend-1.2.0.tgz",
++      "integrity": "sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/picocolors": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmmirror.com/picocolors/-/picocolors-1.1.1.tgz",
++      "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
++      "dev": true,
++      "license": "ISC"
++    },
++    "node_modules/picomatch": {
++      "version": "4.0.7",
++      "resolved": "https://registry.npmmirror.com/picomatch/-/picomatch-4.0.7.tgz",
++      "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=12"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/jonschlinkert"
++      }
++    },
++    "node_modules/plist": {
++      "version": "3.1.1",
++      "resolved": "https://registry.npmmirror.com/plist/-/plist-3.1.1.tgz",
++      "integrity": "sha512-ZIfcLJC+7E7FBFnDxm9MPmt7D+DidyQ26lewieO75AdhA2ayMtsJSES0iWzqJQbcVRSrTufQoy0DR94xHue0oA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@xmldom/xmldom": "^0.9.10",
++        "base64-js": "^1.5.1",
++        "xmlbuilder": "^15.1.1"
++      },
++      "engines": {
++        "node": ">=10.4.0"
++      }
++    },
++    "node_modules/postcss": {
++      "version": "8.5.33",
++      "resolved": "https://registry.npmmirror.com/postcss/-/postcss-8.5.33.tgz",
++      "integrity": "sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ==",
++      "dev": true,
++      "funding": [
++        {
++          "type": "opencollective",
++          "url": "https://opencollective.com/postcss/"
++        },
++        {
++          "type": "tidelift",
++          "url": "https://tidelift.com/funding/github/npm/postcss"
++        },
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/ai"
++        }
++      ],
++      "license": "MIT",
++      "dependencies": {
++        "nanoid": "^3.3.20",
++        "picocolors": "^1.1.1",
++        "source-map-js": "^1.2.2"
++      },
++      "engines": {
++        "node": "^10 || ^12 || >=14"
++      }
++    },
++    "node_modules/prompts": {
++      "version": "2.4.2",
++      "resolved": "https://registry.npmmirror.com/prompts/-/prompts-2.4.2.tgz",
++      "integrity": "sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "kleur": "^3.0.3",
++        "sisteransi": "^1.0.5"
++      },
++      "engines": {
++        "node": ">= 6"
++      }
++    },
++    "node_modules/prompts/node_modules/kleur": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmmirror.com/kleur/-/kleur-3.0.3.tgz",
++      "integrity": "sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=6"
++      }
++    },
++    "node_modules/readable-stream": {
++      "version": "3.6.2",
++      "resolved": "https://registry.npmmirror.com/readable-stream/-/readable-stream-3.6.2.tgz",
++      "integrity": "sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "inherits": "^2.0.3",
++        "string_decoder": "^1.1.1",
++        "util-deprecate": "^1.0.1"
++      },
++      "engines": {
++        "node": ">= 6"
++      }
++    },
++    "node_modules/rimraf": {
++      "version": "6.1.4",
++      "resolved": "https://registry.npmmirror.com/rimraf/-/rimraf-6.1.4.tgz",
++      "integrity": "sha512-Fk3reQDVPZUMbEm7Zwxz03BWQMW3V5buSk9aU8OckTrO8A1nQtbqvYsAantGNermwsIsXcuOBqcoJ3HuMELctw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "glob": "^14.0.3",
++        "package-json-from-dist": "^1.0.1"
++      },
++      "bin": {
++        "rimraf": "dist/esm/bin.mjs"
++      },
++      "engines": {
++        "node": "20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/rollup": {
++      "version": "4.68.8",
++      "resolved": "https://registry.npmmirror.com/rollup/-/rollup-4.68.8.tgz",
++      "integrity": "sha512-IHx4DeeTGhoAPke6p1Wlg0JEQFyQoZQQjEe1iD+nhEERk7eoeHK9zyOpVJiGc54Z1MCgI96rN1tD7Ttub8XyPA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/estree": "^1.0.10"
++      },
++      "bin": {
++        "rollup": "dist/bin/rollup"
++      },
++      "engines": {
++        "node": ">=18.0.0",
++        "npm": ">=8.0.0"
++      },
++      "optionalDependencies": {
++        "@rollup/rollup-android-arm-eabi": "4.68.8",
++        "@rollup/rollup-android-arm64": "4.68.8",
++        "@rollup/rollup-android-x64": "4.68.8",
++        "@rollup/rollup-darwin-arm64": "4.68.8",
++        "@rollup/rollup-darwin-x64": "4.68.8",
++        "@rollup/rollup-freebsd-arm64": "4.68.8",
++        "@rollup/rollup-freebsd-x64": "4.68.8",
++        "@rollup/rollup-linux-arm-gnueabihf": "4.68.8",
++        "@rollup/rollup-linux-arm-musleabihf": "4.68.8",
++        "@rollup/rollup-linux-arm64-gnu": "4.68.8",
++        "@rollup/rollup-linux-arm64-musl": "4.68.8",
++        "@rollup/rollup-linux-loong64-gnu": "4.68.8",
++        "@rollup/rollup-linux-loong64-musl": "4.68.8",
++        "@rollup/rollup-linux-ppc64-gnu": "4.68.8",
++        "@rollup/rollup-linux-ppc64-musl": "4.68.8",
++        "@rollup/rollup-linux-riscv64-gnu": "4.68.8",
++        "@rollup/rollup-linux-riscv64-musl": "4.68.8",
++        "@rollup/rollup-linux-s390x-gnu": "4.68.8",
++        "@rollup/rollup-linux-x64-gnu": "4.68.8",
++        "@rollup/rollup-linux-x64-musl": "4.68.8",
++        "@rollup/rollup-openbsd-x64": "4.68.8",
++        "@rollup/rollup-openharmony-arm64": "4.68.8",
++        "@rollup/rollup-win32-arm64-msvc": "4.68.8",
++        "@rollup/rollup-win32-ia32-msvc": "4.68.8",
++        "@rollup/rollup-win32-x64-gnu": "4.68.8",
++        "@rollup/rollup-win32-x64-msvc": "4.68.8",
++        "fsevents": "~2.3.2"
++      }
++    },
++    "node_modules/safe-buffer": {
++      "version": "5.2.1",
++      "resolved": "https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.2.1.tgz",
++      "integrity": "sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==",
++      "dev": true,
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/feross"
++        },
++        {
++          "type": "patreon",
++          "url": "https://www.patreon.com/feross"
++        },
++        {
++          "type": "consulting",
++          "url": "https://feross.org/support"
++        }
++      ],
++      "license": "MIT"
++    },
++    "node_modules/sax": {
++      "version": "1.1.4",
++      "resolved": "https://registry.npmmirror.com/sax/-/sax-1.1.4.tgz",
++      "integrity": "sha512-5f3k2PbGGp+YtKJjOItpg3P99IMD84E4HOvcfleTb5joCHNXYLsR9yWFPOYGgaeMPDubQILTCMdsFb2OMeOjtg==",
++      "dev": true,
++      "license": "ISC"
++    },
++    "node_modules/semver": {
++      "version": "7.8.6",
++      "resolved": "https://registry.npmmirror.com/semver/-/semver-7.8.6.tgz",
++      "integrity": "sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==",
++      "dev": true,
++      "license": "ISC",
++      "bin": {
++        "semver": "bin/semver.js"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
++    "node_modules/shebang-command": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmmirror.com/shebang-command/-/shebang-command-2.0.0.tgz",
++      "integrity": "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "shebang-regex": "^3.0.0"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/shebang-regex": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmmirror.com/shebang-regex/-/shebang-regex-3.0.0.tgz",
++      "integrity": "sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/signal-exit": {
++      "version": "3.0.7",
++      "resolved": "https://registry.npmmirror.com/signal-exit/-/signal-exit-3.0.7.tgz",
++      "integrity": "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==",
++      "dev": true,
++      "license": "ISC"
++    },
++    "node_modules/sisteransi": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmmirror.com/sisteransi/-/sisteransi-1.0.5.tgz",
++      "integrity": "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/slice-ansi": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmmirror.com/slice-ansi/-/slice-ansi-4.0.0.tgz",
++      "integrity": "sha512-qMCMfhY040cVHT43K9BFygqYbUPFZKHOg7K73mtTWJRb8pyP3fzf4Ixd5SzdEJQ6MRUg/WBnOLxghZtKKurENQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "ansi-styles": "^4.0.0",
++        "astral-regex": "^2.0.0",
++        "is-fullwidth-code-point": "^3.0.0"
++      },
++      "engines": {
++        "node": ">=10"
++      },
++      "funding": {
++        "url": "https://github.com/chalk/slice-ansi?sponsor=1"
++      }
++    },
++    "node_modules/source-map-js": {
++      "version": "1.2.4",
++      "resolved": "https://registry.npmmirror.com/source-map-js/-/source-map-js-1.2.4.tgz",
++      "integrity": "sha512-J7ZjMvHd9O1fcT/5V09QWaaSl2BbWx3F6O08spde82Namf9UB0GxRVIPiNbVsdKkoizHiSpTodo3vp2bAy91MA==",
++      "dev": true,
++      "license": "BSD-3-Clause",
++      "engines": {
++        "node": ">=6.0.0"
++      }
++    },
++    "node_modules/split2": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmmirror.com/split2/-/split2-4.2.0.tgz",
++      "integrity": "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==",
++      "dev": true,
++      "license": "ISC",
++      "engines": {
++        "node": ">= 10.x"
++      }
++    },
++    "node_modules/string_decoder": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmmirror.com/string_decoder/-/string_decoder-1.3.0.tgz",
++      "integrity": "sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "safe-buffer": "~5.2.0"
++      }
++    },
++    "node_modules/string-width": {
++      "version": "4.2.3",
++      "resolved": "https://registry.npmmirror.com/string-width/-/string-width-4.2.3.tgz",
++      "integrity": "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "emoji-regex": "^8.0.0",
++        "is-fullwidth-code-point": "^3.0.0",
++        "strip-ansi": "^6.0.1"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/strip-ansi": {
++      "version": "6.0.1",
++      "resolved": "https://registry.npmmirror.com/strip-ansi/-/strip-ansi-6.0.1.tgz",
++      "integrity": "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "ansi-regex": "^5.0.1"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/tar": {
++      "version": "7.5.23",
++      "resolved": "https://registry.npmmirror.com/tar/-/tar-7.5.23.tgz",
++      "integrity": "sha512-lkukzdoGngZHJZXxW4S/E4Fp9ghTDlyZXrQGRNoJ/LXvDKcXUTq2sg5yQe74po7Voea6n/IN09+wE/QvJMiifA==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "@isaacs/fs-minipass": "^4.0.0",
++        "chownr": "^3.0.0",
++        "minipass": "^7.1.2",
++        "minizlib": "^3.1.0",
++        "yallist": "^5.0.0"
++      },
++      "engines": {
++        "node": ">=18"
++      }
++    },
++    "node_modules/three": {
++      "version": "0.180.0",
++      "resolved": "https://registry.npmmirror.com/three/-/three-0.180.0.tgz",
++      "integrity": "sha512-o+qycAMZrh+TsE01GqWUxUIKR1AL0S8pq7zDkYOQw8GqfX8b8VoCKYUoHbhiX5j+7hr8XsuHDVU6+gkQJQKg9w==",
++      "license": "MIT"
++    },
++    "node_modules/through2": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmmirror.com/through2/-/through2-4.0.2.tgz",
++      "integrity": "sha512-iOqSav00cVxEEICeD7TjLB1sueEL+81Wpzp2bY17uZjZN0pWZPuo4suZ/61VujxmqSGFfgOcNuTZ85QJwNZQpw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "readable-stream": "3"
++      }
++    },
++    "node_modules/tinyglobby": {
++      "version": "0.2.17",
++      "resolved": "https://registry.npmmirror.com/tinyglobby/-/tinyglobby-0.2.17.tgz",
++      "integrity": "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "fdir": "^6.5.0",
++        "picomatch": "^4.0.4"
++      },
++      "engines": {
++        "node": ">=12.0.0"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/SuperchupuDev"
++      }
++    },
++    "node_modules/tree-kill": {
++      "version": "1.2.2",
++      "resolved": "https://registry.npmmirror.com/tree-kill/-/tree-kill-1.2.2.tgz",
++      "integrity": "sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==",
++      "dev": true,
++      "license": "MIT",
++      "bin": {
++        "tree-kill": "cli.js"
++      }
++    },
++    "node_modules/tslib": {
++      "version": "2.9.1",
++      "resolved": "https://registry.npmmirror.com/tslib/-/tslib-2.9.1.tgz",
++      "integrity": "sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==",
++      "license": "0BSD"
++    },
++    "node_modules/undici-types": {
++      "version": "8.9.0",
++      "resolved": "https://registry.npmmirror.com/undici-types/-/undici-types-8.9.0.tgz",
++      "integrity": "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/universalify": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmmirror.com/universalify/-/universalify-2.0.1.tgz",
++      "integrity": "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">= 10.0.0"
++      }
++    },
++    "node_modules/untildify": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmmirror.com/untildify/-/untildify-4.0.0.tgz",
++      "integrity": "sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/util-deprecate": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmmirror.com/util-deprecate/-/util-deprecate-1.0.2.tgz",
++      "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/vite": {
++      "version": "7.3.8",
++      "resolved": "https://registry.npmmirror.com/vite/-/vite-7.3.8.tgz",
++      "integrity": "sha512-3tTi78MAKhVk9h+YZVXMQ8POmneJuE97QUPAWtJghHzhH7BAyiqQOC2KZh1DWOsu/USB2cRXhznPByaabvYXfw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "esbuild": "^0.27.0 || ^0.28.0",
++        "fdir": "^6.5.0",
++        "picomatch": "^4.0.3",
++        "postcss": "^8.5.6",
++        "rollup": "^4.43.0",
++        "tinyglobby": "^0.2.15"
++      },
++      "bin": {
++        "vite": "bin/vite.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.12.0"
++      },
++      "funding": {
++        "url": "https://github.com/vitejs/vite?sponsor=1"
++      },
++      "optionalDependencies": {
++        "fsevents": "~2.3.3"
++      },
++      "peerDependencies": {
++        "@types/node": "^20.19.0 || >=22.12.0",
++        "jiti": ">=1.21.0",
++        "less": "^4.0.0",
++        "lightningcss": "^1.21.0",
++        "sass": "^1.70.0",
++        "sass-embedded": "^1.70.0",
++        "stylus": ">=0.54.8",
++        "sugarss": "^5.0.0",
++        "terser": "^5.16.0",
++        "tsx": "^4.8.1",
++        "yaml": "^2.4.2"
++      },
++      "peerDependenciesMeta": {
++        "@types/node": {
++          "optional": true
++        },
++        "jiti": {
++          "optional": true
++        },
++        "less": {
++          "optional": true
++        },
++        "lightningcss": {
++          "optional": true
++        },
++        "sass": {
++          "optional": true
++        },
++        "sass-embedded": {
++          "optional": true
++        },
++        "stylus": {
++          "optional": true
++        },
++        "sugarss": {
++          "optional": true
++        },
++        "terser": {
++          "optional": true
++        },
++        "tsx": {
++          "optional": true
++        },
++        "yaml": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/which": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmmirror.com/which/-/which-2.0.2.tgz",
++      "integrity": "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==",
++      "dev": true,
++      "license": "ISC",
++      "dependencies": {
++        "isexe": "^2.0.0"
++      },
++      "bin": {
++        "node-which": "bin/node-which"
++      },
++      "engines": {
++        "node": ">= 8"
++      }
++    },
++    "node_modules/wrap-ansi": {
++      "version": "7.0.0",
++      "resolved": "https://registry.npmmirror.com/wrap-ansi/-/wrap-ansi-7.0.0.tgz",
++      "integrity": "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "ansi-styles": "^4.0.0",
++        "string-width": "^4.1.0",
++        "strip-ansi": "^6.0.0"
++      },
++      "engines": {
++        "node": ">=10"
++      },
++      "funding": {
++        "url": "https://github.com/chalk/wrap-ansi?sponsor=1"
++      }
++    },
++    "node_modules/xml2js": {
++      "version": "0.6.2",
++      "resolved": "https://registry.npmmirror.com/xml2js/-/xml2js-0.6.2.tgz",
++      "integrity": "sha512-T4rieHaC1EXcES0Kxxj4JWgaUQHDk+qwHcYOCFHfiwKz7tOVPLq7Hjq9dM1WCMhylqMEfP7hMcOIChvotiZegA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "sax": ">=0.6.0",
++        "xmlbuilder": "~11.0.0"
++      },
++      "engines": {
++        "node": ">=4.0.0"
++      }
++    },
++    "node_modules/xml2js/node_modules/xmlbuilder": {
++      "version": "11.0.1",
++      "resolved": "https://registry.npmmirror.com/xmlbuilder/-/xmlbuilder-11.0.1.tgz",
++      "integrity": "sha512-fDlsI/kFEx7gLvbecc0/ohLG50fugQp8ryHzMTuW9vSa1GJ0XYWKnhsUx7oie3G98+r56aTQIUB4kht42R3JvA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=4.0"
++      }
++    },
++    "node_modules/xmlbuilder": {
++      "version": "15.1.1",
++      "resolved": "https://registry.npmmirror.com/xmlbuilder/-/xmlbuilder-15.1.1.tgz",
++      "integrity": "sha512-yMqGBqtXyeN1e3TGYvgNgDVZ3j84W4cwkOXQswghol6APgZWaff9lnbvN7MHYJOiXsvGPXtjTYJEiC9J2wv9Eg==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8.0"
++      }
++    },
++    "node_modules/yallist": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmmirror.com/yallist/-/yallist-5.0.0.tgz",
++      "integrity": "sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": ">=18"
++      }
++    },
++    "node_modules/yauzl": {
++      "version": "2.10.0",
++      "resolved": "https://registry.npmmirror.com/yauzl/-/yauzl-2.10.0.tgz",
++      "integrity": "sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "buffer-crc32": "~0.2.3",
++        "fd-slicer": "~1.1.0"
++      }
++    }
++  }
++}
+diff --git a/package.json b/package.json
+index 16c92cc..d404a07 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "the-forgotten-realm",
+-  "version": "0.6.0",
++  "version": "0.7.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff --git a/src/audio.js b/src/audio.js
+index c747ad1..3958df5 100644
+--- a/src/audio.js
++++ b/src/audio.js
+@@ -2,9 +2,12 @@ export function createAudio() {
+   let context = null;
+   let master = null;
+   let rainGain = null;
++  let musicGain = null;
++  let musicStarted = false;
+   let ambienceStarted = false;
+   let enabled = true;
+   let weather = true;
++  let music = true;
+ 
+   function ensureContext() {
+     if (context) return context;
+@@ -18,6 +21,7 @@ export function createAudio() {
+     master.connect(context.destination);
+ 
+     startAmbience();
++    startMusic();
+     return context;
+   }
+ 
+@@ -68,6 +72,56 @@ export function createAudio() {
+     rain.start();
+   }
+ 
++  function startMusic() {
++    if (musicStarted || !context || !master) return;
++    musicStarted = true;
++
++    musicGain = context.createGain();
++    musicGain.gain.value = 0;
++    musicGain.connect(master);
++
++    const filter = context.createBiquadFilter();
++    filter.type = 'lowpass';
++    filter.frequency.value = 850;
++    filter.Q.value = 0.6;
++    filter.connect(musicGain);
++
++    const notes = [110, 164.81, 220, 277.18];
++    notes.forEach((frequency, index) => {
++      const oscillator = context.createOscillator();
++      oscillator.type = index % 2 ? 'triangle' : 'sine';
++      oscillator.frequency.value = frequency;
++
++      const level = context.createGain();
++      level.gain.value = 0.055 / (index + 1);
++
++      oscillator.connect(level);
++      level.connect(filter);
++      oscillator.start();
++
++      const lfo = context.createOscillator();
++      lfo.frequency.value = 0.03 + index * 0.011;
++      const lfoGain = context.createGain();
++      lfoGain.gain.value = 2.2;
++      lfo.connect(lfoGain);
++      lfoGain.connect(oscillator.detune);
++      lfo.start();
++    });
++
++    syncMusicGain();
++  }
++
++  function syncMusicGain() {
++    if (!musicGain || !context) return;
++    const target = music && enabled ? 0.75 : 0;
++    musicGain.gain.setTargetAtTime(target, context.currentTime, 0.6);
++  }
++
++  function setMusic(value) {
++    music = Boolean(value);
++    syncMusicGain();
++  }
++
+   function tone(frequency, duration, type, volume, endFrequency) {
+     if (!context || !master) return;
+ 
+@@ -190,6 +244,7 @@ export function createAudio() {
+     if (master && context) {
+       master.gain.setTargetAtTime(enabled ? 0.32 : 0, context.currentTime, 0.05);
+     }
++    syncMusicGain();
+   }
+ 
+   function setWeather(value) {
+@@ -199,5 +254,5 @@ export function createAudio() {
+     }
+   }
+ 
+-  return { play, unlock, setEnabled, setWeather };
++  return { play, unlock, setEnabled, setWeather, setMusic };
+ }
+diff --git a/src/main.js b/src/main.js
+index 26476bc..7b7d3fa 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -1,6 +1,6 @@
+ 
+ import * as THREE from 'three';
+-import { createSystems, RARITY } from './systems.js';
++import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
+ import { createAudio } from './audio.js';
+ import {
+   createCharacterAtlas,
+@@ -27,7 +27,8 @@ const ui = {
+   potions: $('#potion-count'), quest: $('#quest-text'),
+   clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
+   settings: $('#settings-panel'), inventory: $('#inventory'),
+-  shop: $('#shop-panel'), gold: $('#gold-count')
++  shop: $('#shop-panel'), gold: $('#gold-count'),
++  sideQuest: $('#side-quest-text')
+ };
+ 
+ const isTouch = matchMedia('(pointer: coarse)').matches;
+@@ -36,32 +37,61 @@ const settings = {
+   sensitivity: 5,
+   weather: true,
+   sound: true,
++  music: true,
+   postfx: true,
+-  dayNightMode: 'auto'
++  dayNightMode: 'auto',
++  fpsLimit: 'auto',
++  mobileLayout: 'right'
+ };
+ const audio = createAudio();
+ let currentSlot = 1;
+ let dayNightMode = 'auto';
+ 
+ const weaponStats = {
+-  sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common' },
+-  greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common' },
+-  staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon' },
+-  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic' }
++  sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common', kind: 'melee' },
++  greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common', kind: 'melee' },
++  axe: { name: 'ขวาน', damage: 1.7, range: 2.9, cooldown: 0.72, rarity: 'uncommon', kind: 'melee' },
++  staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon', kind: 'melee' },
++  bow: { name: 'ธนูพรานป่า', damage: 1.4, range: 18, cooldown: 0.62, rarity: 'uncommon', kind: 'ranged', projectile: 'arrow', stamina: 4 },
++  froststaff: { name: 'คทาเหมันต์', damage: 2.1, range: 15, cooldown: 1.0, rarity: 'rare', kind: 'ranged', projectile: 'frost', stamina: 7, slow: 2.5 },
++  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic', kind: 'melee' }
+ };
+ 
+ const armorStats = {
+   leather: { name: 'เกราะหนัง', reduction: 0, rarity: 'common' },
+   iron: { name: 'เกราะเหล็ก', reduction: .25, rarity: 'common' },
++  ranger: { name: 'เกราะพราน', reduction: .32, rarity: 'uncommon' },
+   shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
++  runerobe: { name: 'ผ้าคลุมรูน', reduction: .45, rarity: 'rare' },
+   dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
+ };
+ 
++const classDefs = {
++  warrior: {
++    name: 'นักรบ',
++    desc: 'โจมตีระยะประชิด +20% · ลดความเสียหาย 10%',
++    melee: 1.2,
++    damageReduction: .1
++  },
++  ranger: {
++    name: 'พราน',
++    desc: 'โจมตีระยะไกล +25% · ฟื้นพละกำลังเร็วขึ้น 60%',
++    ranged: 1.25,
++    staminaRegen: 1.6
++  },
++  mage: {
++    name: 'จอมเวท',
++    desc: 'พลังเวท +25% · ฟื้นมนตราเร็วขึ้น 50%',
++    spell: 1.25,
++    manaRegen: 1.5
++  }
++};
++
+ const state = {
+   hp: 100, stamina: 100,   crystals: 0, potions: 2, gold: 60,
+   level: 1, xp: 0, questStage: 0,
+ 
+-  weapon: 'sword', armor: 'leather',
++  weapon: 'sword', armor: 'leather', classId: null,
+   attackBonus: 0, skillPoints: 0,
+   maxHp: 100, maxMana: 100,
+   skills: { might: 0, vitality: 0, arcana: 0 },
+@@ -72,7 +102,8 @@ const state = {
+   weatherOn: true, dead: false,
+   discoveredRegions: [],
+   discoveredSecrets: [],
+-  dungeonCleared: false
++  dungeonCleared: false,
++  respawnPoint: null
+ };
+ 
+ let toastTimer = 0;
+@@ -89,7 +120,10 @@ function getSaveKey(slot = currentSlot) {
+ }
+ 
+ function updateHud() {
+-  ui.hp.style.width = `${Math.max(0, state.hp)}%`;
++  const hpPercent = state.maxHp > 0
++    ? THREE.MathUtils.clamp(state.hp / state.maxHp * 100, 0, 100)
++    : 0;
++  ui.hp.style.width = `${hpPercent}%`;
+   ui.hpText.textContent = `${Math.ceil(state.hp)} / ${state.maxHp}`;
+   ui.stamina.style.width = `${Math.ceil(state.stamina)}%`;
+   ui.staminaText.textContent = `${Math.ceil(state.stamina)} / 100`;
+@@ -97,6 +131,7 @@ function updateHud() {
+   ui.crystals.textContent = String(state.crystals);
+   ui.potions.textContent = String(state.potions);
+   if (ui.gold) ui.gold.textContent = String(state.gold);
++  if (ui.sideQuest) ui.sideQuest.textContent = activeQuestTrackerText();
+ 
+   ui.quest.textContent = state.questStage === 0
+     ? 'เดินทางไปยังหอคอยร้าง'
+@@ -105,6 +140,15 @@ function updateHud() {
+       : 'สำเร็จ! สำรวจดินแดนต่อไป';
+ }
+ 
++function activeQuestTrackerText() {
++  for (const [id, progress] of Object.entries(state.quests || {})) {
++    const quest = SIDE_QUESTS[id];
++    if (!quest || !progress || progress.status !== 'active') continue;
++    return `${quest.title} · ${Math.min(progress.count || 0, quest.target)}/${quest.target}`;
++  }
++  return '';
++}
++
+ function refreshEquipmentUI() {
+   const weapon = weaponStats[state.weapon] || weaponStats.sword;
+   const armor = armorStats[state.armor] || armorStats.leather;
+@@ -157,6 +201,27 @@ function selectArmor(id) {
+   toast(`สวมใส่: ${armorStats[id].name}`);
+ }
+ 
++function refreshClassUI() {
++  for (const id of Object.keys(classDefs)) {
++    const button = document.querySelector(`[data-class="${id}"]`);
++    if (!button) continue;
++    button.classList.toggle('selected', state.classId === id);
++    button.title = classDefs[id].desc;
++  }
++}
++
++function selectClass(id) {
++  const def = classDefs[id];
++  if (!def) return;
++  state.classId = state.classId === id ? null : id;
++  refreshClassUI();
++  refreshEquipmentUI();
++  updateHud();
++  toast(state.classId
++    ? `สายอาชีพ: ${def.name} — ${def.desc}`
++    : 'ยกเลิกสายอาชีพแล้ว');
++}
++
+ const skillDefs = {
+   might: { name: 'พลังโจมตี', max: 5, desc: 'เพิ่มพลังโจมตี +0.5 ต่อระดับ' },
+   vitality: { name: 'ความทนทาน', max: 3, desc: 'เพิ่ม HP สูงสุด +15 ต่อระดับ' },
+@@ -1251,15 +1316,41 @@ addEventListener('keydown', (e) => {
+   }
+ 
+   if (!keys[e.code]) {
++    if (e.code === 'Escape') {
++      closePanels();
++      closeCamp();
++      systems.closeDialogue();
++      keys[e.code] = true;
++      return;
++    }
++    if (e.code === 'KeyG') {
++      toggleCamp();
++      keys[e.code] = true;
++      return;
++    }
++    if (e.code === 'KeyM') {
++      toggleMapPanel();
++      keys[e.code] = true;
++      return;
++    }
++    if (e.code === 'KeyB') {
++      const willOpen = ui.shop.classList.contains('hidden');
++      closePanels(willOpen ? 'shop' : null);
++      if (willOpen) systems.openShop();
++      keys[e.code] = true;
++      return;
++    }
++    if (isPanelOpen()) {
++      keys[e.code] = true;
++      return;
++    }
++
+     if (e.code === 'Space') input.jumpPressed = true;
+     if (e.code === 'KeyF') input.attackPressed = true;
+     if (e.code === 'KeyE') input.interactPressed = true;
+     if (e.code === 'KeyQ') usePotion();
+     if (e.code === 'KeyC') input.dodgePressed = true;
+     if (e.code === 'KeyR') systems.castSpell();
+-    if (e.code === 'KeyB') systems.toggleShop();
+-    if (e.code === 'KeyM') toggleMapPanel();
+-    if (e.code === 'Escape') closePanels();
+   }
+ 
+   keys[e.code] = true;
+@@ -1433,6 +1524,7 @@ let hurtAnimTimer = 0;
+ const dodgeDirection = new THREE.Vector3();
+ let autoSaveTimer = 0;
+ let dungeonActive = false;
++let campOpen = false;
+ let prevYaw = yaw;
+ let lastSun = 1;
+ 
+@@ -1449,7 +1541,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
+   currentSlot = slot;
+ 
+   const payload = {
+-    version: 6,
++    version: 7,
+     slot,
+     dungeonActive,
+     player: [
+@@ -1518,6 +1610,27 @@ function loadGame(slot = currentSlot) {
+ 
+     state.dungeonCleared = Boolean(data.state.dungeonCleared);
+ 
++    // Carry inventory, skills, spells and quests through the save before
++    // restoreState() sanitises them (previously these were silently reset).
++    if (data.state.inventory && typeof data.state.inventory === 'object') {
++      state.inventory = { ...data.state.inventory };
++    }
++    if (data.state.skills && typeof data.state.skills === 'object') {
++      state.skills = { ...data.state.skills };
++    }
++    if (Array.isArray(data.state.spells)) {
++      state.spells = data.state.spells.slice();
++    }
++    state.activeSpell = typeof data.state.activeSpell === 'string'
++      ? data.state.activeSpell
++      : null;
++    if (data.state.quests && typeof data.state.quests === 'object') {
++      state.quests = { ...data.state.quests };
++    }
++    if (Number.isFinite(Number(data.state.mana))) {
++      state.mana = Number(data.state.mana);
++    }
++
+     systems.restoreState();
+     systems.deserializeWorld(data.systems);
+ 
+@@ -1541,6 +1654,20 @@ function loadGame(slot = currentSlot) {
+       ? data.state.discoveredSecrets.filter(id => typeof id === 'string')
+       : [];
+ 
++    state.classId = classDefs[data.state.classId] ? data.state.classId : null;
++    state.respawnPoint =
++      Array.isArray(data.state.respawnPoint) &&
++      data.state.respawnPoint.length === 2 &&
++      data.state.respawnPoint.every(Number.isFinite)
++        ? data.state.respawnPoint.slice()
++        : null;
++
++    if (state.respawnPoint) {
++      const [rx, rz] = state.respawnPoint;
++      campFire.position.set(rx, getTerrainHeight(rx, rz, 0) ?? 0, rz);
++      campFire.visible = true;
++    }
++
+     if (Array.isArray(data.collectibles)) {
+       collectibles.forEach((crystal, index) => {
+         crystal.visible = data.collectibles[index] !== false;
+@@ -1603,6 +1730,13 @@ function loadGame(slot = currentSlot) {
+       }
+       settings.weather = Boolean(data.settings.weather);
+       settings.sound = Boolean(data.settings.sound);
++      settings.music = data.settings.music !== false;
++      if (['auto', '30', '45', '60'].includes(String(data.settings.fpsLimit))) {
++        settings.fpsLimit = String(data.settings.fpsLimit);
++      }
++      if (['left', 'right'].includes(data.settings.mobileLayout)) {
++        settings.mobileLayout = data.settings.mobileLayout;
++      }
+       if (['auto', 'day', 'night'].includes(data.settings.dayNightMode)) {
+         settings.dayNightMode = data.settings.dayNightMode;
+       }
+@@ -1616,6 +1750,7 @@ function loadGame(slot = currentSlot) {
+     updateHud();
+     refreshEquipmentUI();
+     refreshSkillUI();
++    refreshClassUI();
+     systems.refreshInventoryUI();
+     systems.refreshQuestUI();
+     systems.renderShop();
+@@ -1702,38 +1837,310 @@ function defeatEnemy(enemy) {
+   updateHud();
+ }
+ 
++const projectiles = [];
++
++function damageEnemy(enemy, amount, options = {}) {
++  const data = enemy.userData;
++  if (!data.alive) return;
++
++  data.hp -= amount;
++  data.hurtTimer = .3;
++  if (options.slow) {
++    data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
++  }
++
++  if (data.hp <= 0) defeatEnemy(enemy);
++}
++
++function spawnProjectile(weapon, damage) {
++  const forwardX = Math.sin(player.rotation.y);
++  const forwardZ = Math.cos(player.rotation.y);
++  const frost = weapon.projectile === 'frost';
++  const mesh = new THREE.Mesh(
++    new THREE.SphereGeometry(frost ? .16 : .1, 8, 6),
++    new THREE.MeshBasicMaterial({ color: frost ? 0x9fe8ff : 0xffd27a })
++  );
++  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
++    color: frost ? 0x9fe8ff : 0xffd27a,
++    transparent: true,
++    opacity: .55,
++    blending: THREE.AdditiveBlending,
++    depthWrite: false
++  }));
++  glow.scale.set(frost ? 1.1 : .8, frost ? 1.1 : .8, 1);
++  mesh.add(glow);
++
++  mesh.position.set(
++    player.position.x + forwardX * 1.0,
++    player.position.y + 1.15,
++    player.position.z + forwardZ * 1.0
++  );
++  scene.add(mesh);
++
++  projectiles.push({
++    mesh,
++    forwardX,
++    forwardZ,
++    speed: frost ? 30 : 38,
++    traveled: 0,
++    maxRange: weapon.range,
++    damage,
++    slow: weapon.slow || 0
++  });
++}
++
++function updateProjectiles(dt) {
++  for (let i = projectiles.length - 1; i >= 0; i--) {
++    const shot = projectiles[i];
++    const step = shot.speed * dt;
++    shot.mesh.position.x += shot.forwardX * step;
++    shot.mesh.position.z += shot.forwardZ * step;
++    shot.traveled += step;
++
++    let hit = null;
++    for (const enemy of enemies) {
++      if (!enemy.userData.alive) continue;
++      const dx = enemy.position.x - shot.mesh.position.x;
++      const dz = enemy.position.z - shot.mesh.position.z;
++      if (dx * dx + dz * dz < 1.2 * 1.2) {
++        hit = enemy;
++        break;
++      }
++    }
++
++    if (hit) {
++      damageEnemy(hit, shot.damage, { slow: shot.slow });
++      if (hit.userData.alive) {
++        toast(`โจมตีโดน ${hit.userData.name} -${Math.round(shot.damage * 10) / 10}`);
++        audio.play('hit');
++      }
++    }
++
++    if (hit || shot.traveled >= shot.maxRange) {
++      scene.remove(shot.mesh);
++      shot.mesh.geometry.dispose();
++      shot.mesh.material.dispose();
++      projectiles.splice(i, 1);
++    }
++  }
++}
++
++function handlePlayerDeath() {
++  state.hp = state.maxHp;
++  state.stamina = 100;
++  state.mana = state.maxMana;
++  invulnerabilityTimer = 1.5;
++
++  const point = Array.isArray(state.respawnPoint) ? state.respawnPoint : [0, 3];
++  const rx = Number.isFinite(point[0]) ? point[0] : 0;
++  const rz = Number.isFinite(point[1]) ? point[1] : 3;
++  player.position.set(rx, getTerrainHeight(rx, rz, 0) ?? 0, rz);
++  verticalVelocity = 0;
++  grounded = true;
++
++  let message = 'คุณล้มสลบ · กลับไปยังจุดพัก';
++  if (dungeonActive) {
++    dungeonActive = false;
++    setDungeonEnemies(false);
++    message = 'คุณถูกขับออกจากถ้ำต้องสาป';
++  }
++  if (state.gold > 0) {
++    const lost = Math.min(state.gold, 10);
++    state.gold -= lost;
++    message += ` · สูญเสียทอง ${lost}`;
++  }
++
++  clearInputs();
++  audio.play('boss');
++  toast(message);
++  updateHud();
++}
++
++// ---------- Camp ----------
++const campPanel = $('#camp-panel');
++const dialoguePanel = $('#dialogue-panel');
++const campFire = new THREE.Group();
++{
++  const logMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 1 });
++  for (let i = 0; i < 3; i++) {
++    const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .11, 1.1, 6), logMat);
++    log.rotation.z = Math.PI / 2;
++    log.rotation.y = (i / 3) * Math.PI;
++    log.position.y = .12;
++    log.castShadow = true;
++    campFire.add(log);
++  }
++  const flame = new THREE.Mesh(
++    new THREE.ConeGeometry(.3, .8, 7),
++    new THREE.MeshBasicMaterial({ color: 0xffa24a, transparent: true, opacity: .85 })
++  );
++  flame.position.y = .45;
++  campFire.add(flame);
++  const fireLight = new THREE.PointLight(0xff9a4a, 2.2, 14);
++  fireLight.position.y = .9;
++  campFire.add(fireLight);
++  campFire.visible = false;
++  scene.add(campFire);
++}
++
++function enemiesNearPlayer(radius = 12) {
++  return enemies.some((enemy) =>
++    enemy.userData.alive &&
++    Math.hypot(
++      enemy.position.x - player.position.x,
++      enemy.position.z - player.position.z
++    ) < radius
++  );
++}
++
++function isCombatBlockingCamp() {
++  return dungeonActive || enemiesNearPlayer(12);
++}
++
++function updateCampStatus() {
++  const status = $('#camp-status');
++  if (!status) return;
++  const meat = systems.getCount('meat');
++  const herb = systems.getCount('herb');
++  if (dungeonActive) {
++    status.textContent = 'ในถ้ำต้องสาปไม่สามารถตั้งแคมป์ได้';
++  } else if (enemiesNearPlayer(12)) {
++    status.textContent = 'มีศัตรูอยู่ใกล้เกินไป · กำจัดให้หมดก่อนจึงจะพักได้';
++  } else {
++    status.textContent =
++      `กองไฟพร้อมสำหรับพักผ่อน · เนื้อสด ${meat} · สมุนไพร ${herb}`;
++  }
++  const restButton = $('#camp-rest');
++  if (restButton) restButton.disabled = isCombatBlockingCamp();
++  const cookButton = $('#camp-cook');
++  if (cookButton) cookButton.disabled = meat < 1 || herb < 1;
++}
++
++function openCamp() {
++  if (!campPanel) return;
++  if (dungeonActive) return toast('ในถ้ำต้องสาปตั้งแคมป์ไม่ได้');
++
++  state.respawnPoint = [
++    Math.round(player.position.x * 10) / 10,
++    Math.round(player.position.z * 10) / 10
++  ];
++  const groundY = getTerrainHeight(player.position.x, player.position.z, player.position.y) ?? 0;
++  campFire.position.set(
++    player.position.x + Math.sin(player.rotation.y) * 1.4,
++    groundY,
++    player.position.z + Math.cos(player.rotation.y) * 1.4
++  );
++  campFire.visible = true;
++  closePanels('camp');
++  campOpen = true;
++  campPanel.classList.remove('hidden');
++  updateCampStatus();
++}
++
++function closeCamp() {
++  campOpen = false;
++  if (campPanel) campPanel.classList.add('hidden');
++}
++
++function toggleCamp() {
++  if (campOpen) closeCamp();
++  else openCamp();
++}
++
++function campRest() {
++  if (isCombatBlockingCamp()) {
++    return toast('ยังพักไม่ได้ · มีศัตรูอยู่ใกล้');
++  }
++
++  state.dayTime = .28;
++  dayNightMode = 'auto';
++  settings.dayNightMode = 'auto';
++  state.hp = state.maxHp;
++  state.stamina = 100;
++  state.mana = state.maxMana;
++  invulnerabilityTimer = 1.5;
++  audio.play('quest');
++  updateHud();
++  refreshEquipmentUI();
++  toast('พักผ่อนจนรุ่งเช้า · ฟื้นฟูเต็มหลอด');
++  closeCamp();
++}
++
++function campCook() {
++  if (systems.getCount('meat') < 1 || systems.getCount('herb') < 1) {
++    return toast('ต้องใช้เนื้อสด 1 + สมุนไพร 1');
++  }
++
++  state.inventory.meat = systems.getCount('meat') - 1;
++  state.inventory.herb = systems.getCount('herb') - 1;
++  state.potions += 2;
++  audio.play('craft');
++  systems.refreshInventoryUI();
++  updateHud();
++  updateCampStatus();
++  toast('ปรุงสตูว์ป่า · ได้ยาฟื้นฟู 2');
++}
++
+ function attack() {
+   if (attackCooldown > 0) return;
+ 
+   const weapon = weaponStats[state.weapon] || weaponStats.sword;
++  const cls = classDefs[state.classId] || {};
++
++  if (weapon.kind === 'ranged') {
++    if (weapon.stamina && state.stamina < weapon.stamina) {
++      toast('พละกำลังไม่พอสำหรับการยิง');
++      return;
++    }
++
++    attackCooldown = weapon.cooldown;
++    attackAnimTimer = .24;
++    if (weapon.stamina) state.stamina = Math.max(0, state.stamina - weapon.stamina);
++    audio.play('attack');
++
++    const damage = (weapon.damage + state.attackBonus) * (cls.ranged || 1);
++    spawnProjectile(weapon, damage);
++    updateHud();
++    return;
++  }
++
+   attackCooldown = weapon.cooldown;
+   attackAnimTimer = .24;
+   audio.play('attack');
+-  let hit = false;
+ 
++  const forwardX = Math.sin(player.rotation.y);
++  const forwardZ = Math.cos(player.rotation.y);
++  const damage = (weapon.damage + state.attackBonus) * (cls.melee || 1);
++
++  let target = null;
++  let targetDistance = Infinity;
+   for (const enemy of enemies) {
+     if (!enemy.userData.alive) continue;
+ 
+-    const dx = player.position.x - enemy.position.x;
+-    const dz = player.position.z - enemy.position.z;
+-    const d = Math.hypot(dx, dz);
++    const dx = enemy.position.x - player.position.x;
++    const dz = enemy.position.z - player.position.z;
++    const distance = Math.hypot(dx, dz);
++    if (distance > weapon.range || distance < .001) continue;
+ 
+-    if (d < weapon.range) {
+-      enemy.userData.hp -= weapon.damage + state.attackBonus;
+-      hit = true;
+-      enemy.userData.hurtTimer = .3;
++    const facing = (dx * forwardX + dz * forwardZ) / distance;
++    if (facing < .15) continue;
+ 
+-      if (enemy.userData.hp <= 0) {
+-        defeatEnemy(enemy);
+-      } else {
+-        toast(`โจมตีโดนด้วย${weapon.name}`);
+-      }
++    if (distance < targetDistance) {
++      targetDistance = distance;
++      target = enemy;
++    }
++  }
+ 
+-      break;
++  if (target) {
++    damageEnemy(target, damage);
++    audio.play('hit');
++    if (target.userData.alive) {
++      toast(`โจมตี ${target.userData.name} -${Math.round(damage * 10) / 10}`);
+     }
++  } else {
++    toast('ไม่มีศัตรูอยู่ในระยะ');
+   }
+ 
+-  if (!hit) toast('ไม่มีศัตรูอยู่ในระยะ');
+   updateHud();
+ }
+ 
+@@ -2025,7 +2432,9 @@ function updateWorld(dt, yaw) {
+ 
+     if (isBoss) updateBossPhase(data);
+ 
+-    const speed = stats.speed * data.phaseMultiplier;
++    data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
++    const slowFactor = data.slowTimer > 0 ? .55 : 1;
++    const speed = stats.speed * data.phaseMultiplier * slowFactor;
+     const attackDamage = stats.damage * data.phaseMultiplier;
+ 
+     const hpRatio = Math.max(0, data.hp / data.maxHp);
+@@ -2061,25 +2470,18 @@ function updateWorld(dt, yaw) {
+         data.moving = true;
+       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
+         const armor = armorStats[state.armor] || armorStats.leather;
+-        const incomingDamage = attackDamage * (1 - armor.reduction);
++        const cls = classDefs[state.classId] || {};
++        const incomingDamage = attackDamage *
++          (1 - armor.reduction) *
++          (1 - (cls.damageReduction || 0));
+         state.hp = Math.max(0, state.hp - incomingDamage);
+         data.cooldown = stats.cooldown;
+         data.attackTimer = .4;
+         hurtAnimTimer = .3;
+         audio.play('hit');
+-        toast(`${data.name}โจมตีคุณ`);
+-
+-        if (state.hp <= 0) {
+-          state.hp = state.maxHp;
+-          const respawnY = getTerrainHeight(0, 3, 0) ?? 0;
+-          player.position.set(0, respawnY, 3);
+-          if (dungeonActive) {
+-            dungeonActive = false;
+-            state.dungeonCleared = true;
+-            setDungeonEnemies(false);
+-          }
+-          toast('คุณกลับมาที่จุดพัก');
+-        }
++        toast(`${data.name}โจมตีคุณ -${Math.round(incomingDamage)}`);
++
++        if (state.hp <= 0) handlePlayerDeath();
+ 
+         updateHud();
+       }
+@@ -2096,6 +2498,20 @@ function updateWorld(dt, yaw) {
+     );
+     enemy.position.y = terrainY === null ? data.baseY : terrainY;
+ 
++    if (!isBoss) {
++      for (const other of enemies) {
++        if (other === enemy || !other.userData.alive) continue;
++        const odx = enemy.position.x - other.position.x;
++        const odz = enemy.position.z - other.position.z;
++        const od = Math.hypot(odx, odz);
++        if (od > 0.001 && od < 1.0) {
++          const push = (1.0 - od) * 0.5;
++          enemy.position.x += odx / od * push;
++          enemy.position.z += odz / od * push;
++        }
++      }
++    }
++
+     updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
+   }
+ }
+@@ -2119,17 +2535,26 @@ function applySettings() {
+ 
+   audio.setEnabled(settings.sound);
+   audio.setWeather(settings.weather);
++  audio.setMusic(settings.music);
+ 
+   cinematic.setEnabled(settings.postfx && settings.quality !== 'low');
+   cinematic.setQuality(settings.quality);
+   const postfxToggle = $('#postfx-toggle');
+   if (postfxToggle) postfxToggle.checked = settings.postfx;
+ 
++  document.body.classList.toggle('layout-left', settings.mobileLayout === 'left');
++
+   $('#quality').value = settings.quality;
+   $('#sensitivity').value = String(settings.sensitivity);
+   $('#rain-toggle').checked = settings.weather;
+   const soundToggle = $('#sound-toggle');
+   if (soundToggle) soundToggle.checked = settings.sound;
++  const musicToggle = $('#music-toggle');
++  if (musicToggle) musicToggle.checked = settings.music;
++  const fpsSelect = $('#fps-limit');
++  if (fpsSelect) fpsSelect.value = settings.fpsLimit;
++  const layoutSelect = $('#mobile-layout');
++  if (layoutSelect) layoutSelect.value = settings.mobileLayout;
+ }
+ 
+ // ---------- Main Update ----------
+@@ -2182,6 +2607,7 @@ function update(dt) {
+       invulnerabilityTimer = .48;
+       dodgeCooldown = .85;
+       state.stamina = Math.max(0, state.stamina - 20);
++      audio.play('dodge');
+     } else if (state.stamina < 20) {
+       toast('พละกำลังไม่เพียงพอสำหรับหลบหลีก');
+     }
+@@ -2285,7 +2711,8 @@ playerSprite.scale.set(1.55 + attackGlow * .16, 2.05, 1);
+ body.rotation.x = -attackGlow * .22;
+ 
+   if (!moving || !(input.run || keys.ShiftLeft || keys.ShiftRight)) {
+-    state.stamina = Math.min(100, state.stamina + 15 * dt);
++    const staminaRegen = 15 * ((classDefs[state.classId] || {}).staminaRegen || 1);
++    state.stamina = Math.min(100, state.stamina + staminaRegen * dt);
+   }
+ 
+   // Jump is triggered once per press, not continuously while held.
+@@ -2428,6 +2855,17 @@ body.rotation.x = -attackGlow * .22;
+   updateDayNight(dt);
+   updateWeather(dt);
+   updateFireflies(dt);
++  updateProjectiles(dt);
++
++  if (campFire.visible) {
++    const flame = campFire.children[3];
++    const fireLight = campFire.children[4];
++    const t = performance.now() * .001;
++    flame.scale.setScalar(.92 + Math.sin(t * 9) * .08);
++    flame.material.opacity = .72 + Math.sin(t * 13) * .14;
++    fireLight.intensity = 2.1 + Math.sin(t * 7.3) * .5;
++  }
++
+   updateWorld(dt, yaw);
+   systems.update(dt, yaw);
+ 
+@@ -2490,6 +2928,20 @@ function closePanels(except = null) {
+   }
+   if (except !== 'settings') ui.settings.classList.add('hidden');
+   if (except !== 'shop') systems.closeShop();
++  if (except !== 'camp') closeCamp();
++  if (except !== 'dialogue') systems.closeDialogue();
++}
++
++function isPanelOpen() {
++  return (
++    !ui.settings.classList.contains('hidden') ||
++    !ui.inventory.classList.contains('hidden') ||
++    !questPanel.classList.contains('hidden') ||
++    !mapPanel.classList.contains('hidden') ||
++    !ui.shop.classList.contains('hidden') ||
++    !campPanel.classList.contains('hidden') ||
++    !dialoguePanel.classList.contains('hidden')
++  );
+ }
+ 
+ inventoryOpenButton.addEventListener('click', () => {
+@@ -2520,6 +2972,7 @@ function toggleMapPanel() {
+   closePanels(willOpen ? 'map' : null);
+   mapPanel.classList.toggle('hidden', !willOpen);
+   mapOpenButton.setAttribute('aria-expanded', String(willOpen));
++  if (willOpen) systems.drawWorldMap(yaw);
+ }
+ 
+ mapOpenButton.addEventListener('click', toggleMapPanel);
+@@ -2574,10 +3027,43 @@ if (saveSlotSelect) {
+ }
+ 
+ $('#shop-open').addEventListener('click', () => {
+-  const opening = !ui.shop.classList.contains('hidden');
+-  closePanels(opening ? 'shop' : null);
++  const willOpen = ui.shop.classList.contains('hidden');
++  closePanels(willOpen ? 'shop' : null);
++  if (willOpen) systems.openShop();
++  ui.shop.setAttribute('aria-expanded', String(willOpen));
+ });
+ 
++$('#camp').addEventListener('click', toggleCamp);
++$('#camp-close').addEventListener('click', closeCamp);
++$('#camp-rest').addEventListener('click', campRest);
++$('#camp-cook').addEventListener('click', campCook);
++
++$('#fps-limit').addEventListener('change', (e) => {
++  settings.fpsLimit = e.target.value;
++  toast(e.target.value === 'auto'
++    ? 'ปลดล็อกเฟรมเรต'
++    : `จำกัดที่ ${e.target.value} FPS`);
++});
++
++$('#mobile-layout').addEventListener('change', (e) => {
++  settings.mobileLayout = e.target.value;
++  applySettings();
++});
++
++const musicToggle = $('#music-toggle');
++if (musicToggle) musicToggle.addEventListener('change', (e) => {
++  settings.music = e.target.checked;
++  applySettings();
++});
++
++const classContainer = $('#inventory');
++if (classContainer) {
++  classContainer.addEventListener('click', (event) => {
++    const button = event.target.closest('[data-class]');
++    if (button) selectClass(button.dataset.class);
++  });
++}
++
+ $('#save-button').addEventListener('click', () => saveGame(true, currentSlot));
+ $('#load-button').addEventListener('click', () => loadGame(currentSlot));
+ 
+@@ -2633,13 +3119,20 @@ applySettings();
+ updateHud();
+ refreshEquipmentUI();
+ refreshSkillUI();
++refreshClassUI();
++systems.refreshQuestUI();
+ resizeGame();
+ 
+-function animate() {
++let lastFrameTime = 0;
++function animate(now = performance.now()) {
+   requestAnimationFrame(animate);
+ 
++  const fpsLimit = Number(settings.fpsLimit);
++  if (fpsLimit > 0 && now - lastFrameTime < 1000 / fpsLimit - 1.5) return;
++  lastFrameTime = now;
++
+   const dt = Math.min(clock.getDelta(), .05);
+-  update(dt);
++  if (!isPanelOpen()) update(dt);
+   cinematic.render();
+ }
+ 
+diff --git a/src/style.css b/src/style.css
+index c787247..18c8d3e 100644
+--- a/src/style.css
++++ b/src/style.css
+@@ -1101,3 +1101,19 @@ body {
+     font-size: 8px;
+   }
+ }
++
++/* Mobile action layout preference */
++body.layout-left #mobile-controls {
++  flex-direction: row-reverse;
++}
++
++/* Camp panel accents */
++.camp-panel {
++  border-color: #c98a4a77;
++}
++.camp-panel #camp-status {
++  font-size: 11px;
++  line-height: 1.5;
++  color: #e6d3a4;
++  margin: 6px 0 12px;
++}
+diff --git a/src/systems.js b/src/systems.js
+index a5ee18c..4ff9f7a 100644
+--- a/src/systems.js
++++ b/src/systems.js
+@@ -18,6 +18,7 @@ export const MATERIAL_INFO = {
+   ore: { name: 'แร่เหล็ก', color: 0x9ba6b4 },
+   wood: { name: 'ไม้โบราณ', color: 0x8b5e3c },
+   bone: { name: 'กระดูกผู้พิทักษ์', color: 0xd9d3c2 },
++  meat: { name: 'เนื้อสด', color: 0xc4635a },
+   darkShard: { name: 'เศษเงามืด', color: 0x9c72d4 },
+   essence: { name: 'แก่นวิญญาณ', color: 0x74c9d6 },
+   stoneHeart: { name: 'หัวใจศิลา', color: 0xd28b5c },
+@@ -28,8 +29,13 @@ export const RECIPES = [
+   { id: 'potion', name: 'ยาฟื้นฟู', cost: { herb: 3 }, give: { potions: 1 }, repeatable: true },
+   { id: 'greatsword', name: 'ดาบใหญ่', cost: { ore: 3, bone: 2 }, give: { item: 'greatsword' } },
+   { id: 'staff', name: 'คทาเวท', cost: { wood: 2, darkShard: 2 }, give: { item: 'staff' } },
++  { id: 'axe', name: 'ขวาน', cost: { ore: 2, wood: 2 }, give: { item: 'axe' } },
++  { id: 'bow', name: 'ธนูพรานป่า', cost: { wood: 3, bone: 2 }, give: { item: 'bow' } },
++  { id: 'froststaff', name: 'คทาเหมันต์', cost: { wood: 2, essence: 2, darkShard: 2 }, give: { item: 'froststaff' }, rarity: 'rare' },
+   { id: 'iron', name: 'เกราะเหล็ก', cost: { ore: 4, bone: 1 }, give: { item: 'iron' } },
++  { id: 'ranger', name: 'เกราะพราน', cost: { wood: 2, bone: 2 }, give: { item: 'ranger' } },
+   { id: 'shadow', name: 'เกราะเงา', cost: { darkShard: 3, wood: 2 }, give: { item: 'shadow' } },
++  { id: 'runerobe', name: 'ผ้าคลุมรูน', cost: { essence: 3, darkShard: 2 }, give: { item: 'runerobe' }, rarity: 'rare' },
+   { id: 'spellFire', name: 'เวทลูกไฟ', cost: { darkShard: 2, bone: 1 }, give: { spell: 'firebolt' } },
+   { id: 'spellHeal', name: 'เวทรักษา', cost: { herb: 4, bone: 1 }, give: { spell: 'heal' } },
+   { id: 'voidblade', name: 'ดาบเงาว่าง', cost: { bossRelic: 1, stoneHeart: 2, darkShard: 4 }, give: { item: 'voidblade' }, rarity: 'epic' },
+@@ -47,11 +53,18 @@ export const SHOP_ITEMS = [
+   { id: 'wood', name: 'ไม้โบราณ', price: 20 },
+   { id: 'ore', name: 'แร่เหล็ก', price: 40 },
+   { id: 'bone', name: 'กระดูกผู้พิทักษ์', price: 28 },
++  { id: 'meat', name: 'เนื้อสด', price: 16 },
+   { id: 'darkShard', name: 'เศษเงามืด', price: 60 },
+   { id: 'essence', name: 'แก่นวิญญาณ', price: 55 },
+   { id: 'stoneHeart', name: 'หัวใจศิลา', price: 90 },
++  { id: 'axe', name: 'ขวาน', price: 150 },
++  { id: 'bow', name: 'ธนูพรานป่า', price: 170 },
++  { id: 'staff', name: 'คทาเวท', price: 220, rarity: 'uncommon' },
++  { id: 'froststaff', name: 'คทาเหมันต์', price: 420, rarity: 'rare' },
+   { id: 'iron', name: 'เกราะเหล็ก', price: 180 },
+-  { id: 'shadow', name: 'เกราะเงา', price: 320 },
++  { id: 'ranger', name: 'เกราะพราน', price: 210, rarity: 'uncommon' },
++  { id: 'shadow', name: 'เกราะเงา', price: 320, rarity: 'rare' },
++  { id: 'runerobe', name: 'ผ้าคลุมรูน', price: 360, rarity: 'rare' },
+   { id: 'voidblade', name: 'ดาบเงาว่าง', price: 900, rarity: 'epic' },
+   { id: 'dragonplate', name: 'เกราะมังกรร้าง', price: 1000, rarity: 'epic' }
+ ];
+@@ -95,10 +108,12 @@ const LOOT_TABLE = {
+     { id: 'darkShard', chance: 1, min: 4, max: 6 }
+   ],
+   wolf: [
++    { id: 'meat', chance: 1, min: 1, max: 2 },
+     { id: 'bone', chance: .9, min: 1, max: 2 },
+     { id: 'darkShard', chance: .25, min: 1, max: 1 }
+   ],
+   deer: [
++    { id: 'meat', chance: .8, min: 1, max: 2 },
+     { id: 'herb', chance: 1, min: 1, max: 2 },
+     { id: 'wood', chance: .6, min: 1, max: 1 }
+   ]
+@@ -111,6 +126,11 @@ const ITEM_RARITY = {
+   voidblade: 'epic',
+   dragonplate: 'epic',
+   staff: 'uncommon',
++  axe: 'uncommon',
++  bow: 'uncommon',
++  ranger: 'uncommon',
++  froststaff: 'rare',
++  runerobe: 'rare',
+   shadow: 'rare'
+ };
+ 
+@@ -305,6 +325,7 @@ export function createSystems(ctx) {
+     if (typeof state.activeSpell !== 'string') state.activeSpell = null;
+     if (!state.quests || typeof state.quests !== 'object') state.quests = {};
+     if (!Array.isArray(state.discoveredSecrets)) state.discoveredSecrets = [];
++    if (typeof state.classId !== 'string') state.classId = null;
+   }
+ 
+   function getCount(id) {
+@@ -314,7 +335,8 @@ export function createSystems(ctx) {
+   function addItem(id, amount = 1) {
+     const equipmentIds = [
+       'sword', 'greatsword', 'staff', 'voidblade',
+-      'leather', 'iron', 'shadow', 'dragonplate'
++      'axe', 'bow', 'froststaff',
++      'leather', 'iron', 'shadow', 'dragonplate', 'ranger', 'runerobe'
+     ];
+     if (!MATERIAL_INFO[id] && !equipmentIds.includes(id)) return;
+ 
+@@ -705,12 +727,16 @@ export function createSystems(ctx) {
+ 
+     const spell = SPELLS[id];
+     if (state.mana < spell.cost) return toast('มนตรากำลังไม่เพียงพอ');
++    if (id === 'heal' && state.hp >= (state.maxHp || 100)) {
++      return toast('พลังชีวิตเต็มอยู่แล้ว');
++    }
+ 
+     state.mana -= spell.cost;
+     if (audio) audio.play('spell');
+ 
+     const arcana = Math.max(0, Number(state.skills && state.skills.arcana) || 0);
+-    const power = Math.round(spell.power * (1 + arcana * .1));
++    const classBonus = state.classId === 'mage' ? 1.25 : 1;
++    const power = Math.round(spell.power * (1 + arcana * .1) * classBonus);
+ 
+     if (id === 'heal') {
+       state.hp = Math.min(state.maxHp || 100, state.hp + power);
+@@ -975,7 +1001,7 @@ export function createSystems(ctx) {
+     if (buyContainer) {
+       buyContainer.innerHTML = SHOP_ITEMS.map((item) => {
+         const owned = item.id !== 'potion' && owns(item.id) &&
+-          !['herb', 'ore', 'wood', 'bone', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
++          !['herb', 'ore', 'wood', 'bone', 'meat', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
+         const disabled = gold < item.price || owned ? ' disabled' : '';
+         const label = owned ? 'มีแล้ว' : item.name;
+         const rarity = item.rarity
+@@ -1311,7 +1337,8 @@ export function createSystems(ctx) {
+     updateSecrets(dt);
+ 
+     const maxMana = state.maxMana || 100;
+-    state.mana = Math.min(maxMana, state.mana + 3 * dt);
++    const manaRegen = state.classId === 'mage' ? 4.5 : 3;
++    state.mana = Math.min(maxMana, state.mana + manaRegen * dt);
+ 
+     const manaFill = $('#mana-fill');
+     const manaText = $('#mana-text');
+@@ -1574,8 +1601,6 @@ export function createSystems(ctx) {
+     });
+   }
+ 
+-  const shopOpenButton = $('#shop-open');
+-  if (shopOpenButton) shopOpenButton.addEventListener('click', toggleShop);
+   const shopCloseButton = $('#shop-close');
+   if (shopCloseButton) shopCloseButton.addEventListener('click', closeShop);
+ 
