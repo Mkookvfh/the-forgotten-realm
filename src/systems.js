@@ -18,6 +18,7 @@ export const MATERIAL_INFO = {
   ore: { name: 'แร่เหล็ก', color: 0x9ba6b4 },
   wood: { name: 'ไม้โบราณ', color: 0x8b5e3c },
   bone: { name: 'กระดูกผู้พิทักษ์', color: 0xd9d3c2 },
+  meat: { name: 'เนื้อสด', color: 0xc4635a },
   darkShard: { name: 'เศษเงามืด', color: 0x9c72d4 },
   essence: { name: 'แก่นวิญญาณ', color: 0x74c9d6 },
   stoneHeart: { name: 'หัวใจศิลา', color: 0xd28b5c },
@@ -28,8 +29,13 @@ export const RECIPES = [
   { id: 'potion', name: 'ยาฟื้นฟู', cost: { herb: 3 }, give: { potions: 1 }, repeatable: true },
   { id: 'greatsword', name: 'ดาบใหญ่', cost: { ore: 3, bone: 2 }, give: { item: 'greatsword' } },
   { id: 'staff', name: 'คทาเวท', cost: { wood: 2, darkShard: 2 }, give: { item: 'staff' } },
+  { id: 'axe', name: 'ขวาน', cost: { ore: 2, wood: 2 }, give: { item: 'axe' } },
+  { id: 'bow', name: 'ธนูพรานป่า', cost: { wood: 3, bone: 2 }, give: { item: 'bow' } },
+  { id: 'froststaff', name: 'คทาเหมันต์', cost: { wood: 2, essence: 2, darkShard: 2 }, give: { item: 'froststaff' }, rarity: 'rare' },
   { id: 'iron', name: 'เกราะเหล็ก', cost: { ore: 4, bone: 1 }, give: { item: 'iron' } },
+  { id: 'ranger', name: 'เกราะพราน', cost: { wood: 2, bone: 2 }, give: { item: 'ranger' } },
   { id: 'shadow', name: 'เกราะเงา', cost: { darkShard: 3, wood: 2 }, give: { item: 'shadow' } },
+  { id: 'runerobe', name: 'ผ้าคลุมรูน', cost: { essence: 3, darkShard: 2 }, give: { item: 'runerobe' }, rarity: 'rare' },
   { id: 'spellFire', name: 'เวทลูกไฟ', cost: { darkShard: 2, bone: 1 }, give: { spell: 'firebolt' } },
   { id: 'spellHeal', name: 'เวทรักษา', cost: { herb: 4, bone: 1 }, give: { spell: 'heal' } },
   { id: 'voidblade', name: 'ดาบเงาว่าง', cost: { bossRelic: 1, stoneHeart: 2, darkShard: 4 }, give: { item: 'voidblade' }, rarity: 'epic' },
@@ -47,11 +53,18 @@ export const SHOP_ITEMS = [
   { id: 'wood', name: 'ไม้โบราณ', price: 20 },
   { id: 'ore', name: 'แร่เหล็ก', price: 40 },
   { id: 'bone', name: 'กระดูกผู้พิทักษ์', price: 28 },
+  { id: 'meat', name: 'เนื้อสด', price: 16 },
   { id: 'darkShard', name: 'เศษเงามืด', price: 60 },
   { id: 'essence', name: 'แก่นวิญญาณ', price: 55 },
   { id: 'stoneHeart', name: 'หัวใจศิลา', price: 90 },
+  { id: 'axe', name: 'ขวาน', price: 150 },
+  { id: 'bow', name: 'ธนูพรานป่า', price: 170 },
+  { id: 'staff', name: 'คทาเวท', price: 220, rarity: 'uncommon' },
+  { id: 'froststaff', name: 'คทาเหมันต์', price: 420, rarity: 'rare' },
   { id: 'iron', name: 'เกราะเหล็ก', price: 180 },
-  { id: 'shadow', name: 'เกราะเงา', price: 320 },
+  { id: 'ranger', name: 'เกราะพราน', price: 210, rarity: 'uncommon' },
+  { id: 'shadow', name: 'เกราะเงา', price: 320, rarity: 'rare' },
+  { id: 'runerobe', name: 'ผ้าคลุมรูน', price: 360, rarity: 'rare' },
   { id: 'voidblade', name: 'ดาบเงาว่าง', price: 900, rarity: 'epic' },
   { id: 'dragonplate', name: 'เกราะมังกรร้าง', price: 1000, rarity: 'epic' }
 ];
@@ -95,10 +108,12 @@ const LOOT_TABLE = {
     { id: 'darkShard', chance: 1, min: 4, max: 6 }
   ],
   wolf: [
+    { id: 'meat', chance: 1, min: 1, max: 2 },
     { id: 'bone', chance: .9, min: 1, max: 2 },
     { id: 'darkShard', chance: .25, min: 1, max: 1 }
   ],
   deer: [
+    { id: 'meat', chance: .8, min: 1, max: 2 },
     { id: 'herb', chance: 1, min: 1, max: 2 },
     { id: 'wood', chance: .6, min: 1, max: 1 }
   ]
@@ -111,6 +126,11 @@ const ITEM_RARITY = {
   voidblade: 'epic',
   dragonplate: 'epic',
   staff: 'uncommon',
+  axe: 'uncommon',
+  bow: 'uncommon',
+  ranger: 'uncommon',
+  froststaff: 'rare',
+  runerobe: 'rare',
   shadow: 'rare'
 };
 
@@ -305,6 +325,7 @@ export function createSystems(ctx) {
     if (typeof state.activeSpell !== 'string') state.activeSpell = null;
     if (!state.quests || typeof state.quests !== 'object') state.quests = {};
     if (!Array.isArray(state.discoveredSecrets)) state.discoveredSecrets = [];
+    if (typeof state.classId !== 'string') state.classId = null;
   }
 
   function getCount(id) {
@@ -314,7 +335,8 @@ export function createSystems(ctx) {
   function addItem(id, amount = 1) {
     const equipmentIds = [
       'sword', 'greatsword', 'staff', 'voidblade',
-      'leather', 'iron', 'shadow', 'dragonplate'
+      'axe', 'bow', 'froststaff',
+      'leather', 'iron', 'shadow', 'dragonplate', 'ranger', 'runerobe'
     ];
     if (!MATERIAL_INFO[id] && !equipmentIds.includes(id)) return;
 
@@ -705,12 +727,16 @@ export function createSystems(ctx) {
 
     const spell = SPELLS[id];
     if (state.mana < spell.cost) return toast('มนตรากำลังไม่เพียงพอ');
+    if (id === 'heal' && state.hp >= (state.maxHp || 100)) {
+      return toast('พลังชีวิตเต็มอยู่แล้ว');
+    }
 
     state.mana -= spell.cost;
     if (audio) audio.play('spell');
 
     const arcana = Math.max(0, Number(state.skills && state.skills.arcana) || 0);
-    const power = Math.round(spell.power * (1 + arcana * .1));
+    const classBonus = state.classId === 'mage' ? 1.25 : 1;
+    const power = Math.round(spell.power * (1 + arcana * .1) * classBonus);
 
     if (id === 'heal') {
       state.hp = Math.min(state.maxHp || 100, state.hp + power);
@@ -975,7 +1001,7 @@ export function createSystems(ctx) {
     if (buyContainer) {
       buyContainer.innerHTML = SHOP_ITEMS.map((item) => {
         const owned = item.id !== 'potion' && owns(item.id) &&
-          !['herb', 'ore', 'wood', 'bone', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
+          !['herb', 'ore', 'wood', 'bone', 'meat', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
         const disabled = gold < item.price || owned ? ' disabled' : '';
         const label = owned ? 'มีแล้ว' : item.name;
         const rarity = item.rarity
@@ -1311,7 +1337,8 @@ export function createSystems(ctx) {
     updateSecrets(dt);
 
     const maxMana = state.maxMana || 100;
-    state.mana = Math.min(maxMana, state.mana + 3 * dt);
+    const manaRegen = state.classId === 'mage' ? 4.5 : 3;
+    state.mana = Math.min(maxMana, state.mana + manaRegen * dt);
 
     const manaFill = $('#mana-fill');
     const manaText = $('#mana-text');
@@ -1574,8 +1601,6 @@ export function createSystems(ctx) {
     });
   }
 
-  const shopOpenButton = $('#shop-open');
-  if (shopOpenButton) shopOpenButton.addEventListener('click', toggleShop);
   const shopCloseButton = $('#shop-close');
   if (shopCloseButton) shopCloseButton.addEventListener('click', closeShop);
 

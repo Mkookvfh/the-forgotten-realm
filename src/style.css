@@ -1101,3 +1101,19 @@ body {
     font-size: 8px;
   }
 }
+
+/* Mobile action layout preference */
+body.layout-left #mobile-controls {
+  flex-direction: row-reverse;
+}
+
+/* Camp panel accents */
+.camp-panel {
+  border-color: #c98a4a77;
+}
+.camp-panel #camp-status {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e6d3a4;
+  margin: 6px 0 12px;
+}

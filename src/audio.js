@@ -2,9 +2,12 @@ export function createAudio() {
   let context = null;
   let master = null;
   let rainGain = null;
+  let musicGain = null;
+  let musicStarted = false;
   let ambienceStarted = false;
   let enabled = true;
   let weather = true;
+  let music = true;
 
   function ensureContext() {
     if (context) return context;
@@ -18,6 +21,7 @@ export function createAudio() {
     master.connect(context.destination);
 
     startAmbience();
+    startMusic();
     return context;
   }
 
@@ -66,6 +70,56 @@ export function createAudio() {
     filter.connect(rainGain);
     rainGain.connect(master);
     rain.start();
+  }
+
+  function startMusic() {
+    if (musicStarted || !context || !master) return;
+    musicStarted = true;
+
+    musicGain = context.createGain();
+    musicGain.gain.value = 0;
+    musicGain.connect(master);
+
+    const filter = context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 850;
+    filter.Q.value = 0.6;
+    filter.connect(musicGain);
+
+    const notes = [110, 164.81, 220, 277.18];
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = index % 2 ? 'triangle' : 'sine';
+      oscillator.frequency.value = frequency;
+
+      const level = context.createGain();
+      level.gain.value = 0.055 / (index + 1);
+
+      oscillator.connect(level);
+      level.connect(filter);
+      oscillator.start();
+
+      const lfo = context.createOscillator();
+      lfo.frequency.value = 0.03 + index * 0.011;
+      const lfoGain = context.createGain();
+      lfoGain.gain.value = 2.2;
+      lfo.connect(lfoGain);
+      lfoGain.connect(oscillator.detune);
+      lfo.start();
+    });
+
+    syncMusicGain();
+  }
+
+  function syncMusicGain() {
+    if (!musicGain || !context) return;
+    const target = music && enabled ? 0.75 : 0;
+    musicGain.gain.setTargetAtTime(target, context.currentTime, 0.6);
+  }
+
+  function setMusic(value) {
+    music = Boolean(value);
+    syncMusicGain();
   }
 
   function tone(frequency, duration, type, volume, endFrequency) {
@@ -190,6 +244,7 @@ export function createAudio() {
     if (master && context) {
       master.gain.setTargetAtTime(enabled ? 0.32 : 0, context.currentTime, 0.05);
     }
+    syncMusicGain();
   }
 
   function setWeather(value) {
@@ -199,5 +254,5 @@ export function createAudio() {
     }
   }
 
-  return { play, unlock, setEnabled, setWeather };
+  return { play, unlock, setEnabled, setWeather, setMusic };
 }

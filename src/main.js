@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { createSystems, RARITY } from './systems.js';
+import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
 import { createAudio } from './audio.js';
 import {
   createCharacterAtlas,
@@ -27,7 +27,8 @@ const ui = {
   potions: $('#potion-count'), quest: $('#quest-text'),
   clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
   settings: $('#settings-panel'), inventory: $('#inventory'),
-  shop: $('#shop-panel'), gold: $('#gold-count')
+  shop: $('#shop-panel'), gold: $('#gold-count'),
+  sideQuest: $('#side-quest-text')
 };
 
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -36,32 +37,61 @@ const settings = {
   sensitivity: 5,
   weather: true,
   sound: true,
+  music: true,
   postfx: true,
-  dayNightMode: 'auto'
+  dayNightMode: 'auto',
+  fpsLimit: 'auto',
+  mobileLayout: 'right'
 };
 const audio = createAudio();
 let currentSlot = 1;
 let dayNightMode = 'auto';
 
 const weaponStats = {
-  sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common' },
-  greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common' },
-  staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon' },
-  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic' }
+  sword: { name: 'ดาบ', damage: 1, range: 3.0, cooldown: 0.55, rarity: 'common', kind: 'melee' },
+  greatsword: { name: 'ดาบใหญ่', damage: 2, range: 3.4, cooldown: 0.9, rarity: 'common', kind: 'melee' },
+  axe: { name: 'ขวาน', damage: 1.7, range: 2.9, cooldown: 0.72, rarity: 'uncommon', kind: 'melee' },
+  staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon', kind: 'melee' },
+  bow: { name: 'ธนูพรานป่า', damage: 1.4, range: 18, cooldown: 0.62, rarity: 'uncommon', kind: 'ranged', projectile: 'arrow', stamina: 4 },
+  froststaff: { name: 'คทาเหมันต์', damage: 2.1, range: 15, cooldown: 1.0, rarity: 'rare', kind: 'ranged', projectile: 'frost', stamina: 7, slow: 2.5 },
+  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic', kind: 'melee' }
 };
 
 const armorStats = {
   leather: { name: 'เกราะหนัง', reduction: 0, rarity: 'common' },
   iron: { name: 'เกราะเหล็ก', reduction: .25, rarity: 'common' },
+  ranger: { name: 'เกราะพราน', reduction: .32, rarity: 'uncommon' },
   shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
+  runerobe: { name: 'ผ้าคลุมรูน', reduction: .45, rarity: 'rare' },
   dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
+};
+
+const classDefs = {
+  warrior: {
+    name: 'นักรบ',
+    desc: 'โจมตีระยะประชิด +20% · ลดความเสียหาย 10%',
+    melee: 1.2,
+    damageReduction: .1
+  },
+  ranger: {
+    name: 'พราน',
+    desc: 'โจมตีระยะไกล +25% · ฟื้นพละกำลังเร็วขึ้น 60%',
+    ranged: 1.25,
+    staminaRegen: 1.6
+  },
+  mage: {
+    name: 'จอมเวท',
+    desc: 'พลังเวท +25% · ฟื้นมนตราเร็วขึ้น 50%',
+    spell: 1.25,
+    manaRegen: 1.5
+  }
 };
 
 const state = {
   hp: 100, stamina: 100,   crystals: 0, potions: 2, gold: 60,
   level: 1, xp: 0, questStage: 0,
 
-  weapon: 'sword', armor: 'leather',
+  weapon: 'sword', armor: 'leather', classId: null,
   attackBonus: 0, skillPoints: 0,
   maxHp: 100, maxMana: 100,
   skills: { might: 0, vitality: 0, arcana: 0 },
@@ -72,7 +102,8 @@ const state = {
   weatherOn: true, dead: false,
   discoveredRegions: [],
   discoveredSecrets: [],
-  dungeonCleared: false
+  dungeonCleared: false,
+  respawnPoint: null
 };
 
 let toastTimer = 0;
@@ -89,7 +120,10 @@ function getSaveKey(slot = currentSlot) {
 }
 
 function updateHud() {
-  ui.hp.style.width = `${Math.max(0, state.hp)}%`;
+  const hpPercent = state.maxHp > 0
+    ? THREE.MathUtils.clamp(state.hp / state.maxHp * 100, 0, 100)
+    : 0;
+  ui.hp.style.width = `${hpPercent}%`;
   ui.hpText.textContent = `${Math.ceil(state.hp)} / ${state.maxHp}`;
   ui.stamina.style.width = `${Math.ceil(state.stamina)}%`;
   ui.staminaText.textContent = `${Math.ceil(state.stamina)} / 100`;
@@ -97,12 +131,22 @@ function updateHud() {
   ui.crystals.textContent = String(state.crystals);
   ui.potions.textContent = String(state.potions);
   if (ui.gold) ui.gold.textContent = String(state.gold);
+  if (ui.sideQuest) ui.sideQuest.textContent = activeQuestTrackerText();
 
   ui.quest.textContent = state.questStage === 0
     ? 'เดินทางไปยังหอคอยร้าง'
     : state.questStage === 1
       ? 'กำจัดผู้พิทักษ์ที่เฝ้าซากโบราณ'
       : 'สำเร็จ! สำรวจดินแดนต่อไป';
+}
+
+function activeQuestTrackerText() {
+  for (const [id, progress] of Object.entries(state.quests || {})) {
+    const quest = SIDE_QUESTS[id];
+    if (!quest || !progress || progress.status !== 'active') continue;
+    return `${quest.title} · ${Math.min(progress.count || 0, quest.target)}/${quest.target}`;
+  }
+  return '';
 }
 
 function refreshEquipmentUI() {
@@ -155,6 +199,27 @@ function selectArmor(id) {
   state.armor = id;
   refreshEquipmentUI();
   toast(`สวมใส่: ${armorStats[id].name}`);
+}
+
+function refreshClassUI() {
+  for (const id of Object.keys(classDefs)) {
+    const button = document.querySelector(`[data-class="${id}"]`);
+    if (!button) continue;
+    button.classList.toggle('selected', state.classId === id);
+    button.title = classDefs[id].desc;
+  }
+}
+
+function selectClass(id) {
+  const def = classDefs[id];
+  if (!def) return;
+  state.classId = state.classId === id ? null : id;
+  refreshClassUI();
+  refreshEquipmentUI();
+  updateHud();
+  toast(state.classId
+    ? `สายอาชีพ: ${def.name} — ${def.desc}`
+    : 'ยกเลิกสายอาชีพแล้ว');
 }
 
 const skillDefs = {
@@ -1251,15 +1316,41 @@ addEventListener('keydown', (e) => {
   }
 
   if (!keys[e.code]) {
+    if (e.code === 'Escape') {
+      closePanels();
+      closeCamp();
+      systems.closeDialogue();
+      keys[e.code] = true;
+      return;
+    }
+    if (e.code === 'KeyG') {
+      toggleCamp();
+      keys[e.code] = true;
+      return;
+    }
+    if (e.code === 'KeyM') {
+      toggleMapPanel();
+      keys[e.code] = true;
+      return;
+    }
+    if (e.code === 'KeyB') {
+      const willOpen = ui.shop.classList.contains('hidden');
+      closePanels(willOpen ? 'shop' : null);
+      if (willOpen) systems.openShop();
+      keys[e.code] = true;
+      return;
+    }
+    if (isPanelOpen()) {
+      keys[e.code] = true;
+      return;
+    }
+
     if (e.code === 'Space') input.jumpPressed = true;
     if (e.code === 'KeyF') input.attackPressed = true;
     if (e.code === 'KeyE') input.interactPressed = true;
     if (e.code === 'KeyQ') usePotion();
     if (e.code === 'KeyC') input.dodgePressed = true;
     if (e.code === 'KeyR') systems.castSpell();
-    if (e.code === 'KeyB') systems.toggleShop();
-    if (e.code === 'KeyM') toggleMapPanel();
-    if (e.code === 'Escape') closePanels();
   }
 
   keys[e.code] = true;
@@ -1433,6 +1524,7 @@ let hurtAnimTimer = 0;
 const dodgeDirection = new THREE.Vector3();
 let autoSaveTimer = 0;
 let dungeonActive = false;
+let campOpen = false;
 let prevYaw = yaw;
 let lastSun = 1;
 
@@ -1449,7 +1541,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 6,
+    version: 7,
     slot,
     dungeonActive,
     player: [
@@ -1518,6 +1610,27 @@ function loadGame(slot = currentSlot) {
 
     state.dungeonCleared = Boolean(data.state.dungeonCleared);
 
+    // Carry inventory, skills, spells and quests through the save before
+    // restoreState() sanitises them (previously these were silently reset).
+    if (data.state.inventory && typeof data.state.inventory === 'object') {
+      state.inventory = { ...data.state.inventory };
+    }
+    if (data.state.skills && typeof data.state.skills === 'object') {
+      state.skills = { ...data.state.skills };
+    }
+    if (Array.isArray(data.state.spells)) {
+      state.spells = data.state.spells.slice();
+    }
+    state.activeSpell = typeof data.state.activeSpell === 'string'
+      ? data.state.activeSpell
+      : null;
+    if (data.state.quests && typeof data.state.quests === 'object') {
+      state.quests = { ...data.state.quests };
+    }
+    if (Number.isFinite(Number(data.state.mana))) {
+      state.mana = Number(data.state.mana);
+    }
+
     systems.restoreState();
     systems.deserializeWorld(data.systems);
 
@@ -1540,6 +1653,20 @@ function loadGame(slot = currentSlot) {
     state.discoveredSecrets = Array.isArray(data.state.discoveredSecrets)
       ? data.state.discoveredSecrets.filter(id => typeof id === 'string')
       : [];
+
+    state.classId = classDefs[data.state.classId] ? data.state.classId : null;
+    state.respawnPoint =
+      Array.isArray(data.state.respawnPoint) &&
+      data.state.respawnPoint.length === 2 &&
+      data.state.respawnPoint.every(Number.isFinite)
+        ? data.state.respawnPoint.slice()
+        : null;
+
+    if (state.respawnPoint) {
+      const [rx, rz] = state.respawnPoint;
+      campFire.position.set(rx, getTerrainHeight(rx, rz, 0) ?? 0, rz);
+      campFire.visible = true;
+    }
 
     if (Array.isArray(data.collectibles)) {
       collectibles.forEach((crystal, index) => {
@@ -1603,6 +1730,13 @@ function loadGame(slot = currentSlot) {
       }
       settings.weather = Boolean(data.settings.weather);
       settings.sound = Boolean(data.settings.sound);
+      settings.music = data.settings.music !== false;
+      if (['auto', '30', '45', '60'].includes(String(data.settings.fpsLimit))) {
+        settings.fpsLimit = String(data.settings.fpsLimit);
+      }
+      if (['left', 'right'].includes(data.settings.mobileLayout)) {
+        settings.mobileLayout = data.settings.mobileLayout;
+      }
       if (['auto', 'day', 'night'].includes(data.settings.dayNightMode)) {
         settings.dayNightMode = data.settings.dayNightMode;
       }
@@ -1616,6 +1750,7 @@ function loadGame(slot = currentSlot) {
     updateHud();
     refreshEquipmentUI();
     refreshSkillUI();
+    refreshClassUI();
     systems.refreshInventoryUI();
     systems.refreshQuestUI();
     systems.renderShop();
@@ -1702,38 +1837,310 @@ function defeatEnemy(enemy) {
   updateHud();
 }
 
+const projectiles = [];
+
+function damageEnemy(enemy, amount, options = {}) {
+  const data = enemy.userData;
+  if (!data.alive) return;
+
+  data.hp -= amount;
+  data.hurtTimer = .3;
+  if (options.slow) {
+    data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
+  }
+
+  if (data.hp <= 0) defeatEnemy(enemy);
+}
+
+function spawnProjectile(weapon, damage) {
+  const forwardX = Math.sin(player.rotation.y);
+  const forwardZ = Math.cos(player.rotation.y);
+  const frost = weapon.projectile === 'frost';
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(frost ? .16 : .1, 8, 6),
+    new THREE.MeshBasicMaterial({ color: frost ? 0x9fe8ff : 0xffd27a })
+  );
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    color: frost ? 0x9fe8ff : 0xffd27a,
+    transparent: true,
+    opacity: .55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  }));
+  glow.scale.set(frost ? 1.1 : .8, frost ? 1.1 : .8, 1);
+  mesh.add(glow);
+
+  mesh.position.set(
+    player.position.x + forwardX * 1.0,
+    player.position.y + 1.15,
+    player.position.z + forwardZ * 1.0
+  );
+  scene.add(mesh);
+
+  projectiles.push({
+    mesh,
+    forwardX,
+    forwardZ,
+    speed: frost ? 30 : 38,
+    traveled: 0,
+    maxRange: weapon.range,
+    damage,
+    slow: weapon.slow || 0
+  });
+}
+
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const shot = projectiles[i];
+    const step = shot.speed * dt;
+    shot.mesh.position.x += shot.forwardX * step;
+    shot.mesh.position.z += shot.forwardZ * step;
+    shot.traveled += step;
+
+    let hit = null;
+    for (const enemy of enemies) {
+      if (!enemy.userData.alive) continue;
+      const dx = enemy.position.x - shot.mesh.position.x;
+      const dz = enemy.position.z - shot.mesh.position.z;
+      if (dx * dx + dz * dz < 1.2 * 1.2) {
+        hit = enemy;
+        break;
+      }
+    }
+
+    if (hit) {
+      damageEnemy(hit, shot.damage, { slow: shot.slow });
+      if (hit.userData.alive) {
+        toast(`โจมตีโดน ${hit.userData.name} -${Math.round(shot.damage * 10) / 10}`);
+        audio.play('hit');
+      }
+    }
+
+    if (hit || shot.traveled >= shot.maxRange) {
+      scene.remove(shot.mesh);
+      shot.mesh.geometry.dispose();
+      shot.mesh.material.dispose();
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+function handlePlayerDeath() {
+  state.hp = state.maxHp;
+  state.stamina = 100;
+  state.mana = state.maxMana;
+  invulnerabilityTimer = 1.5;
+
+  const point = Array.isArray(state.respawnPoint) ? state.respawnPoint : [0, 3];
+  const rx = Number.isFinite(point[0]) ? point[0] : 0;
+  const rz = Number.isFinite(point[1]) ? point[1] : 3;
+  player.position.set(rx, getTerrainHeight(rx, rz, 0) ?? 0, rz);
+  verticalVelocity = 0;
+  grounded = true;
+
+  let message = 'คุณล้มสลบ · กลับไปยังจุดพัก';
+  if (dungeonActive) {
+    dungeonActive = false;
+    setDungeonEnemies(false);
+    message = 'คุณถูกขับออกจากถ้ำต้องสาป';
+  }
+  if (state.gold > 0) {
+    const lost = Math.min(state.gold, 10);
+    state.gold -= lost;
+    message += ` · สูญเสียทอง ${lost}`;
+  }
+
+  clearInputs();
+  audio.play('boss');
+  toast(message);
+  updateHud();
+}
+
+// ---------- Camp ----------
+const campPanel = $('#camp-panel');
+const dialoguePanel = $('#dialogue-panel');
+const campFire = new THREE.Group();
+{
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 1 });
+  for (let i = 0; i < 3; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .11, 1.1, 6), logMat);
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = (i / 3) * Math.PI;
+    log.position.y = .12;
+    log.castShadow = true;
+    campFire.add(log);
+  }
+  const flame = new THREE.Mesh(
+    new THREE.ConeGeometry(.3, .8, 7),
+    new THREE.MeshBasicMaterial({ color: 0xffa24a, transparent: true, opacity: .85 })
+  );
+  flame.position.y = .45;
+  campFire.add(flame);
+  const fireLight = new THREE.PointLight(0xff9a4a, 2.2, 14);
+  fireLight.position.y = .9;
+  campFire.add(fireLight);
+  campFire.visible = false;
+  scene.add(campFire);
+}
+
+function enemiesNearPlayer(radius = 12) {
+  return enemies.some((enemy) =>
+    enemy.userData.alive &&
+    Math.hypot(
+      enemy.position.x - player.position.x,
+      enemy.position.z - player.position.z
+    ) < radius
+  );
+}
+
+function isCombatBlockingCamp() {
+  return dungeonActive || enemiesNearPlayer(12);
+}
+
+function updateCampStatus() {
+  const status = $('#camp-status');
+  if (!status) return;
+  const meat = systems.getCount('meat');
+  const herb = systems.getCount('herb');
+  if (dungeonActive) {
+    status.textContent = 'ในถ้ำต้องสาปไม่สามารถตั้งแคมป์ได้';
+  } else if (enemiesNearPlayer(12)) {
+    status.textContent = 'มีศัตรูอยู่ใกล้เกินไป · กำจัดให้หมดก่อนจึงจะพักได้';
+  } else {
+    status.textContent =
+      `กองไฟพร้อมสำหรับพักผ่อน · เนื้อสด ${meat} · สมุนไพร ${herb}`;
+  }
+  const restButton = $('#camp-rest');
+  if (restButton) restButton.disabled = isCombatBlockingCamp();
+  const cookButton = $('#camp-cook');
+  if (cookButton) cookButton.disabled = meat < 1 || herb < 1;
+}
+
+function openCamp() {
+  if (!campPanel) return;
+  if (dungeonActive) return toast('ในถ้ำต้องสาปตั้งแคมป์ไม่ได้');
+
+  state.respawnPoint = [
+    Math.round(player.position.x * 10) / 10,
+    Math.round(player.position.z * 10) / 10
+  ];
+  const groundY = getTerrainHeight(player.position.x, player.position.z, player.position.y) ?? 0;
+  campFire.position.set(
+    player.position.x + Math.sin(player.rotation.y) * 1.4,
+    groundY,
+    player.position.z + Math.cos(player.rotation.y) * 1.4
+  );
+  campFire.visible = true;
+  closePanels('camp');
+  campOpen = true;
+  campPanel.classList.remove('hidden');
+  updateCampStatus();
+}
+
+function closeCamp() {
+  campOpen = false;
+  if (campPanel) campPanel.classList.add('hidden');
+}
+
+function toggleCamp() {
+  if (campOpen) closeCamp();
+  else openCamp();
+}
+
+function campRest() {
+  if (isCombatBlockingCamp()) {
+    return toast('ยังพักไม่ได้ · มีศัตรูอยู่ใกล้');
+  }
+
+  state.dayTime = .28;
+  dayNightMode = 'auto';
+  settings.dayNightMode = 'auto';
+  state.hp = state.maxHp;
+  state.stamina = 100;
+  state.mana = state.maxMana;
+  invulnerabilityTimer = 1.5;
+  audio.play('quest');
+  updateHud();
+  refreshEquipmentUI();
+  toast('พักผ่อนจนรุ่งเช้า · ฟื้นฟูเต็มหลอด');
+  closeCamp();
+}
+
+function campCook() {
+  if (systems.getCount('meat') < 1 || systems.getCount('herb') < 1) {
+    return toast('ต้องใช้เนื้อสด 1 + สมุนไพร 1');
+  }
+
+  state.inventory.meat = systems.getCount('meat') - 1;
+  state.inventory.herb = systems.getCount('herb') - 1;
+  state.potions += 2;
+  audio.play('craft');
+  systems.refreshInventoryUI();
+  updateHud();
+  updateCampStatus();
+  toast('ปรุงสตูว์ป่า · ได้ยาฟื้นฟู 2');
+}
+
 function attack() {
   if (attackCooldown > 0) return;
 
   const weapon = weaponStats[state.weapon] || weaponStats.sword;
+  const cls = classDefs[state.classId] || {};
+
+  if (weapon.kind === 'ranged') {
+    if (weapon.stamina && state.stamina < weapon.stamina) {
+      toast('พละกำลังไม่พอสำหรับการยิง');
+      return;
+    }
+
+    attackCooldown = weapon.cooldown;
+    attackAnimTimer = .24;
+    if (weapon.stamina) state.stamina = Math.max(0, state.stamina - weapon.stamina);
+    audio.play('attack');
+
+    const damage = (weapon.damage + state.attackBonus) * (cls.ranged || 1);
+    spawnProjectile(weapon, damage);
+    updateHud();
+    return;
+  }
+
   attackCooldown = weapon.cooldown;
   attackAnimTimer = .24;
   audio.play('attack');
-  let hit = false;
 
+  const forwardX = Math.sin(player.rotation.y);
+  const forwardZ = Math.cos(player.rotation.y);
+  const damage = (weapon.damage + state.attackBonus) * (cls.melee || 1);
+
+  let target = null;
+  let targetDistance = Infinity;
   for (const enemy of enemies) {
     if (!enemy.userData.alive) continue;
 
-    const dx = player.position.x - enemy.position.x;
-    const dz = player.position.z - enemy.position.z;
-    const d = Math.hypot(dx, dz);
+    const dx = enemy.position.x - player.position.x;
+    const dz = enemy.position.z - player.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > weapon.range || distance < .001) continue;
 
-    if (d < weapon.range) {
-      enemy.userData.hp -= weapon.damage + state.attackBonus;
-      hit = true;
-      enemy.userData.hurtTimer = .3;
+    const facing = (dx * forwardX + dz * forwardZ) / distance;
+    if (facing < .15) continue;
 
-      if (enemy.userData.hp <= 0) {
-        defeatEnemy(enemy);
-      } else {
-        toast(`โจมตีโดนด้วย${weapon.name}`);
-      }
-
-      break;
+    if (distance < targetDistance) {
+      targetDistance = distance;
+      target = enemy;
     }
   }
 
-  if (!hit) toast('ไม่มีศัตรูอยู่ในระยะ');
+  if (target) {
+    damageEnemy(target, damage);
+    audio.play('hit');
+    if (target.userData.alive) {
+      toast(`โจมตี ${target.userData.name} -${Math.round(damage * 10) / 10}`);
+    }
+  } else {
+    toast('ไม่มีศัตรูอยู่ในระยะ');
+  }
+
   updateHud();
 }
 
@@ -2025,7 +2432,9 @@ function updateWorld(dt, yaw) {
 
     if (isBoss) updateBossPhase(data);
 
-    const speed = stats.speed * data.phaseMultiplier;
+    data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
+    const slowFactor = data.slowTimer > 0 ? .55 : 1;
+    const speed = stats.speed * data.phaseMultiplier * slowFactor;
     const attackDamage = stats.damage * data.phaseMultiplier;
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
@@ -2061,25 +2470,18 @@ function updateWorld(dt, yaw) {
         data.moving = true;
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         const armor = armorStats[state.armor] || armorStats.leather;
-        const incomingDamage = attackDamage * (1 - armor.reduction);
+        const cls = classDefs[state.classId] || {};
+        const incomingDamage = attackDamage *
+          (1 - armor.reduction) *
+          (1 - (cls.damageReduction || 0));
         state.hp = Math.max(0, state.hp - incomingDamage);
         data.cooldown = stats.cooldown;
         data.attackTimer = .4;
         hurtAnimTimer = .3;
         audio.play('hit');
-        toast(`${data.name}โจมตีคุณ`);
+        toast(`${data.name}โจมตีคุณ -${Math.round(incomingDamage)}`);
 
-        if (state.hp <= 0) {
-          state.hp = state.maxHp;
-          const respawnY = getTerrainHeight(0, 3, 0) ?? 0;
-          player.position.set(0, respawnY, 3);
-          if (dungeonActive) {
-            dungeonActive = false;
-            state.dungeonCleared = true;
-            setDungeonEnemies(false);
-          }
-          toast('คุณกลับมาที่จุดพัก');
-        }
+        if (state.hp <= 0) handlePlayerDeath();
 
         updateHud();
       }
@@ -2095,6 +2497,20 @@ function updateWorld(dt, yaw) {
       data.baseY
     );
     enemy.position.y = terrainY === null ? data.baseY : terrainY;
+
+    if (!isBoss) {
+      for (const other of enemies) {
+        if (other === enemy || !other.userData.alive) continue;
+        const odx = enemy.position.x - other.position.x;
+        const odz = enemy.position.z - other.position.z;
+        const od = Math.hypot(odx, odz);
+        if (od > 0.001 && od < 1.0) {
+          const push = (1.0 - od) * 0.5;
+          enemy.position.x += odx / od * push;
+          enemy.position.z += odz / od * push;
+        }
+      }
+    }
 
     updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
   }
@@ -2119,17 +2535,26 @@ function applySettings() {
 
   audio.setEnabled(settings.sound);
   audio.setWeather(settings.weather);
+  audio.setMusic(settings.music);
 
   cinematic.setEnabled(settings.postfx && settings.quality !== 'low');
   cinematic.setQuality(settings.quality);
   const postfxToggle = $('#postfx-toggle');
   if (postfxToggle) postfxToggle.checked = settings.postfx;
 
+  document.body.classList.toggle('layout-left', settings.mobileLayout === 'left');
+
   $('#quality').value = settings.quality;
   $('#sensitivity').value = String(settings.sensitivity);
   $('#rain-toggle').checked = settings.weather;
   const soundToggle = $('#sound-toggle');
   if (soundToggle) soundToggle.checked = settings.sound;
+  const musicToggle = $('#music-toggle');
+  if (musicToggle) musicToggle.checked = settings.music;
+  const fpsSelect = $('#fps-limit');
+  if (fpsSelect) fpsSelect.value = settings.fpsLimit;
+  const layoutSelect = $('#mobile-layout');
+  if (layoutSelect) layoutSelect.value = settings.mobileLayout;
 }
 
 // ---------- Main Update ----------
@@ -2182,6 +2607,7 @@ function update(dt) {
       invulnerabilityTimer = .48;
       dodgeCooldown = .85;
       state.stamina = Math.max(0, state.stamina - 20);
+      audio.play('dodge');
     } else if (state.stamina < 20) {
       toast('พละกำลังไม่เพียงพอสำหรับหลบหลีก');
     }
@@ -2285,7 +2711,8 @@ playerSprite.scale.set(1.55 + attackGlow * .16, 2.05, 1);
 body.rotation.x = -attackGlow * .22;
 
   if (!moving || !(input.run || keys.ShiftLeft || keys.ShiftRight)) {
-    state.stamina = Math.min(100, state.stamina + 15 * dt);
+    const staminaRegen = 15 * ((classDefs[state.classId] || {}).staminaRegen || 1);
+    state.stamina = Math.min(100, state.stamina + staminaRegen * dt);
   }
 
   // Jump is triggered once per press, not continuously while held.
@@ -2428,6 +2855,17 @@ body.rotation.x = -attackGlow * .22;
   updateDayNight(dt);
   updateWeather(dt);
   updateFireflies(dt);
+  updateProjectiles(dt);
+
+  if (campFire.visible) {
+    const flame = campFire.children[3];
+    const fireLight = campFire.children[4];
+    const t = performance.now() * .001;
+    flame.scale.setScalar(.92 + Math.sin(t * 9) * .08);
+    flame.material.opacity = .72 + Math.sin(t * 13) * .14;
+    fireLight.intensity = 2.1 + Math.sin(t * 7.3) * .5;
+  }
+
   updateWorld(dt, yaw);
   systems.update(dt, yaw);
 
@@ -2490,6 +2928,20 @@ function closePanels(except = null) {
   }
   if (except !== 'settings') ui.settings.classList.add('hidden');
   if (except !== 'shop') systems.closeShop();
+  if (except !== 'camp') closeCamp();
+  if (except !== 'dialogue') systems.closeDialogue();
+}
+
+function isPanelOpen() {
+  return (
+    !ui.settings.classList.contains('hidden') ||
+    !ui.inventory.classList.contains('hidden') ||
+    !questPanel.classList.contains('hidden') ||
+    !mapPanel.classList.contains('hidden') ||
+    !ui.shop.classList.contains('hidden') ||
+    !campPanel.classList.contains('hidden') ||
+    !dialoguePanel.classList.contains('hidden')
+  );
 }
 
 inventoryOpenButton.addEventListener('click', () => {
@@ -2520,6 +2972,7 @@ function toggleMapPanel() {
   closePanels(willOpen ? 'map' : null);
   mapPanel.classList.toggle('hidden', !willOpen);
   mapOpenButton.setAttribute('aria-expanded', String(willOpen));
+  if (willOpen) systems.drawWorldMap(yaw);
 }
 
 mapOpenButton.addEventListener('click', toggleMapPanel);
@@ -2574,9 +3027,42 @@ if (saveSlotSelect) {
 }
 
 $('#shop-open').addEventListener('click', () => {
-  const opening = !ui.shop.classList.contains('hidden');
-  closePanels(opening ? 'shop' : null);
+  const willOpen = ui.shop.classList.contains('hidden');
+  closePanels(willOpen ? 'shop' : null);
+  if (willOpen) systems.openShop();
+  ui.shop.setAttribute('aria-expanded', String(willOpen));
 });
+
+$('#camp').addEventListener('click', toggleCamp);
+$('#camp-close').addEventListener('click', closeCamp);
+$('#camp-rest').addEventListener('click', campRest);
+$('#camp-cook').addEventListener('click', campCook);
+
+$('#fps-limit').addEventListener('change', (e) => {
+  settings.fpsLimit = e.target.value;
+  toast(e.target.value === 'auto'
+    ? 'ปลดล็อกเฟรมเรต'
+    : `จำกัดที่ ${e.target.value} FPS`);
+});
+
+$('#mobile-layout').addEventListener('change', (e) => {
+  settings.mobileLayout = e.target.value;
+  applySettings();
+});
+
+const musicToggle = $('#music-toggle');
+if (musicToggle) musicToggle.addEventListener('change', (e) => {
+  settings.music = e.target.checked;
+  applySettings();
+});
+
+const classContainer = $('#inventory');
+if (classContainer) {
+  classContainer.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-class]');
+    if (button) selectClass(button.dataset.class);
+  });
+}
 
 $('#save-button').addEventListener('click', () => saveGame(true, currentSlot));
 $('#load-button').addEventListener('click', () => loadGame(currentSlot));
@@ -2633,13 +3119,20 @@ applySettings();
 updateHud();
 refreshEquipmentUI();
 refreshSkillUI();
+refreshClassUI();
+systems.refreshQuestUI();
 resizeGame();
 
-function animate() {
+let lastFrameTime = 0;
+function animate(now = performance.now()) {
   requestAnimationFrame(animate);
 
+  const fpsLimit = Number(settings.fpsLimit);
+  if (fpsLimit > 0 && now - lastFrameTime < 1000 / fpsLimit - 1.5) return;
+  lastFrameTime = now;
+
   const dt = Math.min(clock.getDelta(), .05);
-  update(dt);
+  if (!isPanelOpen()) update(dt);
   cinematic.render();
 }
 
