@@ -98,6 +98,8 @@ const state = {
   inventory: { sword: 1, leather: 1 },
   mana: 100, spells: [], activeSpell: null,
   quests: {},
+  upgrades: {},
+  bounties: [],
   dayTime: 0.72, weatherTime: 0,
   weatherOn: true, dead: false,
   discoveredRegions: [],
@@ -146,12 +148,57 @@ function activeQuestTrackerText() {
     if (!quest || !progress || progress.status !== 'active') continue;
     return `${quest.title} · ${Math.min(progress.count || 0, quest.target)}/${quest.target}`;
   }
+  const bounty = (state.bounties || []).find((entry) => entry && !entry.done);
+  if (bounty) {
+    return `${bounty.title} · ${Math.min(bounty.count || 0, bounty.target)}/${bounty.target}`;
+  }
   return '';
+}
+
+const GEAR_DAMAGE_PER_TIER = .10;
+const GEAR_ARMOR_PER_TIER = .04;
+
+function weaponDamageMultiplier() {
+  return 1 + GEAR_DAMAGE_PER_TIER * systems.gearTier('weapon');
+}
+
+function armorReduction() {
+  const armor = armorStats[state.armor] || armorStats.leather;
+  return Math.min(.85, armor.reduction + GEAR_ARMOR_PER_TIER * systems.gearTier('armor'));
+}
+
+function renderUpgradeUI() {
+  for (const slot of ['weapon', 'armor']) {
+    const info = $(`#upgrade-${slot}-info`);
+    const button = $(`#upgrade-${slot}`);
+    if (!info && !button) continue;
+
+    const tier = systems.gearTier(slot);
+    const cost = systems.gearUpgradeCost(slot);
+    const item = slot === 'armor'
+      ? (armorStats[state.armor] || armorStats.leather)
+      : (weaponStats[state.weapon] || weaponStats.sword);
+    const gain = slot === 'armor'
+      ? `ลดดาเมจ +${Math.round(GEAR_ARMOR_PER_TIER * 100)}%/ระดับ`
+      : `พลังโจมตี +${Math.round(GEAR_DAMAGE_PER_TIER * 100)}%/ระดับ`;
+
+    if (info) {
+      info.textContent = cost
+        ? `${item.name} +${tier} · ${cost.gold} ทอง · แร่ ${cost.ore} · ผลึก ${cost.crystals} (${gain})`
+        : `${item.name} +${tier} · ระดับสูงสุด`;
+    }
+    if (button) {
+      button.disabled = !cost || !systems.owns(slot === 'armor' ? state.armor : state.weapon);
+      button.textContent = cost ? `อัปเกรด +${tier + 1}` : 'เต็มระดับ';
+    }
+  }
 }
 
 function refreshEquipmentUI() {
   const weapon = weaponStats[state.weapon] || weaponStats.sword;
   const armor = armorStats[state.armor] || armorStats.leather;
+  const weaponTier = systems.gearTier('weapon');
+  const armorTier = systems.gearTier('armor');
 
   const weaponLabel = $('#equipped-weapon');
   const armorLabel = $('#equipped-armor');
@@ -159,17 +206,24 @@ function refreshEquipmentUI() {
   const defenseLabel = $('#defense-stat');
   const skillLabel = $('#skill-points');
 
+  const tierText = (tier) => (tier > 0 ? ` +${tier}` : '');
+
   if (weaponLabel) {
-    weaponLabel.textContent = `${weapon.name} [${RARITY[weapon.rarity || 'common'].name}]`;
+    weaponLabel.textContent = `${weapon.name}${tierText(weaponTier)} [${RARITY[weapon.rarity || 'common'].name}]`;
     weaponLabel.style.color = RARITY[weapon.rarity || 'common'].color;
   }
   if (armorLabel) {
-    armorLabel.textContent = `${armor.name} [${RARITY[armor.rarity || 'common'].name}]`;
+    armorLabel.textContent = `${armor.name}${tierText(armorTier)} [${RARITY[armor.rarity || 'common'].name}]`;
     armorLabel.style.color = RARITY[armor.rarity || 'common'].color;
   }
-  if (attackLabel) attackLabel.textContent = String(weapon.damage + state.attackBonus);
-  if (defenseLabel) defenseLabel.textContent = `${Math.round(armor.reduction * 100)}%`;
+  if (attackLabel) {
+    attackLabel.textContent = ((weapon.damage + state.attackBonus) * weaponDamageMultiplier())
+      .toFixed(1);
+  }
+  if (defenseLabel) defenseLabel.textContent = `${Math.round(armorReduction() * 100)}%`;
   if (skillLabel) skillLabel.textContent = String(state.skillPoints);
+
+  renderUpgradeUI();
 
   for (const id of Object.keys(weaponStats)) {
     const button = $(`#weapon-${id}`);
@@ -1618,7 +1672,9 @@ const cWhiteSun = new THREE.Color(0xfff1d6);
 
 const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
+const smoothTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
+let cameraReady = false;
 
 
 function saveGame(showMessage = true, slot = currentSlot) {
@@ -1626,7 +1682,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 7,
+    version: 8,
     slot,
     dungeonActive,
     player: [
@@ -1711,6 +1767,25 @@ function loadGame(slot = currentSlot) {
       : null;
     if (data.state.quests && typeof data.state.quests === 'object') {
       state.quests = { ...data.state.quests };
+    }
+    if (data.state.upgrades && typeof data.state.upgrades === 'object') {
+      const upgrades = {};
+      for (const [id, tier] of Object.entries(data.state.upgrades)) {
+        const value = Math.round(Number(tier));
+        if (Number.isFinite(value) && value > 0) {
+          upgrades[id] = Math.min(5, value);
+        }
+      }
+      state.upgrades = upgrades;
+    }
+    if (Array.isArray(data.state.bounties)) {
+      state.bounties = data.state.bounties
+        .filter((bounty) => bounty && typeof bounty.type === 'string')
+        .map((bounty) => ({
+          ...bounty,
+          count: Math.max(0, Math.round(Number(bounty.count) || 0)),
+          target: Math.max(1, Math.round(Number(bounty.target) || 1))
+        }));
     }
     if (Number.isFinite(Number(data.state.mana))) {
       state.mana = Number(data.state.mana);
@@ -2183,7 +2258,9 @@ function attack() {
     if (weapon.stamina) state.stamina = Math.max(0, state.stamina - weapon.stamina);
     audio.play('attack');
 
-    const damage = (weapon.damage + state.attackBonus) * (cls.ranged || 1);
+    const damage = (weapon.damage + state.attackBonus) *
+      weaponDamageMultiplier() *
+      (cls.ranged || 1);
     spawnProjectile(weapon, damage);
     updateHud();
     return;
@@ -2195,7 +2272,9 @@ function attack() {
 
   const forwardX = Math.sin(player.rotation.y);
   const forwardZ = Math.cos(player.rotation.y);
-  const damage = (weapon.damage + state.attackBonus) * (cls.melee || 1);
+  const damage = (weapon.damage + state.attackBonus) *
+    weaponDamageMultiplier() *
+    (cls.melee || 1);
 
   let target = null;
   let targetDistance = Infinity;
@@ -2589,10 +2668,9 @@ function updateWorld(dt, yaw) {
         enemy.position.addScaledVector(direction, dt * speed);
         data.moving = true;
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
-        const armor = armorStats[state.armor] || armorStats.leather;
         const cls = classDefs[state.classId] || {};
         const incomingDamage = attackDamage *
-          (1 - armor.reduction) *
+          (1 - armorReduction()) *
           (1 - (cls.damageReduction || 0));
         state.hp = Math.max(0, state.hp - incomingDamage);
         data.cooldown = stats.cooldown;
@@ -2740,12 +2818,16 @@ function update(dt) {
   if (dodgeTimer > 0) {
     const moveX = dodgeDirection.x * 8.5 * dt;
     const moveZ = dodgeDirection.z * 8.5 * dt;
-    const canDodgeTo = (x, z) => obstacles.every(obstacle => {
-      const dx = x - obstacle.x;
-      const dz = z - obstacle.z;
-      const minDistance = .55 + obstacle.radius;
-      return dx * dx + dz * dz >= minDistance * minDistance;
-    });
+    const stuckDodge = worldStreamer.blocked(player.position.x, player.position.z, .55);
+    const canDodgeTo = (x, z) => {
+      if (!stuckDodge && worldStreamer.blocked(x, z, .55)) return false;
+      return obstacles.every(obstacle => {
+        const dx = x - obstacle.x;
+        const dz = z - obstacle.z;
+        const minDistance = .55 + obstacle.radius;
+        return dx * dx + dz * dz >= minDistance * minDistance;
+      });
+    };
 
     const nextX = player.position.x + moveX;
     const nextZ = player.position.z + moveZ;
@@ -2769,12 +2851,18 @@ function update(dt) {
     const moveZ = wz * speed * dt;
     const playerRadius = 0.55;
 
-    const canMoveTo = (x, z) => obstacles.every(obstacle => {
-      const dx = x - obstacle.x;
-      const dz = z - obstacle.z;
-      const minDistance = playerRadius + obstacle.radius;
-      return dx * dx + dz * dz >= minDistance * minDistance;
-    });
+    const stuck = worldStreamer.blocked(player.position.x, player.position.z, playerRadius);
+    const canMoveTo = (x, z) => {
+      // Never trap a body that already overlaps an obstacle (spawn, teleport,
+      // or a prop streamed in on top of it): let it walk back out.
+      if (!stuck && worldStreamer.blocked(x, z, playerRadius)) return false;
+      return obstacles.every(obstacle => {
+        const dx = x - obstacle.x;
+        const dz = z - obstacle.z;
+        const minDistance = playerRadius + obstacle.radius;
+        return dx * dx + dz * dz >= minDistance * minDistance;
+      });
+    };
 
     const nextX = player.position.x + moveX;
     const nextZ = player.position.z + moveZ;
@@ -2867,8 +2955,8 @@ body.rotation.x = -attackGlow * .22;
     const followingGround =
       wasGrounded &&
       verticalVelocity <= 0 &&
-      groundDelta >= -0.35 &&
-      groundDelta <= 0.35;
+      groundDelta >= -1.0 &&
+      groundDelta <= 1.0;
 
     const landing =
       verticalVelocity <= 0 &&
@@ -2928,21 +3016,48 @@ body.rotation.x = -attackGlow * .22;
     player.position.z
   );
 
+  // The look-at point is smoothed separately (and faster) than the eye, so a
+  // single terrain step or frame hitch cannot make the view snap sideways.
+  if (!cameraReady) {
+    smoothTarget.copy(cameraTarget);
+    cameraReady = true;
+  } else {
+    smoothTarget.lerp(
+      cameraTarget,
+      Math.min(.55, 1 - Math.pow(1e-10, dt))
+    );
+  }
+
   const horizontal = Math.cos(pitch) * distance;
   const yawDelta = yaw - prevYaw;
   prevYaw = yaw;
 
   desiredCamera.set(
-    cameraTarget.x + Math.sin(yaw) * horizontal,
-    cameraTarget.y + Math.sin(pitch) * distance,
-    cameraTarget.z + Math.cos(yaw) * horizontal
+    smoothTarget.x + Math.sin(yaw) * horizontal,
+    smoothTarget.y + Math.sin(pitch) * distance,
+    smoothTarget.z + Math.cos(yaw) * horizontal
   );
 
-  camera.position.lerp(desiredCamera, 1 - Math.pow(.001, dt));
-  camera.lookAt(cameraTarget);
+  // Cap the smoothing step: chunk streaming and GC cause occasional long
+  // frames, and letting a 300 ms frame move the eye 30% of the way to its
+  // target reads as a camera jolt while walking.
+  const cameraDt = Math.min(dt, 1 / 30);
+  camera.position.lerp(desiredCamera, 1 - Math.pow(.001, cameraDt));
+  camera.lookAt(smoothTarget);
 
-  const rollTarget = THREE.MathUtils.clamp(-yawDelta * 0.9, -0.035, 0.035);
-  camera.rotation.z += (rollTarget - camera.rotation.z) * Math.min(1, dt * 7);
+  // Keep the eye above the ground so walking up a slope does not clip the
+  // near plane through the terrain.
+  const cameraGround = getTerrainHeight(
+    camera.position.x,
+    camera.position.z,
+    camera.position.y
+  );
+  if (cameraGround !== null && camera.position.y < cameraGround + .7) {
+    camera.position.y = cameraGround + .7;
+  }
+
+  const rollTarget = THREE.MathUtils.clamp(-yawDelta * 0.9, -0.02, 0.02);
+  camera.rotation.z += (rollTarget - camera.rotation.z) * Math.min(1, dt * 5);
 
   if (hurtAnimTimer > 0) {
     const k = hurtAnimTimer * 0.06;
@@ -3209,6 +3324,15 @@ if (skillTree) {
   });
 }
 
+const upgradeWeaponButton = $('#upgrade-weapon');
+if (upgradeWeaponButton) {
+  upgradeWeaponButton.addEventListener('click', () => systems.upgradeGear('weapon'));
+}
+const upgradeArmorButton = $('#upgrade-armor');
+if (upgradeArmorButton) {
+  upgradeArmorButton.addEventListener('click', () => systems.upgradeGear('armor'));
+}
+
 // ---------- Screen Resize / Rotation ----------
 function resizeGame() {
   const width = Math.max(1, window.innerWidth);
@@ -3250,6 +3374,7 @@ systems.refreshQuestUI();
 resizeGame();
 
 let lastFrameTime = 0;
+
 function animate(now = performance.now()) {
   requestAnimationFrame(animate);
 

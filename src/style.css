@@ -847,6 +847,107 @@ body {
   background: #e3c17e10;
 }
 
+/* Bounty contracts and blacksmith upgrades */
+.bounty-block {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff20;
+}
+
+.bounty-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bounty-head b {
+  color: #e3c17e;
+  font-size: 11px;
+}
+
+.mini-btn {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid #ffffff26;
+  border-radius: 8px;
+  background: #2b3446;
+  color: #e8e2d6;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.mini-btn:active {
+  transform: translateY(1px);
+}
+
+.bounty-list {
+  display: grid;
+  gap: 6px;
+}
+
+.bounty-entry {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid #ffffff18;
+  border-radius: 8px;
+  background: #ffffff06;
+}
+
+.bounty-entry b {
+  color: #d9c08a;
+  font-size: 10px;
+}
+
+.bounty-entry small {
+  color: #b0aaa0;
+  font-size: 9px;
+}
+
+.bounty-entry.done {
+  border-color: #7fd47f44;
+  background: #7fd47f10;
+}
+
+.bounty-entry.done b {
+  color: #9fe09f;
+}
+
+.upgrade-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.upgrade-row span {
+  color: #b9b3a8;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.upgrade-row button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid #e2c17e55;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #6a5433, #33281b);
+  color: #ffefcc;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.upgrade-row button:disabled {
+  opacity: .45;
+  border-color: #ffffff1c;
+  background: #283244;
+  color: #b9b3a8;
+}
+
 .dialogue-panel {
   left: 50%;
   right: auto;

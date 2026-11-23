@@ -66,6 +66,132 @@ const NO_SHADOW_CAST = new Set([
    low-poly outcrops, dead trees and town read clearly instead. */
 const HIDDEN_PROPS = new Set(['Dark_Rock']);
 
+/* Walkable surfaces. Everything else in a chunk is treated as an obstacle
+   when it rises more than STEP_HEIGHT above the local ground. Roofs and
+   window trim are excluded because their seams hang outside the wall line
+   or sit inside it; the walls themselves are what must block movement. */
+const NON_BLOCKING = new Set([
+  'Ash_Ground', 'Dirt_Road', 'Farm_Soil', 'Cobblestone',
+  'Cliff_Rock', 'Mountain_Rock',
+  'Cursed_Lake', 'Well_Water', 'Lava',
+  'Window_Glow', 'Dark_Window',
+  'Roof_Slate', 'Roof_Tile', 'Market_Cloth',
+  'Dark_Rock'
+]);
+
+/* A prop must stand this tall above the terrain to stop the player, so
+   pebbles, bones lying flat and grass do not create invisible walls. */
+const STEP_HEIGHT = .85;
+const COLLISION_CELL = 1.0;
+
+/* The streamed chunks ship as merged per-material meshes, so a mesh bounding
+   box is the whole district and useless for collision. Instead every solid
+   triangle edge is stamped into a 1 m occupancy grid, which turns walls,
+   tree trunks, fences and gravestones into a walkable/blocked field. */
+function buildCollisionGrid(scene, chunkBounds, groundAt) {
+  const cell = COLLISION_CELL;
+  const cols = Math.max(1, Math.ceil((chunkBounds.maxX - chunkBounds.minX) / cell));
+  const rows = Math.max(1, Math.ceil((chunkBounds.maxZ - chunkBounds.minZ) / cell));
+  const blocked = new Uint8Array(cols * rows);
+  const ground = new Float32Array(cols * rows).fill(NaN);
+  const matrix = new THREE.Matrix4();
+  const v = new THREE.Vector3();
+  let stamped = 0;
+
+  const groundFor = (cx, cz) => {
+    const gx = Math.min(cols - 1, Math.max(0, cx));
+    const gz = Math.min(rows - 1, Math.max(0, cz));
+    const key = gz * cols + gx;
+    let h = ground[key];
+    if (!Number.isNaN(h)) return h;
+    h = groundAt(
+      chunkBounds.minX + (gx + .5) * cell,
+      chunkBounds.minZ + (gz + .5) * cell
+    );
+    ground[key] = Number.isFinite(h) ? h : 0;
+    return ground[key];
+  };
+
+  const stamp = (x, z, topY) => {
+    const cx = Math.floor((x - chunkBounds.minX) / cell);
+    const cz = Math.floor((z - chunkBounds.minZ) / cell);
+    if (cx < 0 || cz < 0 || cx >= cols || cz >= rows) return;
+    const index = cz * cols + cx;
+    if (blocked[index]) return;
+    if (topY - groundFor(cx, cz) < STEP_HEIGHT) return;
+    blocked[index] = 1;
+    stamped += 1;
+  };
+
+  // Marks the cells a segment passes through, plus the neighbour it grazes so
+  // a thin wall one vertex wide cannot slip between two cell centres.
+  const stampSegment = (ax, az, bx, bz, topY) => {
+    const length = Math.hypot(bx - ax, bz - az);
+    const steps = Math.min(240, Math.ceil(length / (cell * .5)) + 1);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = ax + (bx - ax) * t;
+      const z = az + (bz - az) * t;
+      stamp(x, z, topY);
+      const fx = (x - chunkBounds.minX) / cell - Math.floor((x - chunkBounds.minX) / cell);
+      const fz = (z - chunkBounds.minZ) / cell - Math.floor((z - chunkBounds.minZ) / cell);
+      if (fx < .35) stamp(x - cell * .55, z, topY);
+      else if (fx > .65) stamp(x + cell * .55, z, topY);
+      if (fz < .35) stamp(x, z - cell * .55, topY);
+      else if (fz > .65) stamp(x, z + cell * .55, topY);
+    }
+  };
+
+  scene.traverse((object) => {
+    if (!object.isMesh || !object.visible) return;
+    const materials = Array.isArray(object.material)
+      ? object.material
+      : [object.material];
+    if (materials.some((material) => material && NON_BLOCKING.has(material.name))) {
+      return;
+    }
+    const geometry = object.geometry;
+    if (!geometry || !geometry.attributes || !geometry.attributes.position) return;
+
+    matrix.copy(object.matrixWorld);
+    const position = geometry.attributes.position;
+    const index = geometry.index;
+    const count = index ? index.count : position.count;
+
+    for (let i = 0; i < count; i += 3) {
+      const a = index ? index.getX(i) : i;
+      const b = index ? index.getX(i + 1) : i + 1;
+      const c = index ? index.getX(i + 2) : i + 2;
+
+      v.fromBufferAttribute(position, a).applyMatrix4(matrix);
+      const ax = v.x, ay = v.y, az = v.z;
+      v.fromBufferAttribute(position, b).applyMatrix4(matrix);
+      const bx = v.x, by = v.y, bz = v.z;
+      v.fromBufferAttribute(position, c).applyMatrix4(matrix);
+      const cx = v.x, cy = v.y, cz = v.z;
+
+      const topY = Math.max(ay, by, cy);
+      const bottomY = Math.min(ay, by, cy);
+      const groundY = groundFor(
+        Math.floor(((ax + bx + cx) / 3 - chunkBounds.minX) / cell),
+        Math.floor(((az + bz + cz) / 3 - chunkBounds.minZ) / cell)
+      );
+      if (topY - groundY < STEP_HEIGHT) continue;
+      // Overhanging geometry (tree branches, arches, balconies) is walked
+      // under, so only props that start near the ground become obstacles.
+      if (bottomY - groundY > 1.8) continue;
+
+      stampSegment(ax, az, bx, bz, topY);
+      stampSegment(bx, bz, cx, cz, topY);
+      stampSegment(cx, cz, ax, az, topY);
+      if (stamped > cols * rows) break;
+    }
+  });
+
+  return { minX: chunkBounds.minX, minZ: chunkBounds.minZ, cell, cols, rows, blocked, stamped };
+}
+
+
 /* The world meshes ship without textures, so large stone/timber/soil
    surfaces read as flat plastic. This injects cheap world-space value noise
    into the diffuse term to fake grain, lichen and weathered stone. */
@@ -152,6 +278,7 @@ export function createWorldStreamer({ scene, baseUrl = 'assets/world/', detail =
 
   const loaded = new Map();
   const requested = new Set();
+  const collisionGrids = new Map();
 
   let meta = null;
   let heightmap = null;
@@ -262,6 +389,20 @@ export function createWorldStreamer({ scene, baseUrl = 'assets/world/', detail =
 
         root.add(gltf.scene);
         loaded.set(name, gltf.scene);
+
+        gltf.scene.updateMatrixWorld(true);
+        const cx0 = -meta.worldSize / 2 + cx * meta.chunkSize;
+        const cz0 = -meta.worldSize / 2 + cz * meta.chunkSize;
+        collisionGrids.set(name, buildCollisionGrid(
+          gltf.scene,
+          {
+            minX: cx0,
+            maxX: cx0 + meta.chunkSize,
+            minZ: cz0,
+            maxZ: cz0 + meta.chunkSize
+          },
+          (x, z) => getHeight(x, z)
+        ));
       },
       undefined,
       () => requested.delete(name)
@@ -303,18 +444,67 @@ export function createWorldStreamer({ scene, baseUrl = 'assets/world/', detail =
           root.remove(group);
           disposeChunk(group);
           loaded.delete(name);
+          collisionGrids.delete(name);
         }
       }
     }
+  }
+
+  /* True when a body of the given radius at (x, z) overlaps an obstacle cell
+     in any streamed chunk. The body's centre may not enter a blocked cell and
+     is kept a little clear of neighbouring ones, which keeps walls solid
+     without turning every tree into a 3 m no-go circle. */
+  function blocked(x, z, radius = .55) {
+    const reach = 1;
+    const margin = radius + COLLISION_CELL * .15;
+    for (const grid of collisionGrids.values()) {
+      if (
+        x < grid.minX - COLLISION_CELL || z < grid.minZ - COLLISION_CELL ||
+        x > grid.minX + grid.cols * grid.cell + COLLISION_CELL ||
+        z > grid.minZ + grid.rows * grid.cell + COLLISION_CELL
+      ) continue;
+
+      const cx = Math.floor((x - grid.minX) / grid.cell);
+      const cz = Math.floor((z - grid.minZ) / grid.cell);
+
+      if (
+        cx >= 0 && cz >= 0 && cx < grid.cols && cz < grid.rows &&
+        grid.blocked[cz * grid.cols + cx]
+      ) return true;
+
+      for (let ox = -reach; ox <= reach; ox++) {
+        for (let oz = -reach; oz <= reach; oz++) {
+          const gx = cx + ox;
+          const gz = cz + oz;
+          if (gx < 0 || gz < 0 || gx >= grid.cols || gz >= grid.rows) continue;
+          if (!grid.blocked[gz * grid.cols + gx]) continue;
+
+          const dx = x - (grid.minX + (gx + .5) * grid.cell);
+          const dz = z - (grid.minZ + (gz + .5) * grid.cell);
+          if (dx * dx + dz * dz <= margin * margin) return true;
+        }
+      }
+    }
+    return false;
   }
 
   return {
     init,
     update,
     getHeight,
+    blocked,
     getRegion: (x, z) => regionAt(x, z),
     get loadedCount() { return loaded.size; },
     get pendingCount() { return requested.size; },
+    get collisionCells() {
+      let total = 0;
+      let solid = 0;
+      for (const grid of collisionGrids.values()) {
+        total += grid.blocked.length;
+        solid += grid.stamped;
+      }
+      return { chunks: collisionGrids.size, cells: total, solid };
+    },
     get ready() { return ready; },
     get failed() { return failed; },
     root

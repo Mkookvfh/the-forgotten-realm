@@ -84,6 +84,29 @@ export const SIDE_QUESTS = {
   }
 };
 
+/* Blacksmith upgrades: each weapon and armor piece keeps its own tier, paid
+   with gold, ore and crystals so late-game loot still has a sink. */
+export const GEAR_UPGRADE_MAX = 5;
+export const GEAR_UPGRADE_COST = [
+  null,
+  { gold: 90, ore: 2, crystals: 1 },
+  { gold: 180, ore: 3, crystals: 2 },
+  { gold: 320, ore: 4, crystals: 3 },
+  { gold: 520, ore: 5, crystals: 5 },
+  { gold: 800, ore: 7, crystals: 8 }
+];
+
+/* Repeatable kill contracts. Three are offered at a time; completing one
+   pays gold, experience and a material matched to the prey. */
+const BOUNTY_TYPES = [
+  { type: 'guardian', name: 'ล่าผู้พิทักษ์ซากโบราณ', items: ['bone', 'ore'] },
+  { type: 'wraith', name: 'ขับไล่ผีร้าย', items: ['essence', 'darkShard'] },
+  { type: 'brute', name: 'ปราบยักษ์หิน', items: ['stoneHeart', 'ore'] },
+  { type: 'wolf', name: 'กำจัดหมาป่ามืด', items: ['meat', 'bone'] }
+];
+
+const BOUNTY_REROLL_COST = 60;
+
 const LOOT_TABLE = {
   guardian: [
     { id: 'bone', chance: 1, min: 1, max: 2 },
@@ -326,6 +349,8 @@ export function createSystems(ctx) {
     if (!state.quests || typeof state.quests !== 'object') state.quests = {};
     if (!Array.isArray(state.discoveredSecrets)) state.discoveredSecrets = [];
     if (typeof state.classId !== 'string') state.classId = null;
+    if (!state.upgrades || typeof state.upgrades !== 'object') state.upgrades = {};
+    if (!Array.isArray(state.bounties)) state.bounties = [];
   }
 
   function getCount(id) {
@@ -347,6 +372,132 @@ export function createSystems(ctx) {
 
   function owns(id) {
     return getCount(id) > 0;
+  }
+
+  /* ---------------- Gear upgrades ---------------- */
+
+  function gearTier(slot) {
+    const id = slot === 'armor' ? state.armor : state.weapon;
+    return THREE.MathUtils.clamp(
+      Math.round(Number(state.upgrades && state.upgrades[id]) || 0),
+      0,
+      GEAR_UPGRADE_MAX
+    );
+  }
+
+  function gearUpgradeCost(slot) {
+    const tier = gearTier(slot);
+    return tier >= GEAR_UPGRADE_MAX ? null : GEAR_UPGRADE_COST[tier + 1];
+  }
+
+  function upgradeGear(slot) {
+    const id = slot === 'armor' ? state.armor : state.weapon;
+    const cost = gearUpgradeCost(slot);
+    if (!cost) return toast('อุปกรณ์ชิ้นนี้อัปเกรดถึงระดับสูงสุดแล้ว');
+    if (
+      state.gold < cost.gold ||
+      getCount('ore') < cost.ore ||
+      state.crystals < cost.crystals
+    ) {
+      return toast(`ต้องใช้ ${cost.gold} ทอง · แร่ ${cost.ore} · ผลึก ${cost.crystals}`);
+    }
+
+    state.gold -= cost.gold;
+    state.inventory.ore = Math.max(0, getCount('ore') - cost.ore);
+    state.crystals = Math.max(0, state.crystals - cost.crystals);
+    const tier = gearTier(slot) + 1;
+    state.upgrades[id] = tier;
+
+    if (audio) audio.play('craft');
+    refreshInventoryUI();
+    if (typeof refreshEquipmentUI === 'function') refreshEquipmentUI();
+    updateHud();
+    toast(`อัปเกรดสำเร็จ: ${id} +${tier}`);
+  }
+
+  /* ---------------- Bounty contracts ---------------- */
+
+  function rollBounties() {
+    const pool = BOUNTY_TYPES.slice();
+    const level = Math.max(1, Number(state.level) || 1);
+    const extra = Math.min(2, Math.floor(level / 4));
+    const list = [];
+
+    for (let i = 0; i < 3 && pool.length > 0; i++) {
+      const pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      const target = 3 + Math.floor(Math.random() * 3) + extra;
+      list.push({
+        id: `${pick.type}-${i}-${Math.floor(Math.random() * 1e6)}`,
+        type: pick.type,
+        title: pick.name,
+        target,
+        count: 0,
+        done: false,
+        reward: {
+          gold: Math.round(target * (18 + level * 3)),
+          xp: Math.round(target * (10 + level * 2)),
+          item: pick.items[Math.floor(Math.random() * pick.items.length)],
+          amount: target >= 5 ? 2 : 1
+        }
+      });
+    }
+
+    state.bounties = list;
+  }
+
+  function ensureBounties() {
+    if (!Array.isArray(state.bounties) || state.bounties.length !== 3) {
+      rollBounties();
+    } else {
+      for (const bounty of state.bounties) {
+        if (!BOUNTY_TYPES.some((entry) => entry.type === bounty.type)) {
+          rollBounties();
+          break;
+        }
+      }
+    }
+  }
+
+  function rerollBounties() {
+    const allDone = state.bounties.length > 0 &&
+      state.bounties.every((bounty) => bounty.done);
+    const cost = allDone ? 0 : BOUNTY_REROLL_COST;
+    if (state.gold < cost) {
+      return toast(`ต้องมี ${cost} ทองเพื่อรับสัญญาชุดใหม่`);
+    }
+
+    state.gold -= cost;
+    rollBounties();
+    refreshQuestUI();
+    updateHud();
+    toast(cost
+      ? `สัญญาชุดใหม่ (-${cost} ทอง)`
+      : 'สัญญาชุดใหม่พร้อมแล้ว');
+  }
+
+  function advanceBounties(type) {
+    let changed = false;
+
+    for (const bounty of state.bounties) {
+      if (bounty.done || bounty.type !== type) continue;
+
+      bounty.count = Math.min(bounty.target, bounty.count + 1);
+      changed = true;
+
+      if (bounty.count >= bounty.target) {
+        bounty.done = true;
+        state.gold += bounty.reward.gold;
+        if (bounty.reward.xp) gainXp(bounty.reward.xp);
+        if (bounty.reward.item) {
+          addItem(bounty.reward.item, bounty.reward.amount || 1);
+        }
+        if (audio) audio.play('quest');
+        toast(`สัญญาสำเร็จ: ${bounty.title} · +${bounty.reward.gold} ทอง`);
+        updateHud();
+      }
+    }
+
+    if (changed) refreshQuestUI();
   }
 
   function makeNodeMesh(type) {
@@ -672,6 +823,7 @@ export function createSystems(ctx) {
     }
 
     if (type === 'guardian') advanceQuest('hunt', 1);
+    advanceBounties(type);
   }
 
   function canCraft(recipe) {
@@ -878,6 +1030,35 @@ export function createSystems(ctx) {
       `<b>✦ ภารกิจหลัก</b><small>${mainText}</small></div>` +
       sideHtml
     );
+
+    ensureBounties();
+    const bountyList = $('#bounty-list');
+    if (bountyList) {
+      bountyList.innerHTML = state.bounties.map((bounty) => {
+        const stateText = bounty.done
+          ? '✓ สำเร็จ'
+          : `${Math.min(bounty.count, bounty.target)}/${bounty.target}`;
+        const itemName = bounty.reward.item && MATERIAL_INFO[bounty.reward.item]
+          ? MATERIAL_INFO[bounty.reward.item].name
+          : '-';
+        return (
+          `<div class="bounty-entry${bounty.done ? ' done' : ''}">` +
+          `<b>${bounty.title}</b>` +
+          `<small>${stateText} · +${bounty.reward.gold} ทอง · +${bounty.reward.xp} XP` +
+          ` · ${itemName} x${bounty.reward.amount || 1}</small>` +
+          `</div>`
+        );
+      }).join('');
+    }
+
+    const reroll = $('#bounty-reroll');
+    if (reroll) {
+      const allDone = state.bounties.length > 0 &&
+        state.bounties.every((bounty) => bounty.done);
+      reroll.textContent = allDone
+        ? 'รับสัญญาชุดใหม่'
+        : `สัญญาใหม่ (${BOUNTY_REROLL_COST} ทอง)`;
+    }
   }
 
   function acceptQuest(id) {
@@ -1604,6 +1785,11 @@ export function createSystems(ctx) {
   const shopCloseButton = $('#shop-close');
   if (shopCloseButton) shopCloseButton.addEventListener('click', closeShop);
 
+  const bountyRerollButton = $('#bounty-reroll');
+  if (bountyRerollButton) {
+    bountyRerollButton.addEventListener('click', rerollBounties);
+  }
+
   refreshInventoryUI();
   renderShop();
   refreshQuestUI();
@@ -1624,6 +1810,11 @@ export function createSystems(ctx) {
     drawWorldMap,
     refreshInventoryUI,
     refreshQuestUI,
+    gearTier,
+    gearUpgradeCost,
+    upgradeGear,
+    rerollBounties,
+    ensureBounties,
     closeDialogue,
     openShop,
     closeShop,
