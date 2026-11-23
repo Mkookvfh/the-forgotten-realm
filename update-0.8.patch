@@ -1,0 +1,3392 @@
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/CHANGELOG_0.8.md the-forgotten-realm-0.8/CHANGELOG_0.8.md
+--- the-forgotten-realm-0.7/CHANGELOG_0.8.md	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/CHANGELOG_0.8.md	2026-11-23 11:23:44.717924278 +0000
+@@ -0,0 +1,54 @@
++# The Forgotten Realm — Update 0.8 (Visual Pass)
++
++รอบนี้เน้นงานภาพโดยตรง ทุกอย่างปรับจากฉากเดิม ไม่ได้เปลี่ยนระบบเกม
++เป้าหมายคือให้ภาพ "อ่านง่ายและสวยขึ้น" ทั้งกลางวันและกลางคืน บนทั้งเส้นทางเรนเดอร์ปกติและเส้นทาง post-processing
++
++## 1. จัดองค์ประกอบฉาก (Composition)
++- **เอาหินยอดแหลม `Dark_Rock` ออกจากฉาก** — พร็อพ GLB ชุดนี้ถูกวางเป็นแถวสม่ำเสมอทั่วแผนที่ และเมื่อมองจากกล้องเริ่มต้นจะดูเหมือน "หมู่เต็นท์ดำ" ที่บังเส้นขอบฟ้าของเมืองและป่า ตอนนี้ซ่อนทิ้ง ทำให้หินเตี้ย ต้นไม้ตาย และตัวเมืองเด่นขึ้นทันที
++  - ทำผ่าน `HIDDEN_PROPS` ใน `src/worldStreamer.js` จึงยังโหลดไฟล์เดิมได้ ไม่ต้องแก้ asset
++- วัตถุที่ถูกซ่อนจะไม่ถูกนับเป็นตัวสร้างเงา (castShadow) เพื่อลดภาระเงาเปล่า
++
++## 2. ท้องฟ้าและแสง (Sky & Lighting)
++- ท้องฟ้าไล่สีลึกขึ้น: กลางวัน `dayHorizon` เป็นฟ้าเทาอมฟ้า และ `dayZenith` เป็นน้ำเงินเข้ม ลดอาการฟ้าแบน ๆ ที่กลืนกับหมอก
++- แยก **สองเส้นทางเรนเดอร์** ให้สีตรงกัน:
++  - เปิด post-processing: ส่งค่าฟ้าแบบ linear ให้ `OutputPass` จัด tone map + sRGB เอง
++  - ปิด post-processing / คุณภาพต่ำ (มือถือ): โทนแมป + encode ในตัว shader เอง (เดิมฟ้ากลายเป็นน้ำเงินเข้มผิดปกติ)
++  - ใช้ `uPost` และ `uExposure` เป็นตัวสลับ และ sync ค่า exposure ทุกเฟรม
++- ปรับสมดุลแสงกลางคืนให้มองเห็นเส้นทางและศัตรูได้โดยไม่เสียบรรยากาศ: พระจันทร์, hemi, ambient และ exposure กลางคืนยกขึ้นเล็กน้อย (1.32 → 1.48)
++- เงา: กล้องเงาตามผู้เล่น, `mapSize 2048`, `bias -0.0004`, `normalBias 0.045` (จากรอบก่อน) ยังทำงานร่วมกับการปรับแสงใหม่
++
++## 3. สีและโทน (Color grade)
++- คงจานสี `WORLD_PALETTE` 24 วัสดุ: หิน/ดิน/ไม้/หลังคา/ผนัง/ผ้า/กระดูก/น้ำ และวัสดุเรืองแสง (หน้าต่างอบอุ่น, ลาวา, คริสตัลต้องสาป)
++- เพิ่มรายละเอียดพื้นผิวแบบ value-noise ผ่าน `onBeforeCompile` ให้หินและดินไม่เรียบแบน พร้อม `flatShading` กับหิน low-poly
++- คริสตัลและศาลเจ้าถูกย้าย/ลดความจัดจ้าน: ศาลเจ้าย้ายไป (31, 2, 17) และลด emissive เพื่อไม่ให้เป็น "ก้อนม่วง" ลอยหน้าเลนส์กล้อง
++
++## 4. พืชพรรณ (Vegetation)
++- หญ้า: ไล่เฉดสีจากโคนไปปลาย (`mix(0.76, 1.14, tip)`) และสุ่มเฉดต่อกอ ทำให้ทุ่งหญ้าดูมีมิติ ไม่เป็นสีเดียว
++- จำนวนหญ้ายังปรับตามคุณภาพกราฟิกเหมือนเดิม
++
++## 5. เอฟเฟกต์ (Effects)
++- ละอองแสง (motes) เปลี่ยนจากจุดสี่เหลี่ยมแข็ง ๆ เป็น **สไปรท์วงกลมเบลอ** (CanvasTexture + AdditiveBlending) ดูเป็นละอองจริง
++- ปรับขนาดตามอุปกรณ์ (แตะจอใหญ่ขึ้นเล็กน้อย) และความเข้มตามเวลากลางวัน
++
++## 6. Bug fixes ด้านภาพ/UI
++1. **แถบดำกล่องเล็กกลางล่างจอ** — ไม่ใช่เงาหรือโพสต์โปรเซส แต่เป็น `#interaction-hint` ว่างที่ยังมีพื้นหลังทึบ ตอนนี้ `:empty { display: none }` และเคลียร์ข้อความเมื่อไม่ได้โต้ตอบ (เดิมข้อความค้าง)
++2. **ฟ้ามือถือกลายเป็นน้ำเงินเข้มตอนกลางวัน** — แก้ด้วยการแยกสาขา shader ตาม `uPost` ข้างต้น
++
++## ไฟล์ที่แก้ไข
++| ไฟล์ | รายละเอียด |
++| --- | --- |
++| `src/worldStreamer.js` | ซ่อน `Dark_Rock`, ปรับการตั้ง castShadow, จานสีและรายละเอียดพื้นผิว |
++| `src/main.js` | ท้องฟ้า 2 เส้นทาง, แสงกลางคืน, exposure, คริสตัล/ศาลเจ้า, สไปรท์ละอองแสง |
++| `src/vegetation/grass-generator.js` | การไล่เฉดหญ้าและความหลากหลายต่อกอ |
++| `src/style.css` | `#interaction-hint:empty { display: none }` |
++| `src/systems.js` | เคลียร์ข้อความ hint ทุกครั้งที่ไม่มีเป้าโต้ตอบ |
++| `index.html` | เลขเวอร์ชัน Update 0.8 |
++| `package.json` | เวอร์ชัน 0.8.0 |
++
++## การทดสอบ
++- `npm run build` ผ่าน
++- ภาพเทียบก่อน/หลัง (day/night) ที่ตำแหน่งผู้เล่นเดิม เวลาเดิม เพื่อเทียบได้ตรง ๆ
++- ทดสอบซ้ำ: smoke, ระบบร้านค้า/แคมป์/อาชีพ/ต่อสู้/บอส/ดรอป, โหลดเซฟ และโหมดมือถือ (Pixel 5, คุณภาพต่ำ, ปิด postfx) — console error ว่างทั้งหมด
++- ตรวจว่าฟ้ากลางวันของมือถือ (ปิด postfx) เป็นฟ้าสว่างถูกต้อง
++
++> หมายเหตุ: เฟรมเรตใน sandbox ต่ำเพราะใช้ software WebGL (SwiftShader) ตัวเลข FPS จึงไม่ใช่ตัวชี้วัดจริงบนอุปกรณ์
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/index.html the-forgotten-realm-0.8/index.html
+--- the-forgotten-realm-0.7/index.html	2026-11-23 08:50:19.045047955 +0000
++++ the-forgotten-realm-0.8/index.html	2026-11-23 11:23:44.717924278 +0000
+@@ -16,7 +16,7 @@
+     <header class="topbar">
+       <div class="brand">
+         <strong>THE FORGOTTEN REALM</strong>
+-        <small>ASHEN WILDS · UPDATE 0.7</small>
++        <small>ASHEN WILDS · UPDATE 0.8</small>
+       </div>
+ 
+       <div class="top-actions">
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/package.json the-forgotten-realm-0.8/package.json
+--- the-forgotten-realm-0.7/package.json	2026-11-23 08:50:19.045047955 +0000
++++ the-forgotten-realm-0.8/package.json	2026-11-23 11:23:44.717924278 +0000
+@@ -1,6 +1,6 @@
+ {
+   "name": "the-forgotten-realm",
+-  "version": "0.7.0",
++  "version": "0.8.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/package-lock.json the-forgotten-realm-0.8/package-lock.json
+--- the-forgotten-realm-0.7/package-lock.json	2026-11-23 08:50:19.045047955 +0000
++++ the-forgotten-realm-0.8/package-lock.json	2026-11-23 11:23:44.717924278 +0000
+@@ -1,12 +1,12 @@
+ {
+   "name": "the-forgotten-realm",
+-  "version": "0.6.0",
++  "version": "0.8.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "the-forgotten-realm",
+-      "version": "0.6.0",
++      "version": "0.8.0",
+       "dependencies": {
+         "@capacitor/android": "^7.4.3",
+         "@capacitor/core": "^7.4.3",
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/README.md the-forgotten-realm-0.8/README.md
+--- the-forgotten-realm-0.7/README.md	2026-11-23 08:50:19.045047955 +0000
++++ the-forgotten-realm-0.8/README.md	2026-11-23 11:23:44.717924278 +0000
+@@ -3,8 +3,10 @@
+ Playable 3D dark-fantasy third-person prototype for web and Android.
+ 
+ See [README_TH.md](README_TH.md) for Thai setup instructions, included systems, limitations, and the GitHub Actions Android debug APK workflow.
+-See [CHANGELOG_0.7.md](CHANGELOG_0.7.md) for the systems upgrade in update 0.7.
++See [CHANGELOG_0.7.md](CHANGELOG_0.7.md) for the systems upgrade in update 0.7, and [CHANGELOG_0.8.md](CHANGELOG_0.8.md) for the visual pass in update 0.8.
+ 
+ Update 0.7 highlights: seven weapons and six armors (axe, bow, frost staff, ranger gear, rune robe and more), three classes, a camp/rest/cook system with respawn point, real projectiles, directional melee, pause-on-panel, working shop button / FPS limit / mobile layout / music toggle, and save-load fixes that keep inventory, skills, spells and quests.
+ 
++Update 0.8 highlights: the distracting cone-shaped `Dark_Rock` spires are removed, the sky gradient is deeper and renders correctly with and without post-processing (including low-quality mobile), night lighting is readable again, grass gets a base-to-tip gradient, glowing motes are soft sprites, and an empty interaction-hint pill no longer sits over the scene.
++
+ This is a prototype, not a production-ready open-world game. Android builds from the included workflow are debug APKs for testing only.
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/README_TH.md the-forgotten-realm-0.8/README_TH.md
+--- the-forgotten-realm-0.7/README_TH.md	2026-11-23 08:50:19.045047955 +0000
++++ the-forgotten-realm-0.8/README_TH.md	2026-11-23 11:23:44.717924278 +0000
+@@ -1,7 +1,15 @@
+-# THE FORGOTTEN REALM — Complete Update 0.6
++# THE FORGOTTEN REALM — Update 0.8 (Visual Pass)
+ 
+ เกม 3D Dark Fantasy มุมมอง Third Person สำหรับเว็บและ Android (ต้นแบบที่เล่นได้)
+ 
++## ปรับภาพใน Update 0.8
++- เอาหินยอดแหลม `Dark_Rock` ที่บังเส้นขอบฟ้าออก ฉากจึงอ่านง่ายขึ้น
++- ท้องฟ้าไล่สีลึกขึ้น และแสดงสีถูกต้องทั้งเปิด/ปิด post-processing (รวมโหมดมือถือคุณภาพต่ำ)
++- แสงกลางคืนสว่างพอให้เห็นเส้นทางและศัตรู แต่ยังคงบรรยากาศมืด
++- หญ้ามีไล่เฉดโคน–ปลาย และละอองแสงเป็นสไปรท์วงกลมเบลอ
++- แก้กล่องดำเล็ก ๆ กลางล่างจอ (แท็ก `#interaction-hint` ว่าง) และข้อความโต้ตอบค้าง
++- รายละเอียดทั้งหมดอยู่ใน [CHANGELOG_0.8.md](CHANGELOG_0.8.md)
++
+ ## ระบบที่รวมอยู่
+ - ฉากป่ามืด ภูเขา แม่น้ำ ซากโบราณ หอคอย ถ้ำต้องสาป หมอก แสงกลางวัน/กลางคืน และฝน
+ - แสงเงา หิ่งห้อย เอฟเฟกต์เวท, LOD สำหรับต้นไม้/หิน/ศัตรู, ลดจำนวนหญ้าตามคุณภาพ และจำกัด FPS ได้
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/cinematic.js the-forgotten-realm-0.8/src/cinematic.js
+--- the-forgotten-realm-0.7/src/cinematic.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/cinematic.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,261 @@
++import * as THREE from 'three';
++import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
++import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
++import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
++import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
++import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
++
++/* Cinematic post-processing + atmosphere layers for The Forgotten Realm.
++   Additive module: renders through EffectComposer when enabled, otherwise
++   falls back to the plain renderer so gameplay stays lightweight on low tier. */
++
++const GradeShader = {
++  uniforms: {
++    tDiffuse: { value: null },
++    uTime: { value: 0 },
++    uVignette: { value: 1.0 },
++    uGrain: { value: 1.0 },
++    uAberration: { value: 1.0 },
++    uSharpen: { value: 1.0 }
++  },
++  vertexShader: `
++    varying vec2 vUv;
++    void main() {
++      vUv = uv;
++      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
++    }
++  `,
++  fragmentShader: `
++    uniform sampler2D tDiffuse;
++    uniform float uTime;
++    uniform float uVignette;
++    uniform float uGrain;
++    uniform float uAberration;
++    uniform float uSharpen;
++    varying vec2 vUv;
++
++    float hash(vec2 p) {
++      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
++    }
++
++    vec3 sampleAt(vec2 uv) {
++      return texture2D(tDiffuse, uv).rgb;
++    }
++
++    void main() {
++      vec2 dir = vUv - 0.5;
++      float radius = dot(dir, dir);
++
++      /* Subtle lens dispersion: colours separate towards the frame edge */
++      vec2 shift = dir * radius * 0.010 * uAberration;
++      vec3 c;
++      c.r = sampleAt(vUv + shift).r;
++      c.g = sampleAt(vUv).g;
++      c.b = sampleAt(vUv - shift).b;
++
++      /* Unsharp mask keeps the pixel-art subjects crisp after bloom */
++      vec2 texel = vec2(1.0 / 1280.0, 1.0 / 720.0) * uSharpen;
++      vec3 blur = (
++        sampleAt(vUv + vec2(texel.x, 0.0)) +
++        sampleAt(vUv - vec2(texel.x, 0.0)) +
++        sampleAt(vUv + vec2(0.0, texel.y)) +
++        sampleAt(vUv - vec2(0.0, texel.y))
++      ) * 0.25;
++      c += (c - blur) * 0.55 * uSharpen;
++
++      float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
++
++      /* Split toning: cold moonlight shadows, warm sunlit highlights */
++      vec3 shadowTint = vec3(0.92, 0.97, 1.10);
++      vec3 highlightTint = vec3(1.12, 1.03, 0.86);
++      float weight = smoothstep(0.015, 0.55, luma);
++      c *= mix(shadowTint, highlightTint, weight);
++
++      /* Gentle colour lift so night scenes keep readable mid-tones */
++      c = mix(vec3(luma), c, 1.16);
++      c = pow(max(c, 0.0), vec3(1.12)) * 1.05;
++      c += vec3(0.004, 0.005, 0.010);
++
++      /* Shoulder soft-clip: keeps bright lava / windows from hard clipping */
++      c = c / (1.0 + max(c - 1.0, 0.0) * 0.32);
++
++      /* Vignette */
++      c *= 1.0 - smoothstep(0.06, 0.36, radius) * 0.40 * uVignette;
++
++      /* Animated film grain + dithering to kill gradient banding */
++      float g = hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 17.0) - 0.5;
++      c += g * 0.014 * uGrain;
++      c += (hash(vUv * 947.0) - 0.5) / 255.0;
++
++      gl_FragColor = vec4(c, 1.0);
++    }
++  `
++};
++
++function makeSoftDotTexture() {
++  const c = document.createElement('canvas');
++  c.width = c.height = 128;
++  const g = c.getContext('2d');
++  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
++  grad.addColorStop(0, 'rgba(255,255,255,0.85)');
++  grad.addColorStop(0.45, 'rgba(255,255,255,0.28)');
++  grad.addColorStop(1, 'rgba(255,255,255,0)');
++  g.fillStyle = grad;
++  g.fillRect(0, 0, 128, 128);
++  return new THREE.CanvasTexture(c);
++}
++
++function makeCloudTexture() {
++  const c = document.createElement('canvas');
++  c.width = 256; c.height = 128;
++  const g = c.getContext('2d');
++  for (let i = 0; i < 24; i++) {
++    const x = 34 + Math.random() * 188;
++    const y = 42 + Math.random() * 46;
++    const r = 14 + Math.random() * 26;
++    const grad = g.createRadialGradient(x, y, 0, x, y, r);
++    grad.addColorStop(0, 'rgba(255,255,255,0.42)');
++    grad.addColorStop(1, 'rgba(255,255,255,0)');
++    g.fillStyle = grad;
++    g.beginPath();
++    g.arc(x, y, r, 0, Math.PI * 2);
++    g.fill();
++  }
++  return new THREE.CanvasTexture(c);
++}
++
++export function createCinematic({ renderer, scene, camera, touch = false }) {
++  /* Multisampled HDR target: EffectComposer would otherwise bypass the
++     renderer's MSAA and leave every edge jagged. */
++  const renderTarget = new THREE.WebGLRenderTarget(
++    Math.max(1, innerWidth), Math.max(1, innerHeight),
++    {
++      type: THREE.HalfFloatType,
++      samples: touch ? 0 : 4,
++      colorSpace: THREE.LinearSRGBColorSpace
++    }
++  );
++  const composer = new EffectComposer(renderer, renderTarget);
++  const renderPass = new RenderPass(scene, camera);
++  const bloom = new UnrealBloomPass(
++    new THREE.Vector2(innerWidth, innerHeight),
++    0.46, 0.62, 0.82
++  );
++  const grade = new ShaderPass(GradeShader);
++  const output = new OutputPass();
++  composer.addPass(renderPass);
++  composer.addPass(bloom);
++  composer.addPass(grade);
++  composer.addPass(output);
++
++  let enabled = true;
++
++  /* ---------- Cloud layer ---------- */
++  const cloudTex = makeCloudTexture();
++  const clouds = [];
++  const cloudCount = touch ? 6 : 12;
++  for (let i = 0; i < cloudCount; i++) {
++    const mat = new THREE.SpriteMaterial({
++      map: cloudTex, transparent: true, opacity: 0.2,
++      depthWrite: false, fog: false, color: 0xd7e2ee
++    });
++    const s = new THREE.Sprite(mat);
++    const a = Math.random() * Math.PI * 2;
++    const r = 110 + Math.random() * 210;
++    s.userData = {
++      a, r,
++      y: 62 + Math.random() * 48,
++      speed: 0.004 + Math.random() * 0.009,
++      base: 0.08 + Math.random() * 0.10,
++      scale: 70 + Math.random() * 90
++    };
++    scene.add(s);
++    clouds.push(s);
++  }
++
++  /* ---------- Ground mist ---------- */
++  const mistTex = makeSoftDotTexture();
++  const mists = [];
++  const mistCount = touch ? 10 : 20;
++  for (let i = 0; i < mistCount; i++) {
++    const mat = new THREE.SpriteMaterial({
++      map: mistTex, transparent: true, opacity: 0.06,
++      depthWrite: false, fog: false, color: 0xb9c8dd
++    });
++    const s = new THREE.Sprite(mat);
++    s.userData = {
++      ox: (Math.random() - 0.5) * 56,
++      oz: (Math.random() - 0.5) * 56,
++      oy: 0.7 + Math.random() * 1.8,
++      phase: Math.random() * Math.PI * 2,
++      scale: 13 + Math.random() * 15
++    };
++    scene.add(s);
++    mists.push(s);
++  }
++
++  let flash = 0;
++
++  function update(dt, sun, playerPos) {
++    grade.uniforms.uTime.value += dt;
++
++    // Clouds drift slowly; fade slightly at night, warm up near sunrise/sunset
++    for (const c of clouds) {
++      const u = c.userData;
++      u.a += u.speed * dt;
++      c.position.set(
++        playerPos.x + Math.cos(u.a) * u.r,
++        u.y,
++        playerPos.z + Math.sin(u.a) * u.r
++      );
++      c.scale.set(u.scale, u.scale * 0.26, 1);
++      const dusk = Math.max(0, 1 - Math.abs(sun - 0.18) * 3.2);
++      c.material.opacity = u.base * (0.5 + 0.5 * sun) + dusk * 0.10;
++      c.material.color.setHSL(
++        0.08 - 0.5 * (1 - dusk),
++        0.28 * dusk + 0.04,
++        0.62 + 0.10 * sun
++      );
++    }
++
++    // Mist breathes around the player, thicker after dark
++    for (const m of mists) {
++      const u = m.userData;
++      const t = grade.uniforms.uTime.value;
++      m.position.set(
++        playerPos.x + u.ox + Math.sin(t * 0.12 + u.phase) * 2.5,
++        u.oy,
++        playerPos.z + u.oz + Math.cos(t * 0.10 + u.phase) * 2.5
++      );
++      m.scale.set(u.scale, u.scale * 0.42, 1);
++      m.material.opacity = (0.035 + 0.075 * (1 - sun));
++    }
++
++    flash = Math.max(0, flash - dt * 2.6);
++  }
++
++  return {
++    composer,
++    bloom,
++    getFlash: () => flash,
++    strike() { flash = 1; },
++    setEnabled(on) { enabled = Boolean(on); },
++    setQuality(q) {
++      bloom.strength = q === 'high' ? 0.46 : q === 'medium' ? 0.30 : 0.0;
++      grade.uniforms.uGrain.value = q === 'low' ? 0.0 : 0.85;
++      grade.uniforms.uVignette.value = q === 'low' ? 0.0 : 1.0;
++      grade.uniforms.uAberration.value = q === 'high' ? 1.0 : q === 'medium' ? 0.5 : 0.0;
++      grade.uniforms.uSharpen.value = q === 'high' ? 1.0 : q === 'medium' ? 0.6 : 0.0;
++    },
++    render() {
++      if (enabled) composer.render();
++      else renderer.render(scene, camera);
++    },
++    resize(width, height, ratio) {
++      composer.setPixelRatio(ratio);
++      composer.setSize(width, height);
++      bloom.setSize(width, height);
++    },
++    update
++  };
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/main.js the-forgotten-realm-0.8/src/main.js
+--- the-forgotten-realm-0.7/src/main.js	2026-11-23 08:50:19.044047933 +0000
++++ the-forgotten-realm-0.8/src/main.js	2026-11-23 11:23:44.718924290 +0000
+@@ -286,7 +286,7 @@
+ // ---------- Three.js scene ----------
+ const scene = new THREE.Scene();
+ scene.background = new THREE.Color(0x080d18);
+-scene.fog = new THREE.FogExp2(0x202c3b, 0.0045);
++scene.fog = new THREE.FogExp2(0x1b2634, 0.0032);
+ 
+ const camera = new THREE.PerspectiveCamera(
+   62, innerWidth / innerHeight, 0.1, 800
+@@ -299,7 +299,7 @@
+ 
+ renderer.outputColorSpace = THREE.SRGBColorSpace;
+ renderer.toneMapping = THREE.ACESFilmicToneMapping;
+-renderer.toneMappingExposure = 1.22;
++renderer.toneMappingExposure = 1.32;
+ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
+ renderer.setSize(innerWidth, innerHeight);
+ renderer.shadowMap.enabled = true;
+@@ -311,11 +311,18 @@
+ const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
+ 
+ // ---------- Sky ----------
++const SKY_SUN_DIR = new THREE.Vector3(-24, 40, 30).normalize();
++const SKY_MOON_DIR = new THREE.Vector3(-18, 28, 12).normalize();
++
+ const sky = new THREE.Mesh(
+-  new THREE.SphereGeometry(520, 32, 24),
++  new THREE.SphereGeometry(520, 40, 28),
+   new THREE.ShaderMaterial({
+     uniforms: {
+-      uSun: { value: 0 }
++      uSun: { value: 0 },
++      uSunDir: { value: SKY_SUN_DIR },
++      uMoonDir: { value: SKY_MOON_DIR },
++      uPost: { value: 1 },
++      uExposure: { value: 1.32 }
+     },
+     side: THREE.BackSide,
+     depthWrite: false,
+@@ -329,6 +336,10 @@
+     `,
+     fragmentShader: `
+   uniform float uSun;
++  uniform float uPost;
++  uniform float uExposure;
++  uniform vec3 uSunDir;
++  uniform vec3 uMoonDir;
+   varying vec3 vDir;
+ 
+   float hash3(vec3 p) {
+@@ -341,36 +352,55 @@
+     vec3 d = normalize(vDir);
+     float h = d.y;
+ 
+-    vec3 nightHorizon = vec3(.14,.17,.26);
+-    vec3 nightZenith  = vec3(.006,.011,.035);
+-    vec3 dayHorizon   = vec3(.62,.78,.92);
+-    vec3 dayZenith    = vec3(.10,.38,.72);
++    vec3 nightHorizon = vec3(.075,.095,.17);
++    vec3 nightZenith  = vec3(.010,.015,.040);
++    vec3 dayHorizon   = vec3(.38,.47,.60);
++    vec3 dayZenith    = vec3(.06,.145,.34);
++
++    float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.2);
+ 
+     vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
+     vec3 zenith  = mix(nightZenith,  dayZenith,  uSun);
+-    vec3 col = mix(horizon, zenith, smoothstep(-.18,.85,h));
++    horizon = mix(horizon, vec3(.78,.40,.22), dusk * .55);
+ 
+-    // Golden-hour band hugging the horizon at dawn / dusk
+-    float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.4);
+-    col = mix(col, vec3(.98,.55,.30),
+-      pow(max(1.0 - abs(h) * 3.2, 0.0), 2.0) * dusk * 0.38);
+-
+-    vec3 moonDir = normalize(vec3(-.4,.65,-.5));
+-    float glow = pow(max(dot(d, moonDir), 0.0), 24.0);
+-    col += vec3(.25,.31,.48) * glow * (1.0 - uSun);
++    vec3 col = mix(horizon, zenith, smoothstep(-.05, .78, h));
+ 
+-    float disc = smoothstep(.9992,.9997, dot(d, moonDir));
+-    col = mix(col, vec3(.88,.91,1.0), disc * (1.0 - uSun));
++    // Warm sun halo and disc, anchored to the real light direction
++    float sunDot = max(dot(d, normalize(uSunDir)), 0.0);
++    float halo = pow(sunDot, 7.0) * .26 + pow(sunDot, 60.0) * .55;
++    col += vec3(1.0, .74, .45) * halo * uSun;
++    float sunDisc = smoothstep(.9994, .9998, sunDot);
++    col = mix(col, vec3(1.0, .95, .82), sunDisc * uSun);
++
++    // Moon halo and disc
++    float moonDot = max(dot(d, normalize(uMoonDir)), 0.0);
++    col += vec3(.26, .33, .52) * pow(moonDot, 26.0) * (1.0 - uSun);
++    float moonDisc = smoothstep(.9992, .9998, moonDot);
++    col = mix(col, vec3(.90, .94, 1.0), moonDisc * (1.0 - uSun));
+ 
+     // Procedural stars twinkling at night
+     if (h > 0.02) {
+-      vec3 cell = floor(d * 230.0);
+-      float star = step(0.9975, hash3(cell));
+-      float twinkle = 0.6 + 0.4 * sin(uSun * 40.0 + hash3(cell + 7.0) * 40.0);
+-      col += vec3(.85,.92,1.0) * star * twinkle * (1.0 - uSun) * 0.85;
++      vec3 cell = floor(d * 240.0);
++      float star = step(0.9972, hash3(cell));
++      float twinkle = 0.55 + 0.45 * sin(uSun * 40.0 + hash3(cell + 7.0) * 40.0);
++      float fade = smoothstep(0.0, 0.28, h);
++      col += vec3(.85,.92,1.0) * star * twinkle * (1.0 - uSun) * fade * 1.6;
++    }
++
++    // Horizon haze so the sky melts into the fog instead of banding
++    col = mix(col, horizon, pow(1.0 - clamp(h, 0.0, 1.0), 6.0) * 0.35);
++
++    // Authored in display space. With the HDR composer the value must be
++    // linearised for OutputPass; on the direct path the sky is the only
++    // material skipping that pass, so tone map and encode it here instead.
++    vec3 linear = pow(max(col, vec3(0.0)), vec3(2.2));
++    if (uPost > 0.5) {
++      gl_FragColor = vec4(linear, 1.0);
++    } else {
++      vec3 c = linear * uExposure;
++      c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);
++      gl_FragColor = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);
+     }
+-
+-    gl_FragColor = vec4(col, 1.0);
+   }
+ `
+   })
+@@ -379,38 +409,40 @@
+ scene.add(sky);
+ 
+ // ---------- Lighting ----------
+-const hemi = new THREE.HemisphereLight(0xc8d8f0, 0x24221d, 1.65);
++const hemi = new THREE.HemisphereLight(0xa9c0dd, 0x2b251d, 1.2);
+ scene.add(hemi);
+ 
+-const ambient = new THREE.AmbientLight(0xb4c8e8, 0.78);
++const ambient = new THREE.AmbientLight(0x9fb2cc, 0.55);
+ scene.add(ambient);
+ 
+-const moon = new THREE.DirectionalLight(0xc3d5ff, 1.8);
++const moon = new THREE.DirectionalLight(0xbfd4ff, 1.8);
+ moon.position.set(-18, 28, 12);
+ moon.castShadow = true;
+-moon.shadow.mapSize.set(1024, 1024);
++moon.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
+ Object.assign(moon.shadow.camera, {
+-  left: -32, right: 32, top: 32, bottom: -32
++  left: -34, right: 34, top: 34, bottom: -34, near: .5, far: 140
+ });
+-moon.shadow.normalBias = 0.03;
++moon.shadow.bias = -0.0004;
++moon.shadow.normalBias = 0.045;
+ scene.add(moon);
+ scene.add(moon.target);
+ 
+-const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.2);
+-sunLight.position.set(25, 35, -20);
++const sunLight = new THREE.DirectionalLight(0xffd9a8, 2.2);
++sunLight.position.set(-24, 40, 30);
+ sunLight.castShadow = true;
+-sunLight.shadow.mapSize.set(1024, 1024);
++sunLight.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
+ 
+ Object.assign(sunLight.shadow.camera, {
+-  left: -45,
+-  right: 45,
+-  top: 45,
+-  bottom: -45,
++  left: -34,
++  right: 34,
++  top: 34,
++  bottom: -34,
+   near: 0.5,
+-  far: 120
++  far: 140
+ });
+ 
+-sunLight.shadow.normalBias = 0.03;
++sunLight.shadow.bias = -0.0004;
++sunLight.shadow.normalBias = 0.045;
+ scene.add(sunLight);
+ scene.add(sunLight.target);
+ 
+@@ -433,7 +465,8 @@
+ 
+ const worldStreamer = createWorldStreamer({
+   scene,
+-  baseUrl: `${import.meta.env.BASE_URL}assets/world/`
++  baseUrl: `${import.meta.env.BASE_URL}assets/world/`,
++  detail: isTouch ? 2 : 3
+ });
+ const vegetation = createVegetationManager({
+   scene,
+@@ -687,12 +720,14 @@
+ const shrine = new THREE.Mesh(
+   new THREE.TorusGeometry(1.0, .12, 8, 20),
+   new THREE.MeshStandardMaterial({
+-    color: 0x8a78bd,
+-    emissive: 0x48326d,
+-    emissiveIntensity: 1.2
++    color: 0x6c6191,
++    emissive: 0x332a58,
++    emissiveIntensity: 0.9,
++    roughness: .34
+   })
+ );
+-shrine.position.set(18, 2, 18);
++shrine.position.set(31, 2, 17);
++shrine.rotation.y = -0.5;
+ scene.add(shrine);
+ 
+ const dungeonArena = new THREE.Group();
+@@ -897,9 +932,9 @@
+ // ---------- Collectibles ----------
+ const collectibles = [];
+ const crystalMat = new THREE.MeshStandardMaterial({
+-  color: 0x8b7bd1,
+-  emissive: 0x4d3c9b,
+-  emissiveIntensity: 2.1,
++  color: 0x7b68c8,
++  emissive: 0x3b2a80,
++  emissiveIntensity: 1.5,
+   roughness: .25
+ });
+ const crystalHaloTexture = (() => {
+@@ -1275,7 +1310,57 @@
+ 
+ fireflies.visible = false;
+ scene.add(fireflies);
+-    
++
++// ---------- Daytime pollen motes ----------
++const moteCount = isTouch ? 26 : 64;
++const motePositions = new Float32Array(moteCount * 3);
++const moteOffsets = [];
++
++for (let i = 0; i < moteCount; i++) {
++  moteOffsets.push({
++    x: (random() - 0.5) * 26,
++    y: 0.6 + random() * 4.2,
++    z: (random() - 0.5) * 26,
++    phase: random() * Math.PI * 2,
++    drift: 0.4 + random() * 0.9
++  });
++}
++
++const moteGeometry = new THREE.BufferGeometry();
++moteGeometry.setAttribute(
++  'position',
++  new THREE.BufferAttribute(motePositions, 3)
++);
++
++const moteTexture = (() => {
++  const c = document.createElement('canvas');
++  c.width = c.height = 32;
++  const g = c.getContext('2d');
++  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
++  grad.addColorStop(0, 'rgba(255,255,255,1)');
++  grad.addColorStop(.4, 'rgba(255,240,214,0.55)');
++  grad.addColorStop(1, 'rgba(255,240,214,0)');
++  g.fillStyle = grad;
++  g.fillRect(0, 0, 32, 32);
++  const texture = new THREE.CanvasTexture(c);
++  texture.colorSpace = THREE.SRGBColorSpace;
++  return texture;
++})();
++
++const moteMaterial = new THREE.PointsMaterial({
++  color: 0xffe6b8,
++  size: isTouch ? 0.22 : 0.18,
++  map: moteTexture,
++  transparent: true,
++  opacity: 0,
++  depthWrite: false,
++  blending: THREE.AdditiveBlending
++});
++
++const motes = new THREE.Points(moteGeometry, moteMaterial);
++motes.visible = false;
++motes.frustumCulled = false;
++scene.add(motes);
+ 
+ addEventListener('pointerdown', () => audio.unlock(), { once: true });
+ 
+@@ -2230,6 +2315,17 @@
+ }
+ 
+ // ---------- Day and Night ----------
++/* Keep the shadow frustum centred on the player so distant districts get
++   crisp, correctly aligned shadows instead of a single box around origin. */
++function updateShadowFocus() {
++  const focus = player.position;
++  sunLight.position.copy(focus).addScaledVector(SKY_SUN_DIR, 72);
++  sunLight.target.position.copy(focus);
++  sunLight.target.updateMatrixWorld();
++  moon.position.copy(focus).addScaledVector(SKY_MOON_DIR, -72);
++  moon.target.position.copy(focus);
++  moon.target.updateMatrixWorld();
++}
+ 
+ function updateDayNight(dt) {
+   if (dayNightMode === 'auto') {
+@@ -2247,11 +2343,15 @@
+   }
+ 
+   
+-moon.intensity = 2.6 * (1 - sun);
+-sunLight.intensity = 2.6 * sun;
+-hemi.intensity = 1.25 + 1.05 * sun;
+-ambient.intensity = 0.74 + 0.30 * sun + cinematic.getFlash() * 1.7;
+-moonGlow.intensity = 1.05 * (1 - sun);
++moon.intensity = 2.8 * (1 - sun);
++sunLight.intensity = 2.55 * sun;
++hemi.intensity = 0.98 + 0.74 * sun;
++ambient.intensity = 0.76 + 0.06 * sun + cinematic.getFlash() * 1.7;
++moonGlow.intensity = 0.85 * (1 - sun);
++renderer.toneMappingExposure = 1.32 + 0.16 * (1 - sun);
++  if (sky.material.uniforms.uExposure) {
++    sky.material.uniforms.uExposure.value = renderer.toneMappingExposure;
++  }
+ sunLight.color.lerpColors(cWarmSun, cWhiteSun, sun);
+ lastSun = sun;
+   
+@@ -2265,8 +2365,8 @@
+   
+ 
+ 
+-  const daylight = new THREE.Color(0x1a2336).lerp(
+-  new THREE.Color(0x9fc6ea),
++  const daylight = new THREE.Color(0x111a2b).lerp(
++  new THREE.Color(0x7d93ad),
+   sun
+ );
+   const duskTint = Math.max(0, 1 - Math.abs(sun - 0.18) * 3.4);
+@@ -2278,11 +2378,14 @@
+ scene.fog.color.copy(daylight);
+ fireflies.visible = sun < 0.65;
+ fireflyMaterial.opacity = 0.75 * (1 - sun);
++
++motes.visible = sun > 0.18;
++moteMaterial.opacity = 0.30 * THREE.MathUtils.clamp((sun - 0.18) * 2.4, 0, 1);
+ // Dynamic Dark Fantasy Fog
+ const nightFog = 1 - sun;
+ scene.fog.density = THREE.MathUtils.lerp(
+-  0.0045,
+-  0.0058,
++  0.0026,
++  0.0042,
+   nightFog
+ );
+ 
+@@ -2332,6 +2435,23 @@
+ }
+ 
+ // ---------- Update Fireflies ----------
++function updateMotes() {
++  const p = moteGeometry.attributes.position;
++  const t = clock.elapsedTime;
++
++  for (let i = 0; i < moteCount; i++) {
++    const m = moteOffsets[i];
++    p.array[i * 3] =
++      player.position.x + m.x + Math.sin(t * 0.22 * m.drift + m.phase) * 2.2;
++    p.array[i * 3 + 1] =
++      m.y + Math.sin(t * 0.35 * m.drift + m.phase * 1.7) * 0.4;
++    p.array[i * 3 + 2] =
++      player.position.z + m.z + Math.cos(t * 0.19 * m.drift + m.phase) * 2.2;
++  }
++
++  p.needsUpdate = true;
++}
++
+ function updateFireflies(dt) {
+   const p = fireflyGeometry.attributes.position;
+ 
+@@ -2537,8 +2657,12 @@
+   audio.setWeather(settings.weather);
+   audio.setMusic(settings.music);
+ 
+-  cinematic.setEnabled(settings.postfx && settings.quality !== 'low');
++  const postActive = Boolean(settings.postfx && settings.quality !== 'low');
++  cinematic.setEnabled(postActive);
+   cinematic.setQuality(settings.quality);
++  if (sky.material.uniforms.uPost) {
++    sky.material.uniforms.uPost.value = postActive ? 1 : 0;
++  }
+   const postfxToggle = $('#postfx-toggle');
+   if (postfxToggle) postfxToggle.checked = settings.postfx;
+ 
+@@ -2853,8 +2977,10 @@
+   }
+ 
+   updateDayNight(dt);
++  updateShadowFocus();
+   updateWeather(dt);
+   updateFireflies(dt);
++  if (motes.visible) updateMotes();
+   updateProjectiles(dt);
+ 
+   if (campFire.visible) {
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/pixelSprites.js the-forgotten-realm-0.8/src/pixelSprites.js
+--- the-forgotten-realm-0.7/src/pixelSprites.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/pixelSprites.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,293 @@
++import * as THREE from 'three';
++
++export const SPRITE_FRAMES = 4;
++export const SPRITE_DIRECTIONS = 4;
++export const SPRITE_STATES = ['walk', 'attack', 'hurt', 'death'];
++
++const CELL = 32;
++const ROWS = SPRITE_STATES.length * SPRITE_DIRECTIONS;
++
++const BASE_PALETTE = {
++  body: '#3a4157',
++  light: '#596078',
++  dark: '#25283a',
++  accent: '#a63d50',
++  skin: '#e4b18b',
++  hood: '#282638',
++  eye: '#ff4d4d',
++  boot: '#171923',
++  metal: '#c19a55'
++};
++
++function drawCharacter(ctx, ox, oy, spec) {
++  const {
++    kind = 'humanoid', palette = {}, direction = 0, frame = 0,
++    state = 'walk', boss = false, variant = ''
++  } = spec;
++
++  const p = { ...BASE_PALETTE, ...palette };
++  const side = direction === 1 || direction === 3;
++  const mirror = direction === 3;
++  const collapse = state === 'death' ? frame * 2 : 0;
++  const step = state === 'walk' ? (frame === 1 ? -1 : frame === 3 ? 1 : 0) : 0;
++  const bob = state === 'walk' && (frame === 1 || frame === 3) ? -1 : 0;
++  const attack = state === 'attack';
++
++  ctx.save();
++  ctx.translate(ox + (mirror ? CELL : 0), oy);
++  if (mirror) ctx.scale(-1, 1);
++  ctx.beginPath();
++  ctx.rect(0, 0, CELL, CELL);
++  ctx.clip();
++  ctx.globalAlpha = state === 'death' ? Math.max(0.2, 1 - frame * 0.26) : 1;
++
++  const px = (x, y, w, h, color) => {
++    ctx.fillStyle = color;
++    ctx.fillRect(x, y + bob + collapse, w, Math.max(1, h - collapse));
++  };
++
++  if (kind === 'humanoid') {
++    px(9, 14, 14, 11, p.body);
++    px(11, 15, 10, 8, p.light);
++    px(13, 17, 6, 6, p.accent);
++    px(9, 25, 5, 5, p.dark);
++    px(18, 25, 5, 5, p.dark);
++    px(9 + step, 29, 6, 2, p.boot);
++    px(18 - step, 29, 6, 2, p.boot);
++    px(7, 16, 4, 8, p.body);
++    px(21, 16, 4, 8, p.body);
++    px(7, 22, 4, 3, p.skin);
++    px(21, 22, 4, 3, p.skin);
++    px(10, 4, 12, 4, p.hood);
++    px(8, 7, 16, 8, p.hood);
++    px(10, 9, 12, 6, p.skin);
++    px(7, 7, 5, 5, p.dark);
++    px(20, 7, 5, 5, p.dark);
++
++    if (direction === 0) {
++      px(11, 11, 3, 2, p.eye);
++      px(18, 11, 3, 2, p.eye);
++      px(14, 14, 4, 1, p.dark);
++    } else if (side) {
++      px(18, 11, 3, 2, p.eye);
++      px(23, 12, 1, 3, p.skin);
++    } else {
++      px(10, 9, 12, 7, p.hood);
++    }
++
++    if (boss) {
++      px(13, 0, 3, 4, p.accent);
++      px(16, 1, 3, 5, p.accent);
++      px(19, 0, 3, 4, p.accent);
++      px(16, 3, 2, 2, p.eye);
++    }
++
++    if (variant === 'sage') px(12, 2, 8, 3, p.accent);
++    if (variant === 'smith') {
++      px(10, 18, 12, 7, '#6d4a2f');
++      px(23, 14, 2, 12, '#8a8f99');
++    }
++    if (variant === 'merchant') {
++      px(7, 17, 4, 9, '#3e6c60');
++      px(21, 17, 4, 9, '#3e6c60');
++    }
++
++    if (attack) {
++      px(side ? 23 : 6, 15, 9, 3, p.metal);
++      px(side ? 29 : 4, 14, 2, 5, p.light);
++    }
++  } else if (kind === 'wraith') {
++    px(9, 8, 14, 14, p.body);
++    px(11, 9, 10, 11, p.light);
++    px(8, 6, 16, 5, p.hood);
++    px(10, 4, 12, 3, p.dark);
++    px(9, 21, 4, frame % 2 ? 4 : 6, p.body);
++    px(14, 21, 4, frame % 2 ? 6 : 4, p.dark);
++    px(19, 21, 4, frame % 2 ? 5 : 7, p.body);
++
++    if (direction === 0) {
++      px(12, 12, 3, 2, p.eye);
++      px(18, 12, 3, 2, p.eye);
++    } else if (side) {
++      px(18, 12, 3, 2, p.eye);
++    } else {
++      px(10, 9, 12, 6, p.hood);
++    }
++
++    if (boss) {
++      px(13, 1, 3, 4, p.accent);
++      px(16, 0, 3, 5, p.accent);
++      px(19, 1, 3, 4, p.accent);
++      px(16, 3, 2, 2, p.eye);
++    }
++
++    if (attack) px(side ? 22 : 4, 14, 8, 3, p.eye);
++  } else if (kind === 'brute') {
++    px(7, 13, 18, 14, p.body);
++    px(10, 15, 12, 10, p.light);
++    px(9, 16, 4, 3, p.accent);
++    px(19, 20, 4, 3, p.accent);
++    px(9, 26, 5, 4, p.dark);
++    px(18, 26, 5, 4, p.dark);
++    px(5, 16, 5, 9, p.body);
++    px(22, 16, 5, 9, p.body);
++    px(11, 7, 10, 6, p.dark);
++    px(12, 9, 8, 3, p.light);
++
++    if (direction === 0) {
++      px(13, 10, 2, 2, p.eye);
++      px(18, 10, 2, 2, p.eye);
++    } else if (side) {
++      px(18, 10, 3, 2, p.eye);
++    }
++
++    if (attack) px(side ? 24 : 3, 15, 8, 5, p.light);
++  } else {
++    const deer = kind === 'deer';
++    px(6, 16, 18, 8, p.body);
++    px(9, 18, 11, 4, p.light);
++    px(9, 24, 3, 6, p.dark);
++    px(18, 24, 3, 6, p.dark);
++    px(9 + step, 29, 4, 2, p.boot);
++    px(18 - step, 29, 4, 2, p.boot);
++
++    if (side || direction === 0) {
++      px(20, 11, 8, 8, p.body);
++      px(21, 13, 6, 4, p.light);
++      px(19, 10, 3, 3, p.dark);
++      px(25, 10, 3, 3, p.dark);
++      px(24, 14, 2, 2, p.eye);
++      px(27, 16, 4, 2, p.dark);
++      if (deer) {
++        px(21, 5, 2, 6, p.accent);
++        px(23, 4, 2, 7, p.accent);
++        px(26, 5, 2, 6, p.accent);
++        px(28, 4, 2, 7, p.accent);
++      }
++    } else {
++      px(11, 11, 10, 9, p.body);
++      px(13, 14, 6, 4, p.light);
++      px(11, 10, 3, 4, p.dark);
++      px(18, 10, 3, 4, p.dark);
++      px(13, 15, 2, 2, p.eye);
++      px(18, 15, 2, 2, p.eye);
++      if (deer) {
++        px(12, 5, 2, 6, p.accent);
++        px(18, 5, 2, 6, p.accent);
++      }
++    }
++
++    if (direction === 2) px(3, 15, 4, 4, p.dark);
++    if (attack) px(side ? 24 : 9, 18, 7, 3, p.boot);
++  }
++
++  if (state === 'hurt') {
++    ctx.fillStyle = 'rgba(255, 220, 220, 0.55)';
++    ctx.fillRect(5, 5, 22, 25);
++  }
++
++  ctx.restore();
++}
++
++export function createCharacterAtlas(spec) {
++  const canvas = document.createElement('canvas');
++  canvas.width = CELL * SPRITE_FRAMES;
++  canvas.height = CELL * ROWS;
++
++  const ctx = canvas.getContext('2d');
++
++  for (let stateIndex = 0; stateIndex < SPRITE_STATES.length; stateIndex++) {
++    for (let direction = 0; direction < SPRITE_DIRECTIONS; direction++) {
++      for (let frame = 0; frame < SPRITE_FRAMES; frame++) {
++        drawCharacter(
++          ctx,
++          frame * CELL,
++          (stateIndex * SPRITE_DIRECTIONS + direction) * CELL,
++          { ...spec, direction, frame, state: SPRITE_STATES[stateIndex] }
++        );
++      }
++    }
++  }
++
++  const texture = new THREE.CanvasTexture(canvas);
++  texture.magFilter = THREE.NearestFilter;
++  texture.minFilter = THREE.NearestFilter;
++  texture.generateMipmaps = false;
++  texture.colorSpace = THREE.SRGBColorSpace;
++  texture.repeat.set(1 / SPRITE_FRAMES, 1 / ROWS);
++  return texture;
++}
++
++export function createCharacterSprite(texture, width = 1.55, height = 2.05) {
++  const spriteTexture = texture.clone();
++  spriteTexture.needsUpdate = true;
++
++  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
++    map: spriteTexture,
++    transparent: true,
++    alphaTest: 0.05,
++    depthWrite: false
++  }));
++  sprite.scale.set(width, height, 1);
++  sprite.position.y = height / 2;
++  return sprite;
++}
++
++export function facingRow(rotationY, yaw = 0) {
++  const relative = Math.atan2(
++    Math.sin(rotationY - yaw),
++    Math.cos(rotationY - yaw)
++  );
++
++  if (relative > Math.PI / 4 && relative < Math.PI * 3 / 4) return 1;
++  if (relative > -Math.PI * 3 / 4 && relative < -Math.PI / 4) return 3;
++  if (Math.abs(relative) >= Math.PI * 3 / 4) return 2;
++  return 0;
++}
++
++export function setSpriteFrame(sprite, direction, frame, state = 'walk') {
++  const row = SPRITE_STATES.indexOf(state) * SPRITE_DIRECTIONS + direction;
++  const texture = sprite.material.map;
++  texture.offset.set(
++    frame / SPRITE_FRAMES,
++    (ROWS - 1 - row) / ROWS
++  );
++}
++
++export function updateCharacterAnimation(data, dt, yaw, rotationY) {
++  if (!data.sprite) return;
++
++  data.animTime = (data.animTime || 0) + dt;
++  data.hurtTimer = Math.max(0, (data.hurtTimer || 0) - dt);
++  data.attackTimer = Math.max(0, (data.attackTimer || 0) - dt);
++
++  let state = 'walk';
++  if (data.deathTimer > 0) state = 'death';
++  else if (data.hurtTimer > 0) state = 'hurt';
++  else if (data.attackTimer > 0) state = 'attack';
++
++  const direction = facingRow(rotationY, yaw);
++  data.directionRow = direction;
++
++  const speed = state === 'death' ? 10
++    : state === 'hurt' ? 14
++      : state === 'attack' ? 12
++        : data.moving ? 8 : 0;
++
++  const active = state !== 'walk' || data.moving;
++  const frame = active ? Math.floor(data.animTime * speed) % SPRITE_FRAMES : 0;
++  setSpriteFrame(data.sprite, direction, frame, state);
++
++  if (state === 'death') {
++    const duration = data.deathDuration || 0.55;
++    data.sprite.material.opacity = Math.max(0, data.deathTimer / duration);
++  } else {
++    data.sprite.material.opacity = 1;
++  }
++
++  if (data.hurtTimer > 0) {
++    data.sprite.material.color.setRGB(1, 0.55, 0.55);
++  } else {
++    data.sprite.material.color.setHex(data.baseTint || 0xffffff);
++  }
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/style.css the-forgotten-realm-0.8/src/style.css
+--- the-forgotten-realm-0.7/src/style.css	2026-11-23 08:50:19.044047933 +0000
++++ the-forgotten-realm-0.8/src/style.css	2026-11-23 11:23:44.718924290 +0000
+@@ -248,6 +248,10 @@
+   white-space: nowrap;
+ }
+ 
++#interaction-hint:empty {
++  display: none;
++}
++
+ #desktop-help {
+   position: absolute;
+   bottom: 14px;
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/systems.js the-forgotten-realm-0.8/src/systems.js
+--- the-forgotten-realm-0.7/src/systems.js	2026-11-23 08:50:19.044047933 +0000
++++ the-forgotten-realm-0.8/src/systems.js	2026-11-23 11:23:44.718924290 +0000
+@@ -1417,7 +1417,7 @@
+         }
+       }
+ 
+-      if (text) hint.textContent = text;
++      hint.textContent = text;
+     }
+ 
+     updateMinimap(yaw);
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/vegetation/grass-generator.js the-forgotten-realm-0.8/src/vegetation/grass-generator.js
+--- the-forgotten-realm-0.7/src/vegetation/grass-generator.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/vegetation/grass-generator.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,214 @@
++import * as THREE from 'three';
++
++// สร้างใบหญ้า 1 กอ
++function createGrassGeometry() {
++  const positions = [];
++  const indices = [];
++
++  const bladeCount = 5;
++  const segments = 3;
++
++  for (let blade = 0; blade < bladeCount; blade++) {
++    const angle = (blade / bladeCount) * Math.PI * 2;
++    const width = 0.055 + Math.random() * 0.035;
++    const height = 0.5 + Math.random() * 0.62;
++
++    const start = positions.length / 3;
++
++    for (let segment = 0; segment <= segments; segment++) {
++      const t = segment / segments;
++      const y = height * t;
++      const bend = t * t * (0.14 + blade * 0.014);
++
++      const centerX = Math.cos(angle) * bend;
++      const centerZ = Math.sin(angle) * bend;
++
++      const halfWidth = width * (1 - t * 0.85);
++
++      positions.push(
++        centerX - Math.sin(angle) * halfWidth,
++        y,
++        centerZ - Math.cos(angle) * halfWidth
++      );
++
++      positions.push(
++        centerX + Math.sin(angle) * halfWidth,
++        y,
++        centerZ + Math.cos(angle) * halfWidth
++      );
++    }
++
++    for (let segment = 0; segment < segments; segment++) {
++      const a = start + segment * 2;
++      const b = a + 1;
++      const c = a + 2;
++      const d = a + 3;
++
++      indices.push(a, b, c, b, d, c);
++    }
++  }
++
++  const geometry = new THREE.BufferGeometry();
++
++  geometry.setAttribute(
++    'position',
++    new THREE.Float32BufferAttribute(positions, 3)
++  );
++
++  geometry.setIndex(indices);
++  geometry.computeVertexNormals();
++
++  /* Blades are lit like the ground they grow from: mostly "up" normals give
++     soft, natural gradient instead of harsh black cards when back-lit. */
++  const normals = geometry.attributes.normal;
++  for (let i = 0; i < normals.count; i++) {
++    const nx = normals.getX(i) * 0.35;
++    const ny = normals.getY(i) * 0.35 + 0.65;
++    const nz = normals.getZ(i) * 0.35;
++    const len = Math.hypot(nx, ny, nz) || 1;
++    normals.setXYZ(i, nx / len, ny / len, nz / len);
++  }
++  normals.needsUpdate = true;
++
++  return geometry;
++}
++
++// สร้างวัสดุหญ้าพร้อมระบบลม
++function createGrassMaterial() {
++  const material = new THREE.MeshStandardMaterial({
++    color: 0xffffff,
++    roughness: 0.95,
++    metalness: 0,
++    side: THREE.DoubleSide,
++    vertexColors: false
++  });
++
++  material.onBeforeCompile = (shader) => {
++    shader.uniforms.uGrassTime = {
++      value: 0
++    };
++
++    shader.vertexShader = shader.vertexShader.replace(
++      '#include <common>',
++      `#include <common>
++       uniform float uGrassTime;
++       varying float vGrassHeight;`
++    );
++
++    shader.vertexShader = shader.vertexShader.replace(
++      '#include <begin_vertex>',
++      `#include <begin_vertex>
++
++       float grassHeight = position.y;
++
++       
++       float windWave =
++         sin(uGrassTime * 1.8
++         + instanceMatrix[3][0] * 0.15
++         + instanceMatrix[3][2] * 0.15) * 0.7
++         + sin(uGrassTime * 0.9
++         + instanceMatrix[3][0] * 0.08) * 0.3;
++
++       transformed.x += windWave * grassHeight * 0.18;
++       transformed.z += windWave * grassHeight * 0.10;
++
++       vGrassHeight = clamp(grassHeight, 0.0, 1.1);
++      `
++    );
++
++    shader.fragmentShader = shader.fragmentShader.replace(
++      '#include <common>',
++      `#include <common>
++       varying float vGrassHeight;`
++    );
++
++    shader.fragmentShader = shader.fragmentShader.replace(
++      '#include <color_fragment>',
++      `#include <color_fragment>
++       float tip = smoothstep(0.0, 0.95, vGrassHeight);
++       diffuseColor.rgb *= mix(0.76, 1.14, tip);`
++    );
++
++    material.userData.shader = shader;
++  };
++
++  return material;
++}
++
++// สร้างหญ้าในแต่ละพื้นที่
++export function createGrassTile({
++  centerX,
++  centerZ,
++  tileSize,
++  count,
++  getHeight,
++  biome
++}) {
++  const geometry = createGrassGeometry();
++  const material = createGrassMaterial();
++
++  const mesh = new THREE.InstancedMesh(
++    geometry,
++    material,
++    count
++  );
++
++  const dummy = new THREE.Object3D();
++
++  const colors = biome?.colors || [
++    0x526b3c,
++    0x71834a,
++    0x3e5835
++  ];
++
++  for (let i = 0; i < count; i++) {
++    const x = centerX + (Math.random() - 0.5) * tileSize;
++    const z = centerZ + (Math.random() - 0.5) * tileSize;
++
++    const y = getHeight(x, z);
++
++    if (y === null || !Number.isFinite(y)) {
++      dummy.position.set(0, -1000, 0);
++      dummy.scale.setScalar(0);
++      dummy.updateMatrix();
++      mesh.setMatrixAt(i, dummy.matrix);
++      continue;
++    }
++
++    const scale = 0.55 + Math.random() * 0.6;
++
++    dummy.position.set(x, y, z);
++    dummy.rotation.y = Math.random() * Math.PI * 2;
++    dummy.scale.setScalar(scale);
++    dummy.updateMatrix();
++
++    mesh.setMatrixAt(i, dummy.matrix);
++
++    const color = new THREE.Color(
++      colors[Math.floor(Math.random() * colors.length)]
++    );
++    color.multiplyScalar(0.95 + Math.random() * 0.32);
++    color.offsetHSL((Math.random() - 0.5) * 0.02, 0, 0);
++
++    mesh.setColorAt(i, color);
++  }
++
++  mesh.instanceMatrix.needsUpdate = true;
++
++  if (mesh.instanceColor) {
++    mesh.instanceColor.needsUpdate = true;
++  }
++
++  mesh.computeBoundingSphere();
++
++  return mesh;
++}
++
++// อัปเดตแรงลมของหญ้า
++export function updateGrassWind(mesh, time) {
++  const shader = mesh?.material?.userData?.shader;
++
++  if (shader?.uniforms?.uGrassTime) {
++    shader.uniforms.uGrassTime.value = time;
++  }
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/vegetation/vegetation-biomes.js the-forgotten-realm-0.8/src/vegetation/vegetation-biomes.js
+--- the-forgotten-realm-0.7/src/vegetation/vegetation-biomes.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/vegetation/vegetation-biomes.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,51 @@
++// THE FORGOTTEN REALM
++// Procedural Vegetation Biomes
++
++export const VEGETATION_BIOMES = {
++  wasteland: {
++    name: "Wasteland",
++    colors: [0x5f5b3c, 0x6f6844, 0x494f31],
++    densityMultiplier: 0.65,
++    heightMultiplier: 0.75
++  },
++
++  ravenhold: {
++    name: "Ravenhold",
++    colors: [0x4a6338, 0x5e7542, 0x395030],
++    densityMultiplier: 1.0,
++    heightMultiplier: 1.0
++  },
++
++  deadwood: {
++    name: "Deadwood",
++    colors: [0x40552f, 0x576636, 0x2f4529],
++    densityMultiplier: 1.15,
++    heightMultiplier: 1.1
++  },
++
++  varnhal: {
++    name: "Varnhal",
++    colors: [0x50633a, 0x6f7a45, 0x3d4e2d],
++    densityMultiplier: 0.95,
++    heightMultiplier: 0.9
++  },
++
++  emberpeak: {
++    name: "Emberpeak",
++    colors: [0x5f5f47, 0x736b53, 0x4b5140],
++    densityMultiplier: 0.55,
++    heightMultiplier: 0.65
++  },
++
++  mirefall: {
++    name: "Mirefall",
++    colors: [0x4a5c44, 0x5d6d50, 0x39493c],
++    densityMultiplier: 1.05,
++    heightMultiplier: 0.85
++  }
++};
++
++export function getVegetationBiome(region) {
++  return VEGETATION_BIOMES[region]
++    || VEGETATION_BIOMES.ravenhold;
++}
+\ No newline at end of file
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/vegetation/vegetation-config.js the-forgotten-realm-0.8/src/vegetation/vegetation-config.js
+--- the-forgotten-realm-0.7/src/vegetation/vegetation-config.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/vegetation/vegetation-config.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,60 @@
++// THE FORGOTTEN REALM
++// Procedural Vegetation Configuration
++
++export const VEGETATION_CONFIG = {
++  // ขนาดพื้นที่หญ้าแต่ละ Tile
++  tileSize: 32,
++
++  // จำนวน Tile ที่สร้างรอบตัวละคร
++  renderRadius: 2,
++
++  // ระยะการแสดงผล
++  viewDistance: 80,
++
++  // ความหนาแน่นของหญ้า
++  density: {
++    mobile: {
++      near: 220,
++      middle: 120,
++      far: 48
++    },
++
++    desktop: {
++      near: 520,
++      middle: 280,
++      far: 120
++    }
++  },
++
++  // การเคลื่อนไหวตามแรงลม
++  wind: {
++    enabled: true,
++    directionX: 0.8,
++    directionZ: 0.35,
++    strength: 0.18,
++    speed: 1.2
++  },
++
++  // การกระจายหญ้าบนพื้น
++  placement: {
++    minHeight: 0.08,
++    maxHeight: 1.15,
++    minSlope: 0,
++    maxSlope: 0.75,
++    randomScale: true
++  },
++
++  // ประสิทธิภาพ
++  performance: {
++    castShadow: false,
++    receiveShadow: false,
++    frustumCulling: true,
++    updateInterval: 0.15
++  }
++};
++
++export function getVegetationDensity(mobile = true) {
++  return mobile
++    ? VEGETATION_CONFIG.density.mobile
++    : VEGETATION_CONFIG.density.desktop;
++}
+\ No newline at end of file
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/vegetation/vegetation-manager.js the-forgotten-realm-0.8/src/vegetation/vegetation-manager.js
+--- the-forgotten-realm-0.7/src/vegetation/vegetation-manager.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/vegetation/vegetation-manager.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,186 @@
++import * as THREE from 'three';
++
++import {
++  VEGETATION_CONFIG,
++  getVegetationDensity
++} from './vegetation-config.js';
++
++import {
++  getVegetationBiome
++} from './vegetation-biomes.js';
++
++import {
++  createGrassTile,
++  updateGrassWind
++} from './grass-generator.js';
++
++export function createVegetationManager({
++  scene,
++  getHeight,
++  getRegion,
++  mobile = true
++}) {
++  if (!scene || typeof getHeight !== 'function') {
++    throw new Error(
++      'VegetationManager requires scene and getHeight'
++    );
++  }
++
++  const root = new THREE.Group();
++  root.name = 'ProceduralVegetation';
++
++  scene.add(root);
++
++  const tiles = new Map();
++  const config = VEGETATION_CONFIG;
++  const density = getVegetationDensity(mobile);
++
++  let elapsedTime = 0;
++  let lastUpdateX = NaN;
++  let lastUpdateZ = NaN;
++
++  const tileSize = config.tileSize;
++  const radius = config.renderRadius;
++
++  function tileKey(x, z) {
++    return `${x},${z}`;
++  }
++
++  function buildTile(tileX, tileZ) {
++    const key = tileKey(tileX, tileZ);
++
++    if (tiles.has(key)) return;
++
++    const centerX = tileX * tileSize + tileSize / 2;
++    const centerZ = tileZ * tileSize + tileSize / 2;
++
++    const groundHeight = getHeight(centerX, centerZ);
++
++    // รอจนกว่าระบบภูมิประเทศจะพร้อม
++    if (
++      groundHeight === null ||
++      !Number.isFinite(groundHeight)
++    ) {
++      return;
++    }
++
++    const distance = Math.max(
++      Math.abs(tileX - Math.floor(lastUpdateX / tileSize)),
++      Math.abs(tileZ - Math.floor(lastUpdateZ / tileSize))
++    );
++
++    let count = density.far;
++
++    if (distance <= 1) {
++      count = density.near;
++    } else if (distance <= 2) {
++      count = density.middle;
++    }
++
++    const regionData = getRegion
++  ? getRegion(centerX, centerZ)
++  : null;
++
++const regionId =
++  typeof regionData === 'string'
++    ? regionData
++    : regionData?.id;
++
++const biome = getVegetationBiome(regionId);
++
++    count = Math.max(
++      0,
++      Math.floor(count * biome.densityMultiplier)
++    );
++
++    const mesh = createGrassTile({
++      centerX,
++      centerZ,
++      tileSize,
++      count,
++      getHeight,
++      biome
++    });
++
++    mesh.name = `Grass_${key}`;
++    mesh.castShadow = false;
++    mesh.receiveShadow = false;
++    mesh.frustumCulled = true;
++
++    root.add(mesh);
++    tiles.set(key, mesh);
++  }
++
++  function removeOldTiles(playerTileX, playerTileZ) {
++    for (const [key, mesh] of tiles) {
++      const [x, z] = key.split(',').map(Number);
++
++      const outside =
++        Math.abs(x - playerTileX) > radius ||
++        Math.abs(z - playerTileZ) > radius;
++
++      if (outside) {
++        root.remove(mesh);
++
++        mesh.geometry.dispose();
++        mesh.material.dispose();
++
++        tiles.delete(key);
++      }
++    }
++  }
++
++  function update(position, deltaTime = 0) {
++    if (!position) return;
++
++    elapsedTime += Math.max(0, deltaTime);
++
++    const playerTileX = Math.floor(position.x / tileSize);
++    const playerTileZ = Math.floor(position.z / tileSize);
++
++    const moved =
++      playerTileX !== Math.floor(lastUpdateX / tileSize) ||
++      playerTileZ !== Math.floor(lastUpdateZ / tileSize);
++
++    if (moved || tiles.size === 0) {
++      lastUpdateX = position.x;
++      lastUpdateZ = position.z;
++
++      removeOldTiles(playerTileX, playerTileZ);
++
++      for (let x = -radius; x <= radius; x++) {
++        for (let z = -radius; z <= radius; z++) {
++          buildTile(
++            playerTileX + x,
++            playerTileZ + z
++          );
++        }
++      }
++    }
++
++    for (const mesh of tiles.values()) {
++      updateGrassWind(mesh, elapsedTime);
++    }
++  }
++
++  function dispose() {
++    for (const mesh of tiles.values()) {
++      root.remove(mesh);
++      mesh.geometry.dispose();
++      mesh.material.dispose();
++    }
++
++    tiles.clear();
++    scene.remove(root);
++  }
++
++  return {
++    update,
++    dispose,
++    root,
++
++    get tileCount() {
++      return tiles.size;
++    }
++  };
++}
+\ No newline at end of file
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/chunk-manager.js the-forgotten-realm-0.8/src/world/chunk-manager.js
+--- the-forgotten-realm-0.7/src/world/chunk-manager.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/chunk-manager.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,524 @@
++import * as THREE from 'three';
++import {
++  CHUNK_SIZE, WORLD_BOUNDS, WORLD_SIZE, WORLD_SIZE_METERS, CHUNK_COUNT,
++  LEGACY_GROUND_BOUNDS, ZONES, chunkKey, chunkBounds, chunkBoundsOverlap,
++  chunkBoundsContained, worldToChunk, getZoneAt, getZoneById
++} from './world-config.js';
++import { biomeStyle, hash2, surfaceNormalY } from './world-biomes.js';
++import { TerrainManager } from './terrain-manager.js';
++import { createWorldCollision, createImportedTerrainProbe } from './world-collision.js';
++import { ChunkAssetLoader, getStreamingRadius } from './world-streaming.js';
++
++const QUALITY_SCALE = { low: .5, medium: .8, high: 1 };
++
++export class ChunkManager {
++  constructor({
++    scene,
++    isTouch = false,
++    quality = 'medium',
++    cameraFar = 220,
++    ground = null,
++    getImportedWorld,
++    getImportedBounds,
++    raycaster,
++    assetLoader = {}
++  }) {
++    this.scene = scene;
++    this.isTouch = isTouch;
++    this.quality = quality;
++    this.cameraFar = cameraFar;
++    this.raycaster = raycaster;
++    this.getImportedBounds = getImportedBounds;
++    this.terrainManager = new TerrainManager();
++    this.assets = new ChunkAssetLoader(assetLoader);
++    this.loaded = new Map();
++    this.pending = [];
++    this.center = null;
++    this.timer = 0;
++    this.force = true;
++    this.radius = getStreamingRadius(quality, isTouch, cameraFar, CHUNK_SIZE);
++
++    this.collision = createWorldCollision({
++      worldBounds: WORLD_BOUNDS,
++      getImportedWorld,
++      getImportedBounds,
++      raycaster,
++      getChunkAt: (x, z) => this.getChunkAt(x, z)
++    });
++
++    this.propGeometries = {
++      trunk: new THREE.CylinderGeometry(.2, .36, 3.4, 6),
++      crown: new THREE.IcosahedronGeometry(1, 0),
++      rock: new THREE.DodecahedronGeometry(1, 0),
++      flora: new THREE.ConeGeometry(.4, 1, 3),
++      ruin: new THREE.BoxGeometry(1, 1, 1)
++    };
++    this.propMaterials = new Map();
++    this.dummy = new THREE.Object3D();
++    this.tint = new THREE.Color();
++
++    if (ground) ground.visible = false;
++  }
++
++  getGroundMaterials(biome) {
++    let materials = this.propMaterials.get(biome);
++    if (!materials) {
++      const style = biomeStyle(biome);
++      materials = {
++        trunk: new THREE.MeshStandardMaterial({ color: 0x62452f, roughness: 1, flatShading: true }),
++        crown: new THREE.MeshStandardMaterial({ color: style.foliage, roughness: 1, flatShading: true }),
++        rock: new THREE.MeshStandardMaterial({ color: style.rock, roughness: 1, flatShading: true }),
++        flora: new THREE.MeshStandardMaterial({ color: style.accent, roughness: 1, flatShading: true, side: THREE.DoubleSide }),
++        ruin: new THREE.MeshStandardMaterial({ color: style.rock, roughness: 1, flatShading: true })
++      };
++      this.propMaterials.set(biome, materials);
++    }
++    return materials;
++  }
++
++  getChunkAt(x, z) {
++    const coords = worldToChunk(x, z);
++    return this.loaded.get(chunkKey(coords.cx, coords.cz)) || null;
++  }
++
++  importedRect() {
++    const bounds = this.getImportedBounds();
++    if (!bounds) return null;
++    return { minX: bounds.min.x, maxX: bounds.max.x, minZ: bounds.min.z, maxZ: bounds.max.z };
++  }
++
++  hasValidImportedCoverage(bounds) {
++    const probe = this.collision.probe;
++    const inset = CHUNK_SIZE * .15;
++    const samples = [
++      [bounds.centerX, bounds.centerZ],
++      [bounds.minX + inset, bounds.minZ + inset],
++      [bounds.maxX - inset, bounds.minZ + inset],
++      [bounds.minX + inset, bounds.maxZ - inset],
++      [bounds.maxX - inset, bounds.maxZ - inset]
++    ];
++    return samples.every(([x, z]) => probe.heightAt(x, z, 0) !== null);
++  }
++
++  setQuality(quality) {
++    if (this.quality === quality) return;
++    this.quality = quality;
++    this.radius = getStreamingRadius(quality, this.isTouch, this.cameraFar, CHUNK_SIZE);
++    this.force = true;
++  }
++
++  reloadAll() {
++    for (const chunk of this.loaded.values()) this.disposeChunk(chunk);
++    this.pending.length = 0;
++    this.center = null;
++    this.force = true;
++  }
++
++  update(dt, position) {
++    this.timer += dt;
++    const coords = worldToChunk(position.x, position.z);
++    const centerChanged = !this.center || this.center.cx !== coords.cx || this.center.cz !== coords.cz;
++    if (!centerChanged && this.timer < .4 && !this.force) return;
++
++    if (centerChanged || this.force) {
++      this.center = coords;
++      this.reconcile();
++      this.force = false;
++    }
++
++    this.timer = 0;
++    let budget = this.isTouch ? 1 : 2;
++    while (this.pending.length > 0 && budget > 0) {
++      const next = this.pending.shift();
++      if (!this.loaded.has(next.key)) this.createChunk(next.cx, next.cz);
++      budget -= 1;
++    }
++  }
++
++  reconcile() {
++    if (!this.center) return;
++    const keepRadius = this.radius + 1;
++    for (const chunk of [...this.loaded.values()]) {
++      const distance = Math.max(Math.abs(chunk.cx - this.center.cx), Math.abs(chunk.cz - this.center.cz));
++      if (distance > keepRadius) this.disposeChunk(chunk);
++    }
++
++    const desired = [];
++    for (let cx = this.center.cx - this.radius; cx <= this.center.cx + this.radius; cx++) {
++      for (let cz = this.center.cz - this.radius; cz <= this.center.cz + this.radius; cz++) {
++        const bounds = chunkBounds(cx, cz);
++        if (!chunkBoundsOverlap(bounds, WORLD_BOUNDS)) continue;
++        const key = chunkKey(cx, cz);
++        if (this.loaded.has(key)) continue;
++        const distance = Math.hypot(cx - this.center.cx, cz - this.center.cz);
++        desired.push({ cx, cz, key, distance });
++      }
++    }
++    desired.sort((a, b) => a.distance - b.distance);
++    this.pending = desired;
++  }
++
++  createChunk(cx, cz) {
++    const key = chunkKey(cx, cz);
++    if (this.loaded.has(key)) return this.loaded.get(key);
++    const bounds = chunkBounds(cx, cz);
++    const zone = getZoneAt(bounds.centerX, bounds.centerZ);
++    const chunk = {
++      key, cx, cz, bounds, zone,
++      group: new THREE.Group(),
++      colliders: [],
++      assetRoot: null,
++      assetProbe: null,
++      terrain: null
++    };
++    chunk.group.name = `Chunk_${zone.id}_${cx}_${cz}`;
++
++    const importedRect = this.importedRect();
++    const fullyCovered = Boolean(importedRect && chunkBoundsContained(importedRect, bounds));
++    chunk.terrain = this.terrainManager.buildChunk(chunk, zone, false);
++    this.populateChunk(chunk);
++
++    if (fullyCovered && this.hasValidImportedCoverage(bounds)) {
++      chunk.terrain.mesh.visible = false;
++      if (chunk.terrain.water) chunk.terrain.water.visible = false;
++    }
++
++    this.scene.add(chunk.group);
++    this.loaded.set(key, chunk);
++    this.collision.addColliders(key, chunk.colliders);
++
++    this.assets.load(cx, cz, zone).then(root => {
++      if (!root || !this.loaded.has(key) || this.loaded.get(key) !== chunk) return;
++      chunk.group.traverse(object => {
++        if (object !== chunk.group && object.isMesh) object.visible = false;
++      });
++      chunk.assetRoot = root;
++      chunk.group.add(root);
++      const assetBounds = new THREE.Box3().setFromObject(root);
++      chunk.assetProbe = createImportedTerrainProbe({
++        getWorld: () => chunk.assetRoot,
++        getBounds: () => assetBounds,
++        raycaster: this.raycaster
++      });
++    });
++
++    return chunk;
++  }
++
++  populateChunk(chunk) {
++    const zone = chunk.zone;
++    const style = biomeStyle(zone.biome);
++    const materials = this.getGroundMaterials(zone.biome);
++    const density = (QUALITY_SCALE[this.quality] || .8) * (this.isTouch ? .7 : 1);
++    const areaScale = Math.min(6, (CHUNK_SIZE * CHUNK_SIZE) / 3600);
++    const rand = (index, salt = 0) => hash2(chunk.cx * 97 + index * 13, chunk.cz * 131 + index * 7, salt + 31);
++    const legacyOverlap = chunkBoundsOverlap(chunk.bounds, LEGACY_GROUND_BOUNDS);
++    const treeCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.trees * density * areaScale));
++    const rockCount = legacyOverlap ? 0 : Math.max(2, Math.round(style.rocks * density * areaScale));
++    const floraCount = Math.max(2, Math.round(style.vegetation * density * areaScale * (legacyOverlap ? .25 : 1)));
++    const offset = CHUNK_SIZE / 2 - 3;
++    const positionOf = (index, salt) => ({
++      x: chunk.bounds.centerX + (rand(index, salt) * 2 - 1) * offset,
++      z: chunk.bounds.centerZ + (rand(index, salt + 101) * 2 - 1) * offset
++    });
++    const walkable = (x, z) => surfaceNormalY(x, z, zone) > .62;
++
++    if (treeCount > 0) {
++      const trunks = new THREE.InstancedMesh(this.propGeometries.trunk, materials.trunk, treeCount);
++      const crowns = new THREE.InstancedMesh(this.propGeometries.crown, materials.crown, treeCount * 2);
++      let placed = 0;
++      for (let i = 0; i < treeCount * 3 && placed < treeCount; i++) {
++        const spot = positionOf(i, 7);
++        if (!walkable(spot.x, spot.z)) continue;
++        const height = chunk.terrain.sampleHeight(spot.x, spot.z);
++        const scale = .75 + rand(i, 19) * 1.05;
++        this.dummy.position.set(spot.x, height + 1.7 * scale, spot.z);
++        this.dummy.rotation.set(0, rand(i, 23) * Math.PI * 2, 0);
++        this.dummy.scale.setScalar(scale);
++        this.dummy.updateMatrix();
++        trunks.setMatrixAt(placed, this.dummy.matrix);
++
++        for (let j = 0; j < 2; j++) {
++          this.dummy.position.set(
++            spot.x + (j ? .45 : -.35) * scale,
++            height + (3.15 + j * .95) * scale,
++            spot.z + (j ? .25 : -.2) * scale
++          );
++          this.dummy.rotation.set(0, rand(i, 29 + j) * Math.PI, 0);
++          this.dummy.scale.set((1.5 - j * .25) * scale, (1.05 + j * .1) * scale, 1.3 * scale);
++          this.dummy.updateMatrix();
++          const index = placed * 2 + j;
++          crowns.setMatrixAt(index, this.dummy.matrix);
++          this.tint.set(style.foliage).offsetHSL((rand(i, 37 + j) - .5) * .05, 0, (rand(i, 43 + j) - .5) * .14);
++          crowns.setColorAt(index, this.tint);
++        }
++
++        chunk.colliders.push({ x: spot.x, z: spot.z, radius: .75 * scale });
++        placed += 1;
++      }
++      trunks.count = placed;
++      crowns.count = placed * 2;
++      trunks.instanceMatrix.needsUpdate = true;
++      crowns.instanceMatrix.needsUpdate = true;
++      if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
++      trunks.castShadow = true;
++      crowns.castShadow = true;
++      chunk.group.add(trunks, crowns);
++    }
++
++    if (rockCount > 0) {
++      const rocks = new THREE.InstancedMesh(this.propGeometries.rock, materials.rock, rockCount);
++      let placed = 0;
++      for (let i = 0; i < rockCount * 2 && placed < rockCount; i++) {
++        const spot = positionOf(i, 311);
++        const height = chunk.terrain.sampleHeight(spot.x, spot.z);
++        const scale = .5 + rand(i, 317) * 1.5;
++        this.dummy.position.set(spot.x, height + scale * .35, spot.z);
++        this.dummy.rotation.set(rand(i, 331) * .4, rand(i, 337) * Math.PI * 2, rand(i, 347) * .3);
++        this.dummy.scale.set(scale * 1.1, scale * .75, scale);
++        this.dummy.updateMatrix();
++        rocks.setMatrixAt(placed, this.dummy.matrix);
++        if (scale > 1.15) chunk.colliders.push({ x: spot.x, z: spot.z, radius: scale * .7 });
++        placed += 1;
++      }
++      rocks.count = placed;
++      rocks.instanceMatrix.needsUpdate = true;
++      rocks.castShadow = true;
++      rocks.receiveShadow = true;
++      chunk.group.add(rocks);
++    }
++
++    if (floraCount > 0) {
++      const flora = new THREE.InstancedMesh(this.propGeometries.flora, materials.flora, floraCount);
++      let placed = 0;
++      for (let i = 0; i < floraCount * 2 && placed < floraCount; i++) {
++        const spot = positionOf(i, 509);
++        const height = chunk.terrain.sampleHeight(spot.x, spot.z);
++        if (height < zone.terrain.waterLevel) continue;
++        const scale = .5 + rand(i, 521) * .85;
++        this.dummy.position.set(spot.x, height + scale * .45, spot.z);
++        this.dummy.rotation.set(0, rand(i, 523) * Math.PI * 2, (rand(i, 541) - .5) * .2);
++        this.dummy.scale.set(scale, scale, scale);
++        this.dummy.updateMatrix();
++        flora.setMatrixAt(placed, this.dummy.matrix);
++        this.tint.set(style.accent).offsetHSL((rand(i, 547) - .5) * .08, 0, (rand(i, 557) - .5) * .18);
++        flora.setColorAt(placed, this.tint);
++        placed += 1;
++      }
++      flora.count = placed;
++      flora.instanceMatrix.needsUpdate = true;
++      if (flora.instanceColor) flora.instanceColor.needsUpdate = true;
++      chunk.group.add(flora);
++    }
++
++    if (!legacyOverlap && style.ruins > 0 && rand(0, 719) < .55) {
++      const pieces = Math.min(style.ruins, 2);
++      for (let i = 0; i < pieces; i++) {
++        const spot = positionOf(i, 809);
++        if (!walkable(spot.x, spot.z)) continue;
++        const height = chunk.terrain.sampleHeight(spot.x, spot.z);
++        const width = 2 + rand(i, 811) * 2.5;
++        const tall = 2.5 + rand(i, 821) * 3;
++        const block = new THREE.Mesh(this.propGeometries.ruin, materials.ruin);
++        block.position.set(spot.x, height + tall / 2, spot.z);
++        block.scale.set(width, tall, width * .7);
++        block.rotation.y = rand(i, 823) * Math.PI;
++        block.castShadow = true;
++        block.receiveShadow = true;
++        chunk.group.add(block);
++        chunk.colliders.push({ x: spot.x, z: spot.z, radius: width * .6 });
++      }
++    }
++  }
++
++  disposeChunk(chunk) {
++    if (!this.loaded.has(chunk.key)) return;
++    this.scene.remove(chunk.group);
++    this.collision.removeColliders(chunk.key);
++    this.terrainManager.disposeChunk(chunk);
++    chunk.group.traverse(object => {
++      if (object.isInstancedMesh && object.dispose) object.dispose();
++      if (object.isMesh && object.userData.chunkAsset) {
++        object.geometry?.dispose?.();
++        if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
++        else object.material?.dispose?.();
++      }
++    });
++    this.loaded.delete(chunk.key);
++  }
++
++  getTerrainHeight(x, z, referenceY = 0) {
++    const chunk = this.getChunkAt(x, z);
++    if (chunk && chunk.assetProbe && chunk.assetProbe.contains(x, z)) {
++      const height = chunk.assetProbe.heightAt(x, z, referenceY);
++      if (height !== null) return height;
++    }
++    return this.collision.terrainHeightAt(x, z, referenceY);
++  }
++
++  blocked(x, z, radius = .55) {
++    return this.collision.blocked(x, z, radius);
++  }
++
++  clampPosition(position) {
++    return this.collision.clampPosition(position);
++  }
++
++  getZoneAt(x, z) {
++    return getZoneAt(x, z);
++  }
++
++  getAudioBiome(position, dungeonActive = false) {
++    if (dungeonActive) return 'dungeon';
++    if (position.x > 14 && position.x < 43 && position.z > -44 && position.z < -12) return 'village';
++    if (Math.abs(position.z + 71) < 9 && Math.abs(position.x) < 90) return 'river';
++    if (position.x < -10 && position.z > -58 && position.z < -12) return 'forest';
++    return getZoneAt(position.x, position.z).ambient;
++  }
++
++  getDiscoveryRegions() {
++    return ZONES.map(zone => ({
++      id: zone.id,
++      name: zone.name,
++      isInside: () => getZoneAt(this.playerPosition?.x ?? 0, this.playerPosition?.z ?? 0).id === zone.id
++    }));
++  }
++
++  setPlayerPosition(position) {
++    this.playerPosition = position;
++  }
++
++  getMapZones() {
++    return ZONES.map(zone => ({
++      id: zone.id,
++      name: zone.name,
++      discoveredId: zone.id,
++      center: new THREE.Vector3(zone.center.x, 0, zone.center.z),
++      radius: Math.min(zone.bounds.maxX - zone.bounds.minX, zone.bounds.maxZ - zone.bounds.minZ) / 4,
++      color: `#${new THREE.Color(zone.palette.accent).getHexString()}`,
++      bounds: { ...zone.bounds }
++    }));
++  }
++
++  getLandmarks() {
++    return ZONES.map(zone => ({
++      position: new THREE.Vector3(zone.center.x, 0, zone.center.z),
++      color: `#${new THREE.Color(zone.palette.accent).getHexString()}`,
++      size: 5,
++      name: zone.name,
++      region: zone.id
++    }));
++  }
++
++  zonePoint(id, dx, dz) {
++    const zone = getZoneById(id);
++    return [zone.center.x + dx, zone.center.z + dz];
++  }
++
++  getEnemySpawns() {
++    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
++    return [
++      ['wraith', ...at('cursed-forest', -120, -60)],
++      ['wolf', ...at('cursed-forest', -180, 120)],
++      ['brute', ...at('frostfang', -100, -60)],
++      ['wraith', ...at('frostfang', 140, 90)],
++      ['brute', ...at('ember-wastes', -90, -100)],
++      ['guardian', ...at('ember-wastes', 200, 140)],
++      ['wraith', ...at('dreadmoor', 100, -90)],
++      ['wolf', ...at('dreadmoor', -180, 100)],
++      ['wraith', ...at('forgotten-abyss', 120, -60)],
++      ['guardian', ...at('forgotten-abyss', -180, 90)],
++      ['brute', ...at('forgotten-abyss', 200, -180)]
++    ];
++  }
++
++  getResourceNodes() {
++    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
++    return {
++      herb: [at('cursed-forest', -80, -40), at('cursed-forest', -160, 90), at('cursed-forest', -240, -110), at('cursed-forest', -60, 160)],
++      wood: [at('cursed-forest', -110, 40), at('cursed-forest', -210, -70), at('cursed-forest', -40, -150), at('cursed-forest', -270, 60)],
++      ore: [at('frostfang', -70, -120), at('frostfang', 160, -50), at('frostfang', -190, 90), at('frostfang', 100, 180)],
++      stoneHeart: [at('ember-wastes', -100, -130), at('ember-wastes', 190, -70), at('ember-wastes', -210, 120), at('ember-wastes', 80, 210)],
++      essence: [at('dreadmoor', 90, -110), at('dreadmoor', -170, -60), at('dreadmoor', 180, 130), at('dreadmoor', -80, 200)],
++      darkShard: [at('forgotten-abyss', 140, -90), at('forgotten-abyss', -190, 80), at('forgotten-abyss', 220, -200), at('forgotten-abyss', -260, -160)],
++      bone: [at('dreadmoor', 150, 60), at('dreadmoor', -230, -140), at('ember-wastes', 120, 120), at('forgotten-abyss', -60, 180)]
++    };
++  }
++
++  getExtraNpcs() {
++    const at = (id, dx, dz) => this.zonePoint(id, dx, dz);
++    const frostHome = at('frostfang', -100, 60);
++    const frostWalk = at('frostfang', -20, -80);
++    const abyssHome = at('forgotten-abyss', 120, 60);
++    const abyssWalk = at('forgotten-abyss', -100, -120);
++    return [
++      {
++        id: 'frost_hermit',
++        name: 'ฤๅษีน้ำแข็ง',
++        position: [frostHome[0], 0, frostHome[1]],
++        color: 0xa9d8e8,
++        schedule: [
++          { from: 0, to: .5, position: [frostHome[0], 0, frostHome[1]] },
++          { from: .5, to: 1, position: [frostWalk[0], 0, frostWalk[1]] }
++        ],
++        lines: [
++          'น้ำแข็งเก็บความทรงจำไว้ได้นานกว่าหิน จงเดินให้ช้าลงเพื่อฟังมัน',
++          'ยอดเขาฟรอสต์แฟงก์มีแร่ที่ยังไม่เคยถูกมือมนุษย์แตะต้อง'
++        ],
++        choices: [
++          { label: 'ถามทางขึ้นยอดเขา', text: 'เดินตามสันเขาทางทิศตะวันออก แล้วหลบเงาที่ตกลงมา', relation: 1 }
++        ]
++      },
++      {
++        id: 'abyss_scribe',
++        name: 'นักจดบันทึกแห่งเหว',
++        position: [abyssHome[0], 0, abyssHome[1]],
++        color: 0xb57ce8,
++        schedule: [
++          { from: 0, to: .6, position: [abyssHome[0], 0, abyssHome[1]] },
++          { from: .6, to: 1, position: [abyssWalk[0], 0, abyssWalk[1]] }
++        ],
++        lines: [
++          'ฉันจดชื่อทุกคนที่หายไปในเหว แต่อีกไม่นานฉันก็ต้องจดชื่อฉันเอง',
++          'เงาในเหวลืมเลือนจะตอบคำถามได้ ถ้าเจ้านำเศษเงามืดมาให้มัน'
++        ],
++        choices: [
++          { label: 'ถามเรื่องเหวลืมเลือน', text: 'ยิ่งเดินลึก ความทรงจำยิ่งเบา จงจำทางกลับไว้ให้ดี', relation: 1 }
++        ]
++      }
++    ];
++  }
++
++  getStats() {
++    let meshes = 0;
++    for (const chunk of this.loaded.values()) chunk.group.traverse(object => { if (object.isMesh) meshes += 1; });
++    return {
++      loaded: this.loaded.size,
++      pending: this.pending.length,
++      meshes,
++      colliderCells: this.collision.spatial.cells.size,
++      radius: this.radius,
++      worldSize: { ...WORLD_SIZE },
++      worldSizeMeters: { ...WORLD_SIZE_METERS },
++      chunkCount: { ...CHUNK_COUNT }
++    };
++  }
++
++  dispose() {
++    this.reloadAll();
++    this.assets.cache.clear();
++    this.collision.dispose();
++    this.terrainManager.dispose();
++    Object.values(this.propGeometries).forEach(geometry => geometry.dispose());
++    for (const materials of this.propMaterials.values()) {
++      Object.values(materials).forEach(material => material.dispose());
++    }
++    this.propMaterials.clear();
++  }
++}
++
++export function createWorld(options) {
++  return new ChunkManager(options);
++}
++
++export { getZoneById };
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/index.js the-forgotten-realm-0.8/src/world/index.js
+--- the-forgotten-realm-0.7/src/world/index.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/index.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,40 @@
++export { createWorld, ChunkManager } from './chunk-manager.js';
++export {
++  CHUNK_SIZE,
++  CHUNK_SEGMENTS,
++  WORLD_UNIT_METERS,
++  ZONE_COLUMNS,
++  ZONE_ROWS,
++  START_ZONE_ID,
++  ZONES,
++  WORLD_BOUNDS,
++  WORLD_SIZE,
++  WORLD_SIZE_METERS,
++  CHUNK_COUNT,
++  LEGACY_BOUNDS,
++  LEGACY_GROUND_BOUNDS,
++  getZoneAt,
++  getZoneById,
++  clampToWorld,
++  worldToChunk,
++  chunkKey,
++  chunkBounds,
++  chunkBoundsContained,
++  isInsideLegacyArea,
++  getStartSpawn
++} from './world-config.js';
++export {
++  BIOME_STYLES,
++  legacyTerrainHeight,
++  terrainHeightAt,
++  surfaceNormalY,
++  biomeStyle,
++  getBiomeAt,
++  getWaterLevel,
++  hash2,
++  valueNoise,
++  fbm
++} from './world-biomes.js';
++export { TerrainManager } from './terrain-manager.js';
++export { SpatialHash, createWorldCollision, createImportedTerrainProbe } from './world-collision.js';
++export { ChunkAssetLoader, getStreamingRadius } from './world-streaming.js';
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/terrain-manager.js the-forgotten-realm-0.8/src/world/terrain-manager.js
+--- the-forgotten-realm-0.7/src/world/terrain-manager.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/terrain-manager.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,142 @@
++import * as THREE from 'three';
++import { CHUNK_SIZE, CHUNK_SEGMENTS } from './world-config.js';
++import { biomeStyle, hash2, terrainHeightAt } from './world-biomes.js';
++
++export class TerrainManager {
++  constructor() {
++    this.materials = new Map();
++    this.waterMaterials = new Map();
++    this.waterGeometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
++    this.waterGeometry.rotateX(-Math.PI / 2);
++    this.chunks = new Map();
++  }
++
++  getGroundMaterial(biome) {
++    let material = this.materials.get(biome);
++    if (!material) {
++      material = new THREE.MeshStandardMaterial({
++        color: 0xffffff,
++        vertexColors: true,
++        roughness: biomeStyle(biome).roughness,
++        flatShading: true
++      });
++      this.materials.set(biome, material);
++    }
++    return material;
++  }
++
++  getWaterMaterial(biome) {
++    let material = this.waterMaterials.get(biome);
++    if (!material) {
++      material = new THREE.MeshStandardMaterial({
++        color: biomeStyle(biome).water,
++        roughness: .22,
++        metalness: .12,
++        transparent: true,
++        opacity: .76,
++        depthWrite: false
++      });
++      this.waterMaterials.set(biome, material);
++    }
++    return material;
++  }
++
++  buildChunk(chunk, zone, skipMesh = false) {
++    const geometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SEGMENTS, CHUNK_SEGMENTS);
++    geometry.rotateX(-Math.PI / 2);
++
++    const positions = geometry.attributes.position;
++    const colors = new Float32Array(positions.count * 3);
++    const heights = new Float32Array(positions.count);
++    const baseColor = new THREE.Color(biomeStyle(zone.biome).ground);
++    const tint = new THREE.Color();
++    const step = CHUNK_SIZE / CHUNK_SEGMENTS;
++    const waterLevel = zone.terrain.waterLevel;
++    let minHeight = Infinity;
++    let maxHeight = -Infinity;
++
++    for (let i = 0; i < positions.count; i++) {
++      const x = positions.getX(i) + chunk.centerX;
++      const z = positions.getZ(i) + chunk.centerZ;
++      const height = terrainHeightAt(x, z, zone);
++      heights[i] = height;
++      positions.setY(i, height);
++      minHeight = Math.min(minHeight, height);
++      maxHeight = Math.max(maxHeight, height);
++
++      const variation = (hash2(Math.floor(x / 7), Math.floor(z / 7), 11) - .5) * .12;
++      const wetness = height < waterLevel + 1 ? -.07 : 0;
++      tint.copy(baseColor).offsetHSL(0, 0, variation + wetness);
++      colors[i * 3] = tint.r;
++      colors[i * 3 + 1] = tint.g;
++      colors[i * 3 + 2] = tint.b;
++    }
++
++    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
++    geometry.computeVertexNormals();
++    geometry.translate(chunk.centerX, 0, chunk.centerZ);
++    positions.needsUpdate = true;
++
++    const terrain = {
++      geometry,
++      heights,
++      minHeight,
++      maxHeight,
++      step,
++      sampleHeight(x, z) {
++        const lx = THREE.MathUtils.clamp((x - chunk.minX) / step, 0, CHUNK_SEGMENTS - .0001);
++        const lz = THREE.MathUtils.clamp((z - chunk.minZ) / step, 0, CHUNK_SEGMENTS - .0001);
++        const col = Math.floor(lx);
++        const row = Math.floor(lz);
++        const tx = lx - col;
++        const tz = lz - row;
++        const rowStride = CHUNK_SEGMENTS + 1;
++        const i00 = row * rowStride + col;
++        const i10 = i00 + 1;
++        const i01 = i00 + rowStride;
++        const i11 = i01 + 1;
++        const a = heights[i00] * (1 - tx) + heights[i10] * tx;
++        const b = heights[i01] * (1 - tx) + heights[i11] * tx;
++        return a * (1 - tz) + b * tz;
++      }
++    };
++
++    if (!skipMesh) {
++      const mesh = new THREE.Mesh(geometry, this.getGroundMaterial(zone.biome));
++      mesh.receiveShadow = true;
++      mesh.castShadow = false;
++      terrain.mesh = mesh;
++      chunk.group.add(mesh);
++    }
++
++    if (!skipMesh && minHeight < waterLevel) {
++      const water = new THREE.Mesh(this.waterGeometry, this.getWaterMaterial(zone.biome));
++      water.position.set(chunk.centerX, waterLevel, chunk.centerZ);
++      water.receiveShadow = true;
++      terrain.water = water;
++      chunk.group.add(water);
++    }
++
++    this.chunks.set(chunk.key, terrain);
++    return terrain;
++  }
++
++  disposeChunk(chunk) {
++    const terrain = this.chunks.get(chunk.key);
++    if (!terrain) return;
++    if (terrain.mesh) chunk.group.remove(terrain.mesh);
++    if (terrain.water) chunk.group.remove(terrain.water);
++    terrain.geometry.dispose();
++    this.chunks.delete(chunk.key);
++  }
++
++  dispose() {
++    for (const terrain of this.chunks.values()) terrain.geometry.dispose();
++    this.chunks.clear();
++    for (const material of this.materials.values()) material.dispose();
++    for (const material of this.waterMaterials.values()) material.dispose();
++    this.waterGeometry.dispose();
++    this.materials.clear();
++    this.waterMaterials.clear();
++  }
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/world-biomes.js the-forgotten-realm-0.8/src/world/world-biomes.js
+--- the-forgotten-realm-0.7/src/world/world-biomes.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/world-biomes.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,126 @@
++import { LEGACY_GROUND_BOUNDS, getZoneAt } from './world-config.js';
++
++export const BIOME_STYLES = Object.freeze({
++  ashen: Object.freeze({ ground: 0x7fae4f, rock: 0x898778, foliage: 0x68a93e, accent: 0xc9a86a, water: 0x3d6f82, roughness: 1, vegetation: 26, trees: 12, rocks: 8, ruins: 1 }),
++  forest: Object.freeze({ ground: 0x4c7a3c, rock: 0x6d7565, foliage: 0x2f6b3a, accent: 0x9ad6a2, water: 0x254b4a, roughness: 1, vegetation: 44, trees: 22, rocks: 6, ruins: 1 }),
++  frost: Object.freeze({ ground: 0xa9bcc4, rock: 0x7d8fa0, foliage: 0x6f9a8d, accent: 0xd8ecf5, water: 0x4e87a6, roughness: .92, vegetation: 12, trees: 9, rocks: 14, ruins: 2 }),
++  ember: Object.freeze({ ground: 0x6e4a3a, rock: 0x54433c, foliage: 0x8a5b32, accent: 0xff8a4c, water: 0x8a3f28, roughness: 1, vegetation: 10, trees: 4, rocks: 18, ruins: 2 }),
++  moor: Object.freeze({ ground: 0x4a5546, rock: 0x626a60, foliage: 0x576b4c, accent: 0xb9c58a, water: 0x2b3f38, roughness: 1, vegetation: 34, trees: 8, rocks: 7, ruins: 1 }),
++  abyss: Object.freeze({ ground: 0x3c3d52, rock: 0x4a465f, foliage: 0x5b4c79, accent: 0xb57ce8, water: 0x1b1736, roughness: .95, vegetation: 18, trees: 6, rocks: 16, ruins: 2 })
++});
++
++const FLATTEN_DISKS = [
++  [0, -48, 9],
++  [13, -48, 12],
++  [-27, -27, 12],
++  [29, -28, 21],
++  [-28, -87, 23],
++  [0, -136, 13]
++];
++
++export function smoothstep(value, min, max) {
++  if (value <= min) return 0;
++  if (value >= max) return 1;
++  const t = (value - min) / (max - min);
++  return t * t * (3 - 2 * t);
++}
++
++export function hash2(ix, iz, seed = 0) {
++  const value = Math.sin(ix * 127.1 + iz * 311.7 + seed * 74.7) * 43758.5453123;
++  return value - Math.floor(value);
++}
++
++export function valueNoise(x, z, seed = 0) {
++  const ix = Math.floor(x);
++  const iz = Math.floor(z);
++  const fx = x - ix;
++  const fz = z - iz;
++  const u = fx * fx * (3 - 2 * fx);
++  const v = fz * fz * (3 - 2 * fz);
++  const a = hash2(ix, iz, seed);
++  const b = hash2(ix + 1, iz, seed);
++  const c = hash2(ix, iz + 1, seed);
++  const d = hash2(ix + 1, iz + 1, seed);
++  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
++}
++
++export function fbm(x, z, seed = 0, octaves = 4) {
++  let total = 0;
++  let amplitude = .5;
++  let frequency = 1;
++  let norm = 0;
++  for (let i = 0; i < octaves; i++) {
++    total += valueNoise(x * frequency, z * frequency, seed + i * 17) * amplitude;
++    norm += amplitude;
++    amplitude *= .5;
++    frequency *= 2;
++  }
++  return norm > 0 ? total / norm : 0;
++}
++
++export function legacyTerrainHeight(x, z) {
++  let flatten = smoothstep(Math.abs(x), 3, 10);
++  flatten *= smoothstep(Math.abs(z + 72), 4, 10);
++  for (const [cx, cz, radius] of FLATTEN_DISKS) {
++    flatten *= smoothstep(Math.hypot(x - cx, z - cz), radius, radius + 9);
++  }
++  const rolling = Math.sin(x * .075 + z * .043) * .86 +
++    Math.cos(z * .058 - x * .032) * .58 +
++    Math.sin((x - z) * .12) * .2;
++  return rolling * flatten;
++}
++
++function legacyWeight(x, z) {
++  const dx = Math.max(LEGACY_GROUND_BOUNDS.minX - x, 0, x - LEGACY_GROUND_BOUNDS.maxX);
++  const dz = Math.max(LEGACY_GROUND_BOUNDS.minZ - z, 0, z - LEGACY_GROUND_BOUNDS.maxZ);
++  return 1 - smoothstep(Math.hypot(dx, dz), 0, 55);
++}
++
++export function terrainHeightAt(x, z, zone = getZoneAt(x, z)) {
++  const { base, amplitude, ridges, valleys, terrainScale = 1 } = zone.terrain;
++  const seed = zone.center.x * .013 + zone.center.z * .007;
++  const rolling = fbm((x * .008 + 40) / terrainScale, (z * .008 - 20) / terrainScale, seed, 4) * 2 - 1;
++  const detail = fbm(x * .031 / terrainScale, z * .031 / terrainScale, seed + 91, 3) * 2 - 1;
++  const ridge = 1 - Math.abs(fbm((x * .012 - 13) / terrainScale, (z * .012 + 7) / terrainScale, seed + 41, 3) * 2 - 1);
++  const valleyAxis = z - (zone.center.z + Math.sin(x * .011 / terrainScale + seed) * 24 * terrainScale);
++  const valley = Math.exp(-Math.pow(valleyAxis / (46 * terrainScale), 2));
++  let height = base + rolling * amplitude + detail * amplitude * .18 +
++    Math.pow(ridge, 2.4) * ridges - valley * valleys;
++
++  if (zone.features.includes('volcano')) {
++    const cone = Math.exp(-Math.pow(Math.hypot(x - zone.center.x - 42 * terrainScale, z - zone.center.z + 30 * terrainScale) / (72 * terrainScale), 2));
++    height += cone * 28;
++  }
++  if (zone.features.includes('chasm')) {
++    const chasmAxis = x - (zone.center.x + Math.sin(z * .018 / terrainScale) * 34 * terrainScale);
++    height -= Math.exp(-Math.pow(chasmAxis / (22 * terrainScale), 2)) * 20;
++  }
++  if (zone.features.includes('swamp')) {
++    height -= Math.max(0, 2.5 - Math.abs(valleyAxis) * .05) * 1.8;
++  }
++
++  if (zone.id === 'ashen-kingdom') {
++    const weight = legacyWeight(x, z);
++    if (weight > 0) height = height * (1 - weight) + legacyTerrainHeight(x, z) * weight;
++  }
++  return height;
++}
++
++export function surfaceNormalY(x, z, zone = getZoneAt(x, z)) {
++  const step = 6;
++  const dx = terrainHeightAt(x + step, z, zone) - terrainHeightAt(x - step, z, zone);
++  const dz = terrainHeightAt(x, z + step, zone) - terrainHeightAt(x, z - step, zone);
++  return 1 / Math.sqrt(1 + (dx / (step * 2)) ** 2 + (dz / (step * 2)) ** 2);
++}
++
++export function biomeStyle(biome) {
++  return BIOME_STYLES[biome] || BIOME_STYLES.ashen;
++}
++
++export function getBiomeAt(x, z) {
++  return getZoneAt(x, z).biome;
++}
++
++export function getWaterLevel(zone = getZoneAt(0, 0)) {
++  return zone.terrain.waterLevel;
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/world-collision.js the-forgotten-realm-0.8/src/world/world-collision.js
+--- the-forgotten-realm-0.7/src/world/world-collision.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/world-collision.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,167 @@
++import * as THREE from 'three';
++import { terrainHeightAt } from './world-biomes.js';
++import { clampToWorld, getZoneAt, WORLD_BOUNDS } from './world-config.js';
++
++const DOWN = new THREE.Vector3(0, -1, 0);
++const NORMAL_MATRIX = new THREE.Matrix3();
++
++export function isPointInBoundsXZ(bounds, x, z) {
++  return Boolean(bounds) && x >= bounds.min.x && x <= bounds.max.x && z >= bounds.min.z && z <= bounds.max.z;
++}
++
++export class SpatialHash {
++  constructor(cellSize = 24) {
++    this.cellSize = cellSize;
++    this.cells = new Map();
++  }
++
++  static key(cx, cz) {
++    return `${cx}:${cz}`;
++  }
++
++  cellOf(x, z) {
++    return { cx: Math.floor(x / this.cellSize), cz: Math.floor(z / this.cellSize) };
++  }
++
++  insert(collider) {
++    const { cx, cz } = this.cellOf(collider.x, collider.z);
++    const key = SpatialHash.key(cx, cz);
++    let cell = this.cells.get(key);
++    if (!cell) {
++      cell = new Set();
++      this.cells.set(key, cell);
++    }
++    cell.add(collider);
++    collider._cellKey = key;
++  }
++
++  remove(collider) {
++    if (!collider._cellKey) return;
++    const cell = this.cells.get(collider._cellKey);
++    if (cell) {
++      cell.delete(collider);
++      if (cell.size === 0) this.cells.delete(collider._cellKey);
++    }
++    delete collider._cellKey;
++  }
++
++  query(x, z, radius, out = []) {
++    out.length = 0;
++    const min = this.cellOf(x - radius, z - radius);
++    const max = this.cellOf(x + radius, z + radius);
++    for (let cx = min.cx; cx <= max.cx; cx++) {
++      for (let cz = min.cz; cz <= max.cz; cz++) {
++        const cell = this.cells.get(SpatialHash.key(cx, cz));
++        if (!cell) continue;
++        for (const collider of cell) out.push(collider);
++      }
++    }
++    return out;
++  }
++
++  clear() {
++    this.cells.clear();
++  }
++}
++
++export function createImportedTerrainProbe({ getWorld, getBounds, raycaster }) {
++  const origin = new THREE.Vector3();
++
++  return {
++    contains(x, z) {
++      return isPointInBoundsXZ(getBounds(), x, z);
++    },
++    heightAt(x, z, referenceY = 0) {
++      const world = getWorld();
++      const bounds = getBounds();
++      if (!world || !bounds) return null;
++
++      origin.set(x, bounds.max.y + 50, z);
++      raycaster.set(origin, DOWN);
++      raycaster.near = 0;
++      raycaster.far = bounds.max.y - bounds.min.y + 100;
++
++      const hits = raycaster.intersectObject(world, true);
++      let bestHeight = null;
++      let bestDistance = Infinity;
++
++      for (const hit of hits) {
++        if (!hit.face) continue;
++        NORMAL_MATRIX.getNormalMatrix(hit.object.matrixWorld);
++        const normal = hit.face.normal.clone().applyMatrix3(NORMAL_MATRIX).normalize();
++        if (normal.y <= 0.6) continue;
++        const distance = Math.abs(hit.point.y - referenceY);
++        if (distance < bestDistance) {
++          bestDistance = distance;
++          bestHeight = hit.point.y;
++        }
++      }
++      return bestHeight;
++    }
++  };
++}
++
++export function createWorldCollision({
++  worldBounds = WORLD_BOUNDS,
++  getImportedWorld,
++  getImportedBounds,
++  raycaster,
++  getChunkAt,
++  clampMargin = 2
++}) {
++  const spatial = new SpatialHash();
++  const chunkColliders = new Map();
++  const probe = createImportedTerrainProbe({ getWorld: getImportedWorld, getBounds: getImportedBounds, raycaster });
++  const nearby = [];
++
++  return {
++    probe,
++    spatial,
++    addColliders(key, colliders) {
++      this.removeColliders(key);
++      const list = Array.isArray(colliders) ? colliders : [];
++      chunkColliders.set(key, list);
++      for (const collider of list) spatial.insert(collider);
++    },
++    removeColliders(key) {
++      const list = chunkColliders.get(key);
++      if (!list) return;
++      for (const collider of list) spatial.remove(collider);
++      chunkColliders.delete(key);
++    },
++    blocked(x, z, radius = .55) {
++      if (x < worldBounds.minX + clampMargin || x > worldBounds.maxX - clampMargin ||
++          z < worldBounds.minZ + clampMargin || z > worldBounds.maxZ - clampMargin) return true;
++      spatial.query(x, z, radius + 4, nearby);
++      for (const collider of nearby) {
++        const dx = x - collider.x;
++        const dz = z - collider.z;
++        const minDistance = radius + collider.radius;
++        if (dx * dx + dz * dz < minDistance * minDistance) return true;
++      }
++      return false;
++    },
++    clampPosition(position) {
++      const clamped = clampToWorld(position.x, position.z, clampMargin);
++      position.x = clamped.x;
++      position.z = clamped.z;
++      return position;
++    },
++    terrainHeightAt(x, z, referenceY = 0) {
++      if (probe.contains(x, z)) {
++        const height = probe.heightAt(x, z, referenceY);
++        if (height !== null) return height;
++      }
++      const chunk = getChunkAt ? getChunkAt(x, z) : null;
++      if (chunk && chunk.terrain && chunk.terrain.sampleHeight) {
++        const sampled = chunk.terrain.sampleHeight(x, z);
++        if (sampled !== null && sampled !== undefined) return sampled;
++      }
++      return terrainHeightAt(x, z, getZoneAt(x, z));
++    },
++    dispose() {
++      spatial.clear();
++      chunkColliders.clear();
++    }
++  };
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/world-config.js the-forgotten-realm-0.8/src/world/world-config.js
+--- the-forgotten-realm-0.7/src/world/world-config.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/world-config.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,193 @@
++export const CHUNK_SIZE = 250;
++export const CHUNK_SEGMENTS = 32;
++export const WORLD_UNIT_METERS = 1;
++export const ZONE_COLUMNS = 3;
++export const ZONE_ROWS = 2;
++export const START_ZONE_ID = 'ashen-kingdom';
++
++export const LEGACY_BOUNDS = Object.freeze({ minX: -65, maxX: 65, minZ: -160, maxZ: 12 });
++export const LEGACY_GROUND_BOUNDS = Object.freeze({ minX: -110, maxX: 110, minZ: -255, maxZ: 125 });
++
++const WEST_X = Object.freeze({ minX: -5000, maxX: -1750 });
++const CENTER_X = Object.freeze({ minX: -1750, maxX: 1750 });
++const EAST_X = Object.freeze({ minX: 1750, maxX: 5000 });
++const NORTH_Z = Object.freeze({ minZ: -4750, maxZ: 250 });
++const SOUTH_Z = Object.freeze({ minZ: -9750, maxZ: -4750 });
++
++function zoneRect(x, z) {
++  return Object.freeze({
++    minX: x.minX,
++    maxX: x.maxX,
++    minZ: z.minZ,
++    maxZ: z.maxZ
++  });
++}
++
++export const ZONES = Object.freeze([
++  Object.freeze({
++    id: 'ashen-kingdom',
++    name: 'อาณาจักรเถ้าถ่าน',
++    biome: 'ashen',
++    center: Object.freeze({ x: 0, z: -2250 }),
++    bounds: zoneRect(CENTER_X, NORTH_Z),
++    palette: Object.freeze({ ground: 0x7fae4f, water: 0x3d6f82, rock: 0x898778, foliage: 0x68a93e, accent: 0xc9a86a }),
++    terrain: Object.freeze({ base: 0, amplitude: 3.2, ridges: 1.5, valleys: 2, waterLevel: -0.6, terrainScale: 1 }),
++    features: Object.freeze(['river', 'ruins', 'legacy']),
++    spawn: Object.freeze({ x: 0, z: 6 }),
++    ambient: 'meadow'
++  }),
++  Object.freeze({
++    id: 'cursed-forest',
++    name: 'ป่าต้องสาป',
++    biome: 'forest',
++    center: Object.freeze({ x: -3375, z: -2250 }),
++    bounds: zoneRect(WEST_X, NORTH_Z),
++    palette: Object.freeze({ ground: 0x4c7a3c, water: 0x254b4a, rock: 0x6d7565, foliage: 0x2f6b3a, accent: 0x9ad6a2 }),
++    terrain: Object.freeze({ base: 1.5, amplitude: 7.5, ridges: 3, valleys: 5, waterLevel: -1.1, terrainScale: 1 }),
++    features: Object.freeze(['forest', 'valley', 'bog']),
++    spawn: Object.freeze({ x: -3260, z: -2130 }),
++    ambient: 'forest'
++  }),
++  Object.freeze({
++    id: 'frostfang',
++    name: 'ฟรอสต์แฟงก์',
++    biome: 'frost',
++    center: Object.freeze({ x: 3375, z: -2250 }),
++    bounds: zoneRect(EAST_X, NORTH_Z),
++    palette: Object.freeze({ ground: 0xa9bcc4, water: 0x4e87a6, rock: 0x7d8fa0, foliage: 0x6f9a8d, accent: 0xd8ecf5 }),
++    terrain: Object.freeze({ base: 4, amplitude: 18, ridges: 12, valleys: 4, waterLevel: 0.4, terrainScale: 1.4 }),
++    features: Object.freeze(['mountain', 'glacier', 'ruins']),
++    spawn: Object.freeze({ x: 3260, z: -2130 }),
++    ambient: 'meadow'
++  }),
++  Object.freeze({
++    id: 'forgotten-abyss',
++    name: 'เหวลืมเลือน',
++    biome: 'abyss',
++    center: Object.freeze({ x: 0, z: -7250 }),
++    bounds: zoneRect(CENTER_X, SOUTH_Z),
++    palette: Object.freeze({ ground: 0x3c3d52, water: 0x1b1736, rock: 0x4a465f, foliage: 0x5b4c79, accent: 0xb57ce8 }),
++    terrain: Object.freeze({ base: -2, amplitude: 24, ridges: 20, valleys: 12, waterLevel: -3.4, terrainScale: 1.6 }),
++    features: Object.freeze(['chasm', 'dungeon', 'ruins']),
++    spawn: Object.freeze({ x: 0, z: -7100 }),
++    ambient: 'dungeon'
++  }),
++  Object.freeze({
++    id: 'dreadmoor',
++    name: 'หนองพรางมรณะ',
++    biome: 'moor',
++    center: Object.freeze({ x: -3375, z: -7250 }),
++    bounds: zoneRect(WEST_X, SOUTH_Z),
++    palette: Object.freeze({ ground: 0x4a5546, water: 0x2b3f38, rock: 0x626a60, foliage: 0x576b4c, accent: 0xb9c58a }),
++    terrain: Object.freeze({ base: -0.5, amplitude: 4.2, ridges: 2, valleys: 7, waterLevel: 0.1, terrainScale: 1 }),
++    features: Object.freeze(['swamp', 'bog', 'ruins']),
++    spawn: Object.freeze({ x: -3260, z: -7130 }),
++    ambient: 'river'
++  }),
++  Object.freeze({
++    id: 'ember-wastes',
++    name: 'ทุ่งเพลิง',
++    biome: 'ember',
++    center: Object.freeze({ x: 3375, z: -7250 }),
++    bounds: zoneRect(EAST_X, SOUTH_Z),
++    palette: Object.freeze({ ground: 0x6e4a3a, water: 0x8a3f28, rock: 0x54433c, foliage: 0x8a5b32, accent: 0xff8a4c }),
++    terrain: Object.freeze({ base: 2.5, amplitude: 12, ridges: 14, valleys: 6, waterLevel: -2.2, terrainScale: 1.3 }),
++    features: Object.freeze(['volcano', 'ash', 'ruins']),
++    spawn: Object.freeze({ x: 3260, z: -7130 }),
++    ambient: 'meadow'
++  })
++]);
++
++export const WORLD_BOUNDS = Object.freeze(ZONES.reduce((bounds, zone) => ({
++  minX: Math.min(bounds.minX, zone.bounds.minX),
++  maxX: Math.max(bounds.maxX, zone.bounds.maxX),
++  minZ: Math.min(bounds.minZ, zone.bounds.minZ),
++  maxZ: Math.max(bounds.maxZ, zone.bounds.maxZ)
++}), { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity }));
++
++export const WORLD_SIZE = Object.freeze({
++  x: WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX,
++  z: WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ
++});
++
++export const WORLD_SIZE_METERS = Object.freeze({
++  x: WORLD_SIZE.x * WORLD_UNIT_METERS,
++  z: WORLD_SIZE.z * WORLD_UNIT_METERS
++});
++
++export const CHUNK_COUNT = Object.freeze({
++  x: WORLD_SIZE.x / CHUNK_SIZE,
++  z: WORLD_SIZE.z / CHUNK_SIZE,
++  total: (WORLD_SIZE.x / CHUNK_SIZE) * (WORLD_SIZE.z / CHUNK_SIZE)
++});
++
++const ZONE_LOOKUP = new Map(ZONES.map(zone => [zone.id, zone]));
++
++export function getZoneById(id) {
++  return ZONE_LOOKUP.get(id) || ZONE_LOOKUP.get(START_ZONE_ID);
++}
++
++export function getZoneAt(x, z) {
++  for (const zone of ZONES) {
++    const bounds = zone.bounds;
++    if (x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ) {
++      return zone;
++    }
++  }
++  let nearest = ZONES[0];
++  let best = Infinity;
++  for (const zone of ZONES) {
++    const distance = Math.hypot(x - zone.center.x, z - zone.center.z);
++    if (distance < best) {
++      best = distance;
++      nearest = zone;
++    }
++  }
++  return nearest;
++}
++
++export function clampToWorld(x, z, margin = 2) {
++  return {
++    x: Math.min(WORLD_BOUNDS.maxX - margin, Math.max(WORLD_BOUNDS.minX + margin, x)),
++    z: Math.min(WORLD_BOUNDS.maxZ - margin, Math.max(WORLD_BOUNDS.minZ + margin, z))
++  };
++}
++
++export function worldToChunk(x, z) {
++  return { cx: Math.floor(x / CHUNK_SIZE), cz: Math.floor(z / CHUNK_SIZE) };
++}
++
++export function chunkKey(cx, cz) {
++  return `${cx}:${cz}`;
++}
++
++export function chunkBounds(cx, cz) {
++  const minX = cx * CHUNK_SIZE;
++  const minZ = cz * CHUNK_SIZE;
++  return {
++    minX,
++    maxX: minX + CHUNK_SIZE,
++    minZ,
++    maxZ: minZ + CHUNK_SIZE,
++    centerX: minX + CHUNK_SIZE / 2,
++    centerZ: minZ + CHUNK_SIZE / 2
++  };
++}
++
++export function chunkBoundsOverlap(a, b) {
++  return a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <= b.maxZ && a.maxZ >= b.minZ;
++}
++
++export function chunkBoundsContained(outer, inner) {
++  return inner.minX >= outer.minX && inner.maxX <= outer.maxX &&
++    inner.minZ >= outer.minZ && inner.maxZ <= outer.maxZ;
++}
++
++export function isInsideLegacyArea(x, z, bounds = LEGACY_GROUND_BOUNDS) {
++  return x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ;
++}
++
++export function getStartSpawn() {
++  const zone = getZoneById(START_ZONE_ID);
++  return { x: zone.spawn.x, z: zone.spawn.z };
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/world/world-streaming.js the-forgotten-realm-0.8/src/world/world-streaming.js
+--- the-forgotten-realm-0.7/src/world/world-streaming.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/world/world-streaming.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,67 @@
++import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
++import { chunkKey } from './world-config.js';
++
++export function getStreamingRadius(quality = 'medium', isTouch = false, cameraFar = 220, chunkSize = 250) {
++  const base = isTouch ? 375 : 750;
++  const visible = Math.max(1, Math.ceil(Math.max(base, cameraFar) / chunkSize));
++  const budget = quality === 'low' ? (isTouch ? 1 : 2) : quality === 'high' ? 4 : 3;
++  return Math.max(1, Math.min(budget, visible));
++}
++
++export class ChunkAssetLoader {
++  constructor({ baseUrl = 'assets/world/chunks/', enabled = false, maxParallel = 2 } = {}) {
++    this.baseUrl = baseUrl;
++    this.enabled = enabled;
++    this.maxParallel = maxParallel;
++    this.loader = new GLTFLoader();
++    this.cache = new Map();
++    this.tasks = [];
++    this.active = 0;
++  }
++
++  load(cx, cz, zone) {
++    if (!this.enabled) return Promise.resolve(null);
++    const key = chunkKey(cx, cz);
++    if (this.cache.has(key)) return this.cache.get(key);
++
++    const url = `${import.meta.env.BASE_URL}${this.baseUrl}${zone.id}/chunk_${cx}_${cz}.glb`;
++    const promise = this.enqueue(() => this.loader.loadAsync(url)).then(gltf => {
++      if (!gltf || !gltf.scene) return null;
++      gltf.scene.traverse(object => {
++        if (!object.isMesh) return;
++        object.castShadow = true;
++        object.receiveShadow = true;
++        object.userData.chunkAsset = true;
++      });
++      return gltf.scene;
++    }).catch(() => null);
++
++    this.cache.set(key, promise);
++    return promise;
++  }
++
++  clearFailed() {
++    for (const [key, promise] of this.cache) {
++      if (!promise) continue;
++      promise.then(value => { if (!value) this.cache.delete(key); });
++    }
++  }
++
++  enqueue(task) {
++    return new Promise((resolve, reject) => {
++      this.tasks.push({ task, resolve, reject });
++      this.pump();
++    });
++  }
++
++  pump() {
++    while (this.active < this.maxParallel && this.tasks.length > 0) {
++      const { task, resolve, reject } = this.tasks.shift();
++      this.active += 1;
++      Promise.resolve().then(task).then(resolve, reject).then(() => {
++        this.active -= 1;
++        this.pump();
++      });
++    }
++  }
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/worldData.js the-forgotten-realm-0.8/src/worldData.js
+--- the-forgotten-realm-0.7/src/worldData.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/worldData.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,120 @@
++export const WORLD_BOUNDS = {
++  minX: -320,
++  maxX: 320,
++  minZ: -320,
++  maxZ: 320
++};
++
++export const REGIONS = [
++  {
++    id: 'wasteland',
++    name: 'ทุ่งรกร้างโบราณ',
++    center: { x: 0, z: 0 },
++    radius: 96,
++    color: '#c9a86a',
++    description: 'ซากปราสาท หลุมศพ และแม่น้ำลาวาที่ไหลผ่านใจกลางดินแดน'
++  },
++  {
++    id: 'ravenhold',
++    name: 'ราเวนโฮลด์',
++    center: { x: -45, z: -45 },
++    radius: 72,
++    color: '#d8b878',
++    description: 'หมู่บ้านค้าขายเก่าแก่ที่มองลงไปยังหุบเขาเถ้าถ่าน'
++  },
++  {
++    id: 'deadwood',
++    name: 'ป่าแห้งตาย',
++    center: { x: -165, z: -155 },
++    radius: 110,
++    color: '#7aa6f0',
++    description: 'ป่าต้นไม้ตาย วงหินโบราณ และซากอารามที่ถูกลืม'
++  },
++  {
++    id: 'varnhal',
++    name: 'นครวาร์นฮัล',
++    center: { x: 160, z: 50 },
++    radius: 108,
++    color: '#e2b45c',
++    description: 'เมืองหลวงอันยิ่งใหญ่ มีตลาด ร้านตีเหล็ก และหน้าต่างที่ส่องสว่างในยามค่ำคืน'
++  },
++  {
++    id: 'emberpeak',
++    name: 'ภูเขาไฟเอ็มเบอร์พีค',
++    center: { x: 160, z: -177 },
++    radius: 112,
++    color: '#ff7a4d',
++    description: 'ยอดเขาแหลมคม ถ้ำถ่านไฟ และทะเลลาวาที่พุ่งขึ้นจากเดือด'
++  },
++  {
++    id: 'mirefall',
++    name: 'ทะเลสาบมิเรฟอลล์',
++    center: { x: -170, z: 160 },
++    radius: 112,
++    color: '#7fd4e8',
++    description: 'ทะเลสาบต้องสาป หมู่บ้านหนองน้ำ และถ้ำใต้รากหิน'
++  }
++];
++
++export const LANDMARKS = [
++  { id: 'castle', name: 'ซากปราสาท', position: { x: 9, z: -8 }, region: 'wasteland', color: '#d8a86a', size: 5 },
++  { id: 'graveyard', name: 'สุสานเงียบ', position: { x: -12, z: 11 }, region: 'wasteland', color: '#9d9fb4', size: 3.5 },
++  { id: 'bridge', name: 'สะพานข้ามลาวา', position: { x: -5, z: 2 }, region: 'wasteland', color: '#ff8a4d', size: 3 },
++  { id: 'ravenhold', name: 'หมู่บ้านราเวนโฮลด์', position: { x: -45, z: -45 }, region: 'ravenhold', color: '#d8b878', size: 5 },
++  { id: 'ashford', name: 'เมืองแอชฟอร์ด', position: { x: 45, z: -50 }, region: 'wasteland', color: '#c9a86a', size: 4.5 },
++  { id: 'grimmoor', name: 'เมืองกริมมัวร์', position: { x: 55, z: 0 }, region: 'wasteland', color: '#c9a86a', size: 4.5 },
++  { id: 'duskvale', name: 'เมืองดัสก์เวล', position: { x: 42, z: 50 }, region: 'wasteland', color: '#c9a86a', size: 4.5 },
++  { id: 'blackmere', name: 'เมืองแบล็กเมียร์', position: { x: -48, z: 42 }, region: 'mirefall', color: '#9fb0c8', size: 4.5 },
++  { id: 'varnhal', name: 'นครวาร์นฮัล', position: { x: 160, z: 50 }, region: 'varnhal', color: '#e2b45c', size: 7 },
++  { id: 'thornwick', name: 'หมู่บ้านธอร์นวิก', position: { x: -150, z: -40 }, region: 'ravenhold', color: '#d8b878', size: 4 },
++  { id: 'wolfden', name: 'หมู่บ้านวูล์ฟเดน', position: { x: 50, z: -200 }, region: 'emberpeak', color: '#c9a86a', size: 4 },
++  { id: 'mirefall-village', name: 'หมู่บ้านมิเรฟอลล์', position: { x: -50, z: 205 }, region: 'mirefall', color: '#7fd4e8', size: 4 },
++  { id: 'stone-circle', name: 'วงหินโบราณ', position: { x: -70, z: -140 }, region: 'deadwood', color: '#c992f0', size: 5 },
++  { id: 'abbey', name: 'ซากอาราม', position: { x: -130, z: 120 }, region: 'mirefall', color: '#9d9fb4', size: 4 },
++  { id: 'giant-bones', name: 'ซากกระดูกยักษ์', position: { x: 83, z: 158 }, region: 'varnhal', color: '#d9d3c2', size: 4 },
++  { id: 'volcano', name: 'ปล่องภูเขาไฟ', position: { x: 159, z: -177 }, region: 'emberpeak', color: '#ff5b3d', size: 7 },
++  { id: 'cursed-lake', name: 'ทะเลสาบต้องสาป', position: { x: -170, z: 160 }, region: 'mirefall', color: '#7fd4e8', size: 6 },
++  { id: 'dead-forest', name: 'ป่าแห้งตาย', position: { x: -165, z: -155 }, region: 'deadwood', color: '#7aa6f0', size: 6 },
++  { id: 'cave-shadow', name: 'ถ้ำเงาลืมเลือน', position: { x: 95, z: -120 }, region: 'emberpeak', color: '#c992f0', size: 4 },
++  { id: 'cave-root', name: 'ถ้ำรากหิน', position: { x: -110, z: -190 }, region: 'deadwood', color: '#c992f0', size: 4 },
++  { id: 'cave-mire', name: 'ถ้ำใต้ก้นบึง', position: { x: -205, z: 195 }, region: 'mirefall', color: '#c992f0', size: 4 },
++  { id: 'cave-ember', name: 'ถ้ำถ่านไฟ', position: { x: 205, z: -205 }, region: 'emberpeak', color: '#ff8a4d', size: 4 }
++];
++
++export const SECRETS = [
++  { id: 's-castle', name: 'หีบใต้ฐานปราสาท', kind: 'cache', position: { x: 4, z: -18 }, region: 'wasteland', loot: { crystals: 2, gold: 45, xp: 30, items: { bone: 2 } } },
++  { id: 's-grave', name: 'พอกศพถูกลืม', kind: 'cache', position: { x: -18, z: 16 }, region: 'wasteland', loot: { gold: 60, xp: 35, items: { darkShard: 1 } } },
++  { id: 's-bridge', name: 'ของขวัญคนข้ามสะพาน', kind: 'cache', position: { x: -9, z: -7 }, region: 'wasteland', loot: { crystals: 1, potions: 1, xp: 20 } },
++  { id: 's-raven', name: 'คลังลับราเวนโฮลด์', kind: 'cache', position: { x: -58, z: -56 }, region: 'ravenhold', loot: { crystals: 3, gold: 90, xp: 60, items: { ore: 2 } } },
++  { id: 's-thorn', name: 'ซองจดหมายธอร์นวิก', kind: 'cache', position: { x: -162, z: -50 }, region: 'ravenhold', loot: { gold: 75, xp: 45, items: { herb: 3 } } },
++  { id: 's-ashen', name: 'เตาลับแอชฟอร์ด', kind: 'cache', position: { x: 52, z: -60 }, region: 'ravenhold', loot: { crystals: 2, gold: 80, items: { ore: 3 } } },
++  { id: 's-circle', name: 'แท่นบูชาวงหิน', kind: 'ruin', position: { x: -70, z: -148 }, region: 'deadwood', loot: { crystals: 4, xp: 90, items: { darkShard: 2, essence: 1 } } },
++  { id: 's-bones', name: 'กระดูกยักษ์แตกสลาย', kind: 'cache', position: { x: 83, z: 168 }, region: 'varnhal', loot: { gold: 120, xp: 70, items: { bone: 4 } } },
++  { id: 's-abbey', name: 'หีบศักดิ์สิทธิ์อาราม', kind: 'ruin', position: { x: -138, z: 128 }, region: 'mirefall', loot: { crystals: 3, potions: 2, xp: 80, items: { herb: 4 } } },
++  { id: 's-varnhal', name: 'คลังใต้พระราชวัง', kind: 'cache', position: { x: 172, z: 62 }, region: 'varnhal', loot: { crystals: 5, gold: 200, xp: 120, items: { bossRelic: 1 } } },
++  { id: 's-market', name: 'ตู้เงินตลาดวาร์นฮัล', kind: 'cache', position: { x: 136, z: 80 }, region: 'varnhal', loot: { gold: 160, xp: 60, items: { stoneHeart: 1 } } },
++  { id: 's-volcano', name: 'แก่นไฟภูเขา', kind: 'ruin', position: { x: 168, z: -188 }, region: 'emberpeak', loot: { crystals: 4, gold: 140, xp: 110, items: { stoneHeart: 2, darkShard: 2 } } },
++  { id: 's-wolfden', name: 'ถุงของพรานวูล์ฟเดน', kind: 'cache', position: { x: 58, z: -208 }, region: 'emberpeak', loot: { gold: 100, xp: 55, items: { bone: 3 } } },
++  { id: 's-lake', name: 'หีบใต้ทะเลสาบ', kind: 'cache', position: { x: -182, z: 170 }, region: 'mirefall', loot: { crystals: 4, potions: 2, xp: 90, items: { essence: 2 } } },
++  { id: 'c-shadow', name: 'ถ้ำเงาลืมเลือน', kind: 'cave', position: { x: 95, z: -120 }, region: 'emberpeak', loot: { crystals: 5, gold: 180, xp: 130, items: { bossRelic: 1, darkShard: 3 } } },
++  { id: 'c-root', name: 'ถ้ำรากหิน', kind: 'cave', position: { x: -110, z: -190 }, region: 'deadwood', loot: { crystals: 5, potions: 2, xp: 140, items: { essence: 3, wood: 3 } } },
++  { id: 'c-mire', name: 'ถ้ำใต้ก้นบึง', kind: 'cave', position: { x: -205, z: 195 }, region: 'mirefall', loot: { crystals: 6, gold: 220, xp: 160, items: { essence: 4, stoneHeart: 2 } } },
++  { id: 'c-ember', name: 'ถ้ำถ่านไฟ', kind: 'cave', position: { x: 205, z: -205 }, region: 'emberpeak', loot: { crystals: 6, gold: 240, xp: 180, items: { stoneHeart: 4, darkShard: 4 } } }
++];
++
++export function regionAt(x, z) {
++  let nearest = null;
++  let nearestDistance = Infinity;
++
++  for (const region of REGIONS) {
++    const dx = x - region.center.x;
++    const dz = z - region.center.z;
++    const distance = dx * dx + dz * dz;
++    if (distance <= region.radius * region.radius && distance < nearestDistance) {
++      nearest = region;
++      nearestDistance = distance;
++    }
++  }
++
++  return nearest;
++}
+diff -ruN '--exclude=screenshots' '--exclude=*.patch' the-forgotten-realm-0.7/src/worldStreamer.js the-forgotten-realm-0.8/src/worldStreamer.js
+--- the-forgotten-realm-0.7/src/worldStreamer.js	1970-01-01 00:00:00.000000000 +0000
++++ the-forgotten-realm-0.8/src/worldStreamer.js	2026-11-23 11:23:44.718924290 +0000
+@@ -0,0 +1,322 @@
++import * as THREE from 'three';
++import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
++import { regionAt } from './worldData.js';
++
++const LOAD_RADIUS = 190;
++const UNLOAD_RADIUS = 240;
++
++/* The exported world GLB palette was authored with near-black linear base
++   colours (0.003-0.03), which is roughly 10x too dark for lit rendering:
++   whole districts collapsed into flat silhouettes. These targets re-light
++   the same hue identity while keeping a grim, desaturated dark fantasy
++   look. Applied per material instance on chunk load. */
++const WORLD_PALETTE = {
++  Ash_Ground: { color: 0x5c5442, roughness: 1 },
++  Dirt_Road: { color: 0x68553e, roughness: 1 },
++  Farm_Soil: { color: 0x554030, roughness: 1 },
++  Cobblestone: { color: 0x635f59, roughness: .95 },
++  Castle_Stone: { color: 0x6e6a6e, roughness: .9 },
++  Cliff_Rock: { color: 0x5e5b5c, roughness: 1 },
++  Mountain_Rock: { color: 0x53514f, roughness: 1 },
++  Dark_Rock: { color: 0x444243, roughness: 1 },
++  Grave_Stone: { color: 0x7c7a78, roughness: .88 },
++  Dead_Wood: { color: 0x4b3a2a, roughness: 1 },
++  Old_Wood: { color: 0x6b4c31, roughness: .95 },
++  Timber: { color: 0x4b3725, roughness: 1 },
++  Iron: { color: 0x77767f, roughness: .42, metalness: .55 },
++  Roof_Slate: { color: 0x3d3d4a, roughness: .78 },
++  Roof_Tile: { color: 0x7e3e2d, roughness: .85 },
++  Plaster: { color: 0xafa28b, roughness: .95 },
++  Market_Cloth: { color: 0x7f3434, roughness: 1 },
++  Old_Bone: { color: 0xd5c9a8, roughness: .8 },
++  Well_Water: { color: 0x16252e, roughness: .1, metalness: .4 },
++  Cursed_Lake: { color: 0x14212a, roughness: .08, metalness: .45 },
++  Dark_Window: { color: 0x0b0d15, roughness: .3 },
++  Window_Glow: {
++    color: 0x241605, emissive: 0xffa63a,
++    emissiveIntensity: 1.9, roughness: .5
++  },
++  Lava: {
++    color: 0x3a1105, emissive: 0xff5a1e,
++    emissiveIntensity: 2.8, roughness: .55
++  },
++  Cursed_Crystal: {
++    color: 0x2f1148, emissive: 0x8f3ce8,
++    emissiveIntensity: 1.1, roughness: .28, metalness: .3
++  }
++};
++
++/* Everything except these soft surfaces gets faceted normals: the world mesh
++   is very low-poly, and smooth shading made rock spires read like tents. */
++const KEEP_SMOOTH = new Set([
++  'Ash_Ground', 'Dirt_Road', 'Farm_Soil', 'Plaster',
++  'Cursed_Lake', 'Well_Water', 'Lava',
++  'Window_Glow', 'Dark_Window'
++]);
++
++/* Flat surfaces should not cast shadows (they only cause acne and cost). */
++const NO_SHADOW_CAST = new Set([
++  'Ash_Ground', 'Dirt_Road', 'Farm_Soil', 'Cobblestone',
++  'Cursed_Lake', 'Well_Water', 'Lava'
++]);
++
++/* The exported "Dark_Rock" props are tall cone spires scattered in even
++   rows: from the default camera they read as a village of black tents and
++   swallow the silhouette of everything else. They are dropped so the
++   low-poly outcrops, dead trees and town read clearly instead. */
++const HIDDEN_PROPS = new Set(['Dark_Rock']);
++
++/* The world meshes ship without textures, so large stone/timber/soil
++   surfaces read as flat plastic. This injects cheap world-space value noise
++   into the diffuse term to fake grain, lichen and weathered stone. */
++function addSurfaceDetail(material, octaves) {
++  material.onBeforeCompile = (shader) => {
++    shader.vertexShader = shader.vertexShader
++      .replace(
++        '#include <common>',
++        '#include <common>\nvarying vec3 vWorldDetailPos;'
++      )
++      .replace(
++        '#include <begin_vertex>',
++        '#include <begin_vertex>\n' +
++        '  vWorldDetailPos = (modelMatrix * vec4(transformed, 1.0)).xyz;'
++      );
++
++    shader.fragmentShader = shader.fragmentShader
++      .replace(
++        '#include <common>',
++        `#include <common>
++        varying vec3 vWorldDetailPos;
++        float frHash(vec2 p) {
++          p = fract(p * vec2(123.34, 456.21));
++          p += dot(p, p + 45.32);
++          return fract(p.x * p.y);
++        }
++        float frNoise(vec2 p) {
++          vec2 i = floor(p);
++          vec2 f = fract(p);
++          f = f * f * (3.0 - 2.0 * f);
++          float a = frHash(i);
++          float b = frHash(i + vec2(1.0, 0.0));
++          float c = frHash(i + vec2(0.0, 1.0));
++          float d = frHash(i + vec2(1.0, 1.0));
++          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
++        }`
++      )
++      .replace(
++        '#include <color_fragment>',
++        `#include <color_fragment>
++        float macro = frNoise(vWorldDetailPos.xz * 0.16 + 3.0);
++        float dA = frNoise(vWorldDetailPos.xz * 1.1 + vWorldDetailPos.y * 0.6);
++        float dB = frNoise(vWorldDetailPos.xz * 5.3 + 11.0);
++        ${octaves > 2 ? 'float dC = frNoise(vWorldDetailPos.xz * 19.0 + 41.0);' : ''}
++        float detail = macro * 0.34 + dA * 0.34 + dB * 0.22${octaves > 2 ? ' + dC * 0.12' : ''};
++        float shade = 0.48 + 1.05 * detail;
++        diffuseColor.rgb *= vec3(
++          shade,
++          shade * (0.96 + 0.06 * detail),
++          shade * (0.90 + 0.14 * detail)
++        );`
++      );
++
++  };
++  material.customProgramCacheKey = () => 'world-detail-surface';
++}
++
++function styleMaterial(material, detail) {
++  if (!material || !material.isMeshStandardMaterial) return;
++  const preset = WORLD_PALETTE[material.name];
++  if (!preset) return;
++
++  material.color.setHex(preset.color);
++  if (preset.roughness !== undefined) material.roughness = preset.roughness;
++  if (preset.metalness !== undefined) material.metalness = preset.metalness;
++  if (preset.emissive !== undefined) {
++    material.emissive.setHex(preset.emissive);
++    material.emissiveIntensity = preset.emissiveIntensity ?? 1;
++  }
++  if (!KEEP_SMOOTH.has(material.name)) {
++    material.flatShading = true;
++  }
++  if (detail && preset.emissive === undefined && preset.metalness === undefined) {
++    addSurfaceDetail(material, detail);
++  }
++  material.needsUpdate = true;
++}
++
++export function createWorldStreamer({ scene, baseUrl = 'assets/world/', detail = 3 }) {
++  const loader = new GLTFLoader();
++  const root = new THREE.Group();
++  root.name = 'StreamedWorld';
++  scene.add(root);
++
++  const loaded = new Map();
++  const requested = new Set();
++
++  let meta = null;
++  let heightmap = null;
++  let ready = false;
++  let failed = false;
++  let lastCenter = -1;
++
++  async function init() {
++    try {
++      const [metaResponse, heightResponse] = await Promise.all([
++        fetch(`${baseUrl}world-meta.json`),
++        fetch(`${baseUrl}heightmap.bin`)
++      ]);
++
++      if (!metaResponse.ok || !heightResponse.ok) {
++        throw new Error('world assets unavailable');
++      }
++
++      meta = await metaResponse.json();
++      heightmap = new Float32Array(await heightResponse.arrayBuffer());
++      ready = true;
++      return true;
++    } catch (error) {
++      failed = true;
++      console.error('WORLD STREAM ERROR:', error);
++      return false;
++    }
++  }
++
++  function getHeight(x, z) {
++    if (!ready || !heightmap || !meta) return null;
++
++    const map = meta.heightmap;
++    if (x < map.min || x > map.max || z < map.min || z > map.max) {
++      return null;
++    }
++
++    const gx = (x - map.min) / map.step;
++    const gz = (z - map.min) / map.step;
++    const x0 = Math.floor(gx);
++    const z0 = Math.floor(gz);
++    const x1 = Math.min(map.grid, x0 + 1);
++    const z1 = Math.min(map.grid, z0 + 1);
++    const tx = gx - x0;
++    const tz = gz - z0;
++    const stride = map.grid + 1;
++
++    const h00 = heightmap[z0 * stride + x0];
++    const h10 = heightmap[z0 * stride + x1];
++    const h01 = heightmap[z1 * stride + x0];
++    const h11 = heightmap[z1 * stride + x1];
++
++    const top = h00 + (h10 - h00) * tx;
++    const bottom = h01 + (h11 - h01) * tx;
++    return top + (bottom - top) * tz;
++  }
++
++  function chunkCenter(index) {
++    const cx = index % meta.grid;
++    const cz = Math.floor(index / meta.grid);
++    return {
++      x: -meta.worldSize / 2 + (cx + .5) * meta.chunkSize,
++      z: -meta.worldSize / 2 + (cz + .5) * meta.chunkSize
++    };
++  }
++
++  function disposeChunk(group) {
++    group.traverse((object) => {
++      if (!object.isMesh) return;
++      if (object.geometry) object.geometry.dispose();
++      if (Array.isArray(object.material)) {
++        object.material.forEach((material) => material.dispose());
++      } else if (object.material) {
++        object.material.dispose();
++      }
++    });
++  }
++
++  function loadChunk(index, cx, cz) {
++    const name = `chunk-${cx}-${cz}`;
++    requested.add(name);
++
++    loader.load(
++      `${baseUrl}chunks/${name}.glb`,
++      (gltf) => {
++        requested.delete(name);
++        if (!ready || loaded.has(name)) return;
++
++        gltf.scene.name = name;
++        gltf.scene.traverse((object) => {
++          if (!object.isMesh) return;
++          object.receiveShadow = true;
++          const materials = Array.isArray(object.material)
++            ? object.material
++            : [object.material];
++          materials.forEach((material) => styleMaterial(material, detail));
++          if (materials.some(
++            (material) => material && HIDDEN_PROPS.has(material.name)
++          )) {
++            object.visible = false;
++            return;
++          }
++          object.castShadow = !materials.some(
++            (material) => material && NO_SHADOW_CAST.has(material.name)
++          );
++          object.frustumCulled = true;
++        });
++
++        root.add(gltf.scene);
++        loaded.set(name, gltf.scene);
++      },
++      undefined,
++      () => requested.delete(name)
++    );
++  }
++
++  function update(position) {
++    if (!ready || !meta) return;
++
++    const cx = Math.max(0, Math.min(
++      meta.grid - 1,
++      Math.floor((position.x + meta.worldSize / 2) / meta.chunkSize)
++    ));
++    const cz = Math.max(0, Math.min(
++      meta.grid - 1,
++      Math.floor((position.z + meta.worldSize / 2) / meta.chunkSize)
++    ));
++    const centerIndex = cz * meta.grid + cx;
++    if (centerIndex === lastCenter) return;
++    lastCenter = centerIndex;
++
++    for (let iz = 0; iz < meta.grid; iz++) {
++      for (let ix = 0; ix < meta.grid; ix++) {
++        const index = iz * meta.grid + ix;
++        const center = chunkCenter(index);
++        const distance = Math.hypot(
++          center.x - position.x,
++          center.z - position.z
++        );
++        const name = `chunk-${ix}-${iz}`;
++
++        if (distance <= LOAD_RADIUS && !loaded.has(name) && !requested.has(name)) {
++          loadChunk(index, ix, iz);
++        } else if (
++          distance > UNLOAD_RADIUS &&
++          loaded.has(name)
++        ) {
++          const group = loaded.get(name);
++          root.remove(group);
++          disposeChunk(group);
++          loaded.delete(name);
++        }
++      }
++    }
++  }
++
++  return {
++    init,
++    update,
++    getHeight,
++    getRegion: (x, z) => regionAt(x, z),
++    get loadedCount() { return loaded.size; },
++    get pendingCount() { return requested.size; },
++    get ready() { return ready; },
++    get failed() { return failed; },
++    root
++  };
++}
