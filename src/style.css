@@ -248,6 +248,10 @@ button {
   white-space: nowrap;
 }
 
+#interaction-hint:empty {
+  display: none;
+}
+
 #desktop-help {
   position: absolute;
   bottom: 14px;

@@ -286,7 +286,7 @@ function refreshSkillUI() {
 // ---------- Three.js scene ----------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x080d18);
-scene.fog = new THREE.FogExp2(0x202c3b, 0.0045);
+scene.fog = new THREE.FogExp2(0x1b2634, 0.0032);
 
 const camera = new THREE.PerspectiveCamera(
   62, innerWidth / innerHeight, 0.1, 800
@@ -299,7 +299,7 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.22;
+renderer.toneMappingExposure = 1.32;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -311,11 +311,18 @@ mount.appendChild(renderer.domElement);
 const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
 
 // ---------- Sky ----------
+const SKY_SUN_DIR = new THREE.Vector3(-24, 40, 30).normalize();
+const SKY_MOON_DIR = new THREE.Vector3(-18, 28, 12).normalize();
+
 const sky = new THREE.Mesh(
-  new THREE.SphereGeometry(520, 32, 24),
+  new THREE.SphereGeometry(520, 40, 28),
   new THREE.ShaderMaterial({
     uniforms: {
-      uSun: { value: 0 }
+      uSun: { value: 0 },
+      uSunDir: { value: SKY_SUN_DIR },
+      uMoonDir: { value: SKY_MOON_DIR },
+      uPost: { value: 1 },
+      uExposure: { value: 1.32 }
     },
     side: THREE.BackSide,
     depthWrite: false,
@@ -329,6 +336,10 @@ const sky = new THREE.Mesh(
     `,
     fragmentShader: `
   uniform float uSun;
+  uniform float uPost;
+  uniform float uExposure;
+  uniform vec3 uSunDir;
+  uniform vec3 uMoonDir;
   varying vec3 vDir;
 
   float hash3(vec3 p) {
@@ -341,36 +352,55 @@ const sky = new THREE.Mesh(
     vec3 d = normalize(vDir);
     float h = d.y;
 
-    vec3 nightHorizon = vec3(.14,.17,.26);
-    vec3 nightZenith  = vec3(.006,.011,.035);
-    vec3 dayHorizon   = vec3(.62,.78,.92);
-    vec3 dayZenith    = vec3(.10,.38,.72);
+    vec3 nightHorizon = vec3(.075,.095,.17);
+    vec3 nightZenith  = vec3(.010,.015,.040);
+    vec3 dayHorizon   = vec3(.38,.47,.60);
+    vec3 dayZenith    = vec3(.06,.145,.34);
+
+    float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.2);
 
     vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
     vec3 zenith  = mix(nightZenith,  dayZenith,  uSun);
-    vec3 col = mix(horizon, zenith, smoothstep(-.18,.85,h));
+    horizon = mix(horizon, vec3(.78,.40,.22), dusk * .55);
 
-    // Golden-hour band hugging the horizon at dawn / dusk
-    float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.4);
-    col = mix(col, vec3(.98,.55,.30),
-      pow(max(1.0 - abs(h) * 3.2, 0.0), 2.0) * dusk * 0.38);
+    vec3 col = mix(horizon, zenith, smoothstep(-.05, .78, h));
 
-    vec3 moonDir = normalize(vec3(-.4,.65,-.5));
-    float glow = pow(max(dot(d, moonDir), 0.0), 24.0);
-    col += vec3(.25,.31,.48) * glow * (1.0 - uSun);
+    // Warm sun halo and disc, anchored to the real light direction
+    float sunDot = max(dot(d, normalize(uSunDir)), 0.0);
+    float halo = pow(sunDot, 7.0) * .26 + pow(sunDot, 60.0) * .55;
+    col += vec3(1.0, .74, .45) * halo * uSun;
+    float sunDisc = smoothstep(.9994, .9998, sunDot);
+    col = mix(col, vec3(1.0, .95, .82), sunDisc * uSun);
 
-    float disc = smoothstep(.9992,.9997, dot(d, moonDir));
-    col = mix(col, vec3(.88,.91,1.0), disc * (1.0 - uSun));
+    // Moon halo and disc
+    float moonDot = max(dot(d, normalize(uMoonDir)), 0.0);
+    col += vec3(.26, .33, .52) * pow(moonDot, 26.0) * (1.0 - uSun);
+    float moonDisc = smoothstep(.9992, .9998, moonDot);
+    col = mix(col, vec3(.90, .94, 1.0), moonDisc * (1.0 - uSun));
 
     // Procedural stars twinkling at night
     if (h > 0.02) {
-      vec3 cell = floor(d * 230.0);
-      float star = step(0.9975, hash3(cell));
-      float twinkle = 0.6 + 0.4 * sin(uSun * 40.0 + hash3(cell + 7.0) * 40.0);
-      col += vec3(.85,.92,1.0) * star * twinkle * (1.0 - uSun) * 0.85;
+      vec3 cell = floor(d * 240.0);
+      float star = step(0.9972, hash3(cell));
+      float twinkle = 0.55 + 0.45 * sin(uSun * 40.0 + hash3(cell + 7.0) * 40.0);
+      float fade = smoothstep(0.0, 0.28, h);
+      col += vec3(.85,.92,1.0) * star * twinkle * (1.0 - uSun) * fade * 1.6;
     }
 
-    gl_FragColor = vec4(col, 1.0);
+    // Horizon haze so the sky melts into the fog instead of banding
+    col = mix(col, horizon, pow(1.0 - clamp(h, 0.0, 1.0), 6.0) * 0.35);
+
+    // Authored in display space. With the HDR composer the value must be
+    // linearised for OutputPass; on the direct path the sky is the only
+    // material skipping that pass, so tone map and encode it here instead.
+    vec3 linear = pow(max(col, vec3(0.0)), vec3(2.2));
+    if (uPost > 0.5) {
+      gl_FragColor = vec4(linear, 1.0);
+    } else {
+      vec3 c = linear * uExposure;
+      c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);
+      gl_FragColor = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);
+    }
   }
 `
   })
@@ -379,38 +409,40 @@ sky.renderOrder = -1;
 scene.add(sky);
 
 // ---------- Lighting ----------
-const hemi = new THREE.HemisphereLight(0xc8d8f0, 0x24221d, 1.65);
+const hemi = new THREE.HemisphereLight(0xa9c0dd, 0x2b251d, 1.2);
 scene.add(hemi);
 
-const ambient = new THREE.AmbientLight(0xb4c8e8, 0.78);
+const ambient = new THREE.AmbientLight(0x9fb2cc, 0.55);
 scene.add(ambient);
 
-const moon = new THREE.DirectionalLight(0xc3d5ff, 1.8);
+const moon = new THREE.DirectionalLight(0xbfd4ff, 1.8);
 moon.position.set(-18, 28, 12);
 moon.castShadow = true;
-moon.shadow.mapSize.set(1024, 1024);
+moon.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(moon.shadow.camera, {
-  left: -32, right: 32, top: 32, bottom: -32
+  left: -34, right: 34, top: 34, bottom: -34, near: .5, far: 140
 });
-moon.shadow.normalBias = 0.03;
+moon.shadow.bias = -0.0004;
+moon.shadow.normalBias = 0.045;
 scene.add(moon);
 scene.add(moon.target);
 
-const sunLight = new THREE.DirectionalLight(0xffe4b5, 2.2);
-sunLight.position.set(25, 35, -20);
+const sunLight = new THREE.DirectionalLight(0xffd9a8, 2.2);
+sunLight.position.set(-24, 40, 30);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 
 Object.assign(sunLight.shadow.camera, {
-  left: -45,
-  right: 45,
-  top: 45,
-  bottom: -45,
+  left: -34,
+  right: 34,
+  top: 34,
+  bottom: -34,
   near: 0.5,
-  far: 120
+  far: 140
 });
 
-sunLight.shadow.normalBias = 0.03;
+sunLight.shadow.bias = -0.0004;
+sunLight.shadow.normalBias = 0.045;
 scene.add(sunLight);
 scene.add(sunLight.target);
 
@@ -433,7 +465,8 @@ fallbackWorld.add(ground);
 
 const worldStreamer = createWorldStreamer({
   scene,
-  baseUrl: `${import.meta.env.BASE_URL}assets/world/`
+  baseUrl: `${import.meta.env.BASE_URL}assets/world/`,
+  detail: isTouch ? 2 : 3
 });
 const vegetation = createVegetationManager({
   scene,
@@ -687,12 +720,14 @@ obstacles.push({
 const shrine = new THREE.Mesh(
   new THREE.TorusGeometry(1.0, .12, 8, 20),
   new THREE.MeshStandardMaterial({
-    color: 0x8a78bd,
-    emissive: 0x48326d,
-    emissiveIntensity: 1.2
+    color: 0x6c6191,
+    emissive: 0x332a58,
+    emissiveIntensity: 0.9,
+    roughness: .34
   })
 );
-shrine.position.set(18, 2, 18);
+shrine.position.set(31, 2, 17);
+shrine.rotation.y = -0.5;
 scene.add(shrine);
 
 const dungeonArena = new THREE.Group();
@@ -897,9 +932,9 @@ function getTerrainHeight(x, z, referenceY) {
 // ---------- Collectibles ----------
 const collectibles = [];
 const crystalMat = new THREE.MeshStandardMaterial({
-  color: 0x8b7bd1,
-  emissive: 0x4d3c9b,
-  emissiveIntensity: 2.1,
+  color: 0x7b68c8,
+  emissive: 0x3b2a80,
+  emissiveIntensity: 1.5,
   roughness: .25
 });
 const crystalHaloTexture = (() => {
@@ -1275,7 +1310,57 @@ const fireflies = new THREE.Points(
 
 fireflies.visible = false;
 scene.add(fireflies);
-    
+
+// ---------- Daytime pollen motes ----------
+const moteCount = isTouch ? 26 : 64;
+const motePositions = new Float32Array(moteCount * 3);
+const moteOffsets = [];
+
+for (let i = 0; i < moteCount; i++) {
+  moteOffsets.push({
+    x: (random() - 0.5) * 26,
+    y: 0.6 + random() * 4.2,
+    z: (random() - 0.5) * 26,
+    phase: random() * Math.PI * 2,
+    drift: 0.4 + random() * 0.9
+  });
+}
+
+const moteGeometry = new THREE.BufferGeometry();
+moteGeometry.setAttribute(
+  'position',
+  new THREE.BufferAttribute(motePositions, 3)
+);
+
+const moteTexture = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(.4, 'rgba(255,240,214,0.55)');
+  grad.addColorStop(1, 'rgba(255,240,214,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+})();
+
+const moteMaterial = new THREE.PointsMaterial({
+  color: 0xffe6b8,
+  size: isTouch ? 0.22 : 0.18,
+  map: moteTexture,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const motes = new THREE.Points(moteGeometry, moteMaterial);
+motes.visible = false;
+motes.frustumCulled = false;
+scene.add(motes);
 
 addEventListener('pointerdown', () => audio.unlock(), { once: true });
 
@@ -2230,6 +2315,17 @@ function interact() {
 }
 
 // ---------- Day and Night ----------
+/* Keep the shadow frustum centred on the player so distant districts get
+   crisp, correctly aligned shadows instead of a single box around origin. */
+function updateShadowFocus() {
+  const focus = player.position;
+  sunLight.position.copy(focus).addScaledVector(SKY_SUN_DIR, 72);
+  sunLight.target.position.copy(focus);
+  sunLight.target.updateMatrixWorld();
+  moon.position.copy(focus).addScaledVector(SKY_MOON_DIR, -72);
+  moon.target.position.copy(focus);
+  moon.target.updateMatrixWorld();
+}
 
 function updateDayNight(dt) {
   if (dayNightMode === 'auto') {
@@ -2247,11 +2343,15 @@ function updateDayNight(dt) {
   }
 
   
-moon.intensity = 2.6 * (1 - sun);
-sunLight.intensity = 2.6 * sun;
-hemi.intensity = 1.25 + 1.05 * sun;
-ambient.intensity = 0.74 + 0.30 * sun + cinematic.getFlash() * 1.7;
-moonGlow.intensity = 1.05 * (1 - sun);
+moon.intensity = 2.8 * (1 - sun);
+sunLight.intensity = 2.55 * sun;
+hemi.intensity = 0.98 + 0.74 * sun;
+ambient.intensity = 0.76 + 0.06 * sun + cinematic.getFlash() * 1.7;
+moonGlow.intensity = 0.85 * (1 - sun);
+renderer.toneMappingExposure = 1.32 + 0.16 * (1 - sun);
+  if (sky.material.uniforms.uExposure) {
+    sky.material.uniforms.uExposure.value = renderer.toneMappingExposure;
+  }
 sunLight.color.lerpColors(cWarmSun, cWhiteSun, sun);
 lastSun = sun;
   
@@ -2265,8 +2365,8 @@ lastSun = sun;
   
 
 
-  const daylight = new THREE.Color(0x1a2336).lerp(
-  new THREE.Color(0x9fc6ea),
+  const daylight = new THREE.Color(0x111a2b).lerp(
+  new THREE.Color(0x7d93ad),
   sun
 );
   const duskTint = Math.max(0, 1 - Math.abs(sun - 0.18) * 3.4);
@@ -2278,11 +2378,14 @@ scene.background.copy(daylight);
 scene.fog.color.copy(daylight);
 fireflies.visible = sun < 0.65;
 fireflyMaterial.opacity = 0.75 * (1 - sun);
+
+motes.visible = sun > 0.18;
+moteMaterial.opacity = 0.30 * THREE.MathUtils.clamp((sun - 0.18) * 2.4, 0, 1);
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
 scene.fog.density = THREE.MathUtils.lerp(
-  0.0045,
-  0.0058,
+  0.0026,
+  0.0042,
   nightFog
 );
 
@@ -2332,6 +2435,23 @@ function updateWeather(dt) {
 }
 
 // ---------- Update Fireflies ----------
+function updateMotes() {
+  const p = moteGeometry.attributes.position;
+  const t = clock.elapsedTime;
+
+  for (let i = 0; i < moteCount; i++) {
+    const m = moteOffsets[i];
+    p.array[i * 3] =
+      player.position.x + m.x + Math.sin(t * 0.22 * m.drift + m.phase) * 2.2;
+    p.array[i * 3 + 1] =
+      m.y + Math.sin(t * 0.35 * m.drift + m.phase * 1.7) * 0.4;
+    p.array[i * 3 + 2] =
+      player.position.z + m.z + Math.cos(t * 0.19 * m.drift + m.phase) * 2.2;
+  }
+
+  p.needsUpdate = true;
+}
+
 function updateFireflies(dt) {
   const p = fireflyGeometry.attributes.position;
 
@@ -2537,8 +2657,12 @@ function applySettings() {
   audio.setWeather(settings.weather);
   audio.setMusic(settings.music);
 
-  cinematic.setEnabled(settings.postfx && settings.quality !== 'low');
+  const postActive = Boolean(settings.postfx && settings.quality !== 'low');
+  cinematic.setEnabled(postActive);
   cinematic.setQuality(settings.quality);
+  if (sky.material.uniforms.uPost) {
+    sky.material.uniforms.uPost.value = postActive ? 1 : 0;
+  }
   const postfxToggle = $('#postfx-toggle');
   if (postfxToggle) postfxToggle.checked = settings.postfx;
 
@@ -2853,8 +2977,10 @@ body.rotation.x = -attackGlow * .22;
   }
 
   updateDayNight(dt);
+  updateShadowFocus();
   updateWeather(dt);
   updateFireflies(dt);
+  if (motes.visible) updateMotes();
   updateProjectiles(dt);
 
   if (campFire.visible) {

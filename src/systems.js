@@ -1417,7 +1417,7 @@ export function createSystems(ctx) {
         }
       }
 
-      if (text) hint.textContent = text;
+      hint.textContent = text;
     }
 
     updateMinimap(yaw);
