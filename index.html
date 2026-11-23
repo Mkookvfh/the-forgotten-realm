@@ -16,7 +16,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.8</small>
+        <small>ASHEN WILDS · UPDATE 0.9</small>
       </div>
 
       <div class="top-actions">
@@ -227,6 +227,18 @@
       </div>
 
       <div class="equipment-block">
+        <small class="equipment-heading">🔨 อัปเกรดอุปกรณ์ (ช่างตีเหล็ก)</small>
+        <div class="upgrade-row">
+          <span id="upgrade-weapon-info">อาวุธ +0</span>
+          <button id="upgrade-weapon" type="button">อัปเกรด</button>
+        </div>
+        <div class="upgrade-row">
+          <span id="upgrade-armor-info">เกราะ +0</span>
+          <button id="upgrade-armor" type="button">อัปเกรด</button>
+        </div>
+      </div>
+
+      <div class="equipment-block">
         <small class="equipment-heading">✦ เวทมนตร์ <small>(R)</small></small>
         <div id="spell-list" class="spell-list">
           <button id="spell-firebolt" data-spell="firebolt" type="button" disabled>ลูกไฟ</button>
@@ -260,6 +272,13 @@
         <button id="quest-close" class="close-btn" type="button">✕</button>
       </div>
       <div id="quest-list" class="quest-list"></div>
+      <div class="bounty-block">
+        <div class="bounty-head">
+          <b>🗡 สัญญาล่า</b>
+          <button id="bounty-reroll" class="mini-btn" type="button">สัญญาใหม่</button>
+        </div>
+        <div id="bounty-list" class="bounty-list"></div>
+      </div>
     </section>
 
     <section id="map-panel" class="panel map-panel hidden" aria-label="แผนที่โลก">
