@@ -5,20 +5,20 @@ function createGrassGeometry() {
   const positions = [];
   const indices = [];
 
-  const bladeCount = 3;
+  const bladeCount = 5;
   const segments = 3;
 
   for (let blade = 0; blade < bladeCount; blade++) {
-    const angle = (blade / bladeCount) * Math.PI;
-    const width = 0.09;
-    const height = 0.65 + Math.random() * 0.45;
+    const angle = (blade / bladeCount) * Math.PI * 2;
+    const width = 0.055 + Math.random() * 0.035;
+    const height = 0.5 + Math.random() * 0.62;
 
     const start = positions.length / 3;
 
     for (let segment = 0; segment <= segments; segment++) {
       const t = segment / segments;
       const y = height * t;
-      const bend = t * t * 0.12;
+      const bend = t * t * (0.14 + blade * 0.014);
 
       const centerX = Math.cos(angle) * bend;
       const centerZ = Math.sin(angle) * bend;
@@ -58,6 +58,18 @@ function createGrassGeometry() {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
+  /* Blades are lit like the ground they grow from: mostly "up" normals give
+     soft, natural gradient instead of harsh black cards when back-lit. */
+  const normals = geometry.attributes.normal;
+  for (let i = 0; i < normals.count; i++) {
+    const nx = normals.getX(i) * 0.35;
+    const ny = normals.getY(i) * 0.35 + 0.65;
+    const nz = normals.getZ(i) * 0.35;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    normals.setXYZ(i, nx / len, ny / len, nz / len);
+  }
+  normals.needsUpdate = true;
+
   return geometry;
 }
 
@@ -79,7 +91,8 @@ function createGrassMaterial() {
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
       `#include <common>
-       uniform float uGrassTime;`
+       uniform float uGrassTime;
+       varying float vGrassHeight;`
     );
 
     shader.vertexShader = shader.vertexShader.replace(
@@ -98,7 +111,22 @@ function createGrassMaterial() {
 
        transformed.x += windWave * grassHeight * 0.18;
        transformed.z += windWave * grassHeight * 0.10;
+
+       vGrassHeight = clamp(grassHeight, 0.0, 1.1);
       `
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying float vGrassHeight;`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+       float tip = smoothstep(0.0, 0.95, vGrassHeight);
+       diffuseColor.rgb *= mix(0.76, 1.14, tip);`
     );
 
     material.userData.shader = shader;
@@ -147,7 +175,7 @@ export function createGrassTile({
       continue;
     }
 
-    const scale = 0.65 + Math.random() * 0.7;
+    const scale = 0.55 + Math.random() * 0.6;
 
     dummy.position.set(x, y, z);
     dummy.rotation.y = Math.random() * Math.PI * 2;
@@ -159,6 +187,8 @@ export function createGrassTile({
     const color = new THREE.Color(
       colors[Math.floor(Math.random() * colors.length)]
     );
+    color.multiplyScalar(0.95 + Math.random() * 0.32);
+    color.offsetHSL((Math.random() - 0.5) * 0.02, 0, 0);
 
     mesh.setColorAt(i, color);
   }
