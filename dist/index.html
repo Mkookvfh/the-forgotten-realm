@@ -6,9 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#090b12">
   <meta name="description" content="The Forgotten Realm - Dark Fantasy 3D Adventure">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e18'/%3E%3Cpath d='M16 4l7 10-7 14-7-14z' fill='%238b7bd1'/%3E%3Cpath d='M16 4l7 10H9z' fill='%23b7a8f0'/%3E%3C/svg%3E">
   <title>THE FORGOTTEN REALM</title>
-  <script type="module" crossorigin src="/assets/index-DgCHLjP5.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-_1HSTBEc.css">
+  <script type="module" crossorigin src="/assets/index-DJrLwTx6.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CEU_Icl1.css">
 </head>
 <body>
   <div id="game"></div>
@@ -17,7 +18,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.6</small>
+        <small>ASHEN WILDS · UPDATE 0.9</small>
       </div>
 
       <div class="top-actions">
@@ -98,11 +99,12 @@
         <button id="run" type="button">วิ่ง</button>
         <button id="dodge" type="button">หลบหลีก</button>
         <button id="cast" type="button" disabled>✦ ร่ายเวท</button>
+        <button id="camp" type="button">⛺ ตั้งแคมป์</button>
       </div>
     </section>
 
     <div id="desktop-help">
-       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ/คุย · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
+       WASD เดิน · Shift วิ่ง · Space กระโดด · C หลบหลีก · ลากเมาส์หมุนกล้อง · F โจมตี · E โต้ตอบ/เก็บของ · G ตั้งแคมป์ · Q ใช้ยา · R ร่ายเวท · B ร้านค้า · M แผนที่
     </div>
 
     <section id="settings-panel" class="panel hidden">
@@ -122,6 +124,11 @@
           <option value="high">สูง</option>
         </select>
       </label>
+      <label class="toggle">
+        <input id="postfx-toggle" type="checkbox">
+        <span>เปิดเอฟเฟกต์ภาพ Cinematic (Bloom / Vignette)</span>
+      </label>
+      <small class="note">เอฟเฟกต์ใช้ทรัพยากรเพิ่ม และปิดอัตโนมัติเมื่อเลือกกราฟิกต่ำ</small>
       <label><span>จำกัดเฟรมต่อวินาที</span><select id="fps-limit"><option value="auto">อัตโนมัติ</option><option value="30">30 FPS</option><option value="45">45 FPS</option><option value="60">60 FPS</option></select></label>
 
       <label>
@@ -139,6 +146,10 @@
         <input id="sound-toggle" type="checkbox" checked>
         <span>เปิดเสียงบรรยากาศและเอฟเฟกต์</span>
       </label>
+      <label class="toggle">
+        <input id="music-toggle" type="checkbox" checked>
+        <span>เปิดดนตรีประกอบตามพื้นที่และการต่อสู้</span>
+      </label>
 
       <label>
         <span>ช่องบันทึก</span>
@@ -155,6 +166,13 @@
       </div>
 
       <p class="note">บันทึกอัตโนมัติทุก 30 วินาทีในช่องที่เลือก</p>
+    </section>
+
+    <section id="camp-panel" class="panel camp-panel hidden" aria-label="ตั้งแคมป์">
+      <div class="panel-head"><div><small>WILDERNESS CAMP</small><b>⛺ ค่ายพักแรม</b></div><button id="camp-close" class="close-btn" type="button">✕</button></div>
+      <p id="camp-status">กองไฟพร้อมสำหรับพักผ่อนและปรุงอาหาร</p>
+      <button id="camp-rest" class="wide-btn" type="button">พักผ่อนจนรุ่งเช้า</button>
+      <button id="camp-cook" class="wide-btn secondary" type="button">ปรุงอาหาร (เนื้อสด 1 + สมุนไพร 1)</button>
     </section>
 
     <section id="inventory" class="panel inventory hidden" aria-label="กระเป๋าสัมภาระ">
@@ -211,6 +229,18 @@
       </div>
 
       <div class="equipment-block">
+        <small class="equipment-heading">🔨 อัปเกรดอุปกรณ์ (ช่างตีเหล็ก)</small>
+        <div class="upgrade-row">
+          <span id="upgrade-weapon-info">อาวุธ +0</span>
+          <button id="upgrade-weapon" type="button">อัปเกรด</button>
+        </div>
+        <div class="upgrade-row">
+          <span id="upgrade-armor-info">เกราะ +0</span>
+          <button id="upgrade-armor" type="button">อัปเกรด</button>
+        </div>
+      </div>
+
+      <div class="equipment-block">
         <small class="equipment-heading">✦ เวทมนตร์ <small>(R)</small></small>
         <div id="spell-list" class="spell-list">
           <button id="spell-firebolt" data-spell="firebolt" type="button" disabled>ลูกไฟ</button>
@@ -244,6 +274,13 @@
         <button id="quest-close" class="close-btn" type="button">✕</button>
       </div>
       <div id="quest-list" class="quest-list"></div>
+      <div class="bounty-block">
+        <div class="bounty-head">
+          <b>🗡 สัญญาล่า</b>
+          <button id="bounty-reroll" class="mini-btn" type="button">สัญญาใหม่</button>
+        </div>
+        <div id="bounty-list" class="bounty-list"></div>
+      </div>
     </section>
 
     <section id="map-panel" class="panel map-panel hidden" aria-label="แผนที่โลก">
