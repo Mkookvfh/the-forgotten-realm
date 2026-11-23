@@ -171,6 +171,10 @@ export function createAudio() {
       case 'dodge':
         noise(0.12, 0.05);
         break;
+      case 'thunder':
+        noise(1.3, 0.14);
+        tone(52, 1.1, 'sine', 0.09, 30);
+        break;
       default:
         break;
     }

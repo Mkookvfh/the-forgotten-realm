@@ -10,6 +10,7 @@ import {
   setSpriteFrame
 } from './pixelSprites.js';
 import { createWorldStreamer } from './worldStreamer.js';
+import { createCinematic } from './cinematic.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
@@ -35,6 +36,7 @@ const settings = {
   sensitivity: 5,
   weather: true,
   sound: true,
+  postfx: true,
   dayNightMode: 'auto'
 };
 const audio = createAudio();
@@ -232,7 +234,7 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.22;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -240,6 +242,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.domElement.style.touchAction = 'none';
 renderer.domElement.setAttribute('aria-label', 'Game view');
 mount.appendChild(renderer.domElement);
+
+const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
 
 // ---------- Sky ----------
 const sky = new THREE.Mesh(
@@ -262,28 +266,46 @@ const sky = new THREE.Mesh(
   uniform float uSun;
   varying vec3 vDir;
 
+  float hash3(vec3 p) {
+    p = fract(p * 0.3183099 + vec3(0.1, 0.17, 0.13));
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+
   void main() {
-    float h = normalize(vDir).y;
+    vec3 d = normalize(vDir);
+    float h = d.y;
 
-    vec3 nightHorizon = vec3(.16,.19,.27);
-    vec3 nightZenith = vec3(.008,.014,.04);
-
-    vec3 dayHorizon = vec3(.55,.72,.9);
-    vec3 dayZenith = vec3(.12,.42,.78);
+    vec3 nightHorizon = vec3(.14,.17,.26);
+    vec3 nightZenith  = vec3(.006,.011,.035);
+    vec3 dayHorizon   = vec3(.62,.78,.92);
+    vec3 dayZenith    = vec3(.10,.38,.72);
 
     vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
-    vec3 zenith = mix(nightZenith, dayZenith, uSun);
+    vec3 zenith  = mix(nightZenith,  dayZenith,  uSun);
+    vec3 col = mix(horizon, zenith, smoothstep(-.18,.85,h));
 
-    vec3 col = mix(horizon, zenith, smoothstep(-.18,.8,h));
+    // Golden-hour band hugging the horizon at dawn / dusk
+    float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.4);
+    col = mix(col, vec3(.98,.55,.30),
+      pow(max(1.0 - abs(h) * 3.2, 0.0), 2.0) * dusk * 0.38);
 
     vec3 moonDir = normalize(vec3(-.4,.65,-.5));
-    float glow = pow(max(dot(normalize(vDir),moonDir),0.0),24.0);
-    col += vec3(.25,.31,.48) * glow * (1.0-uSun);
+    float glow = pow(max(dot(d, moonDir), 0.0), 24.0);
+    col += vec3(.25,.31,.48) * glow * (1.0 - uSun);
 
-    float disc = smoothstep(.9992,.9997,dot(normalize(vDir),moonDir));
-    col = mix(col,vec3(.88,.91,1.0),disc * (1.0-uSun));
+    float disc = smoothstep(.9992,.9997, dot(d, moonDir));
+    col = mix(col, vec3(.88,.91,1.0), disc * (1.0 - uSun));
 
-    gl_FragColor = vec4(col,1.0);
+    // Procedural stars twinkling at night
+    if (h > 0.02) {
+      vec3 cell = floor(d * 230.0);
+      float star = step(0.9975, hash3(cell));
+      float twinkle = 0.6 + 0.4 * sin(uSun * 40.0 + hash3(cell + 7.0) * 40.0);
+      col += vec3(.85,.92,1.0) * star * twinkle * (1.0 - uSun) * 0.85;
+    }
+
+    gl_FragColor = vec4(col, 1.0);
   }
 `
   })
@@ -362,8 +384,8 @@ worldStreamer.init().then((ok) => {
   }
 });
 
-const groundDayColor = new THREE.Color(0x343a32);
-const groundNightColor = new THREE.Color(0x65705d);
+const groundDayColor = new THREE.Color(0x4c5543);
+const groundNightColor = new THREE.Color(0x5d6956);
 
 
 const mats = {
@@ -435,7 +457,9 @@ for (let i = 0; i < 92; i++) {
 const grassMaterial = new THREE.MeshStandardMaterial({
   color: 0x496b3d,
   roughness: 1,
-  side: THREE.DoubleSide
+  side: THREE.DoubleSide,
+  emissive: 0x16240f,
+  emissiveIntensity: 0.35
 });
 
 const grassBlade = new THREE.PlaneGeometry(0.16, 0.7);
@@ -810,8 +834,24 @@ const collectibles = [];
 const crystalMat = new THREE.MeshStandardMaterial({
   color: 0x8b7bd1,
   emissive: 0x4d3c9b,
-  emissiveIntensity: 1.6,
+  emissiveIntensity: 2.1,
   roughness: .25
+});
+const crystalHaloTexture = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(190,225,255,0.85)');
+  grad.addColorStop(0.45, 'rgba(140,180,255,0.28)');
+  grad.addColorStop(1, 'rgba(140,180,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+const crystalHaloMat = new THREE.SpriteMaterial({
+  map: crystalHaloTexture, transparent: true, opacity: .55,
+  blending: THREE.AdditiveBlending, depthWrite: false, fog: false
 });
 
 for (let i = 0; i < 8; i++) {
@@ -819,6 +859,9 @@ for (let i = 0; i < 8; i++) {
     new THREE.OctahedronGeometry(.38),
     crystalMat
   );
+  const halo = new THREE.Sprite(crystalHaloMat);
+  halo.scale.set(1.5, 1.5, 1);
+  crystal.add(halo);
   const crystalX = (i % 2 ? 1 : -1) * (3.5 + random() * 2);
   const crystalZ = -8 - i * 6;
   const crystalY = getTerrainHeight(crystalX, crystalZ, 0) ?? 0;
@@ -1390,6 +1433,11 @@ let hurtAnimTimer = 0;
 const dodgeDirection = new THREE.Vector3();
 let autoSaveTimer = 0;
 let dungeonActive = false;
+let prevYaw = yaw;
+let lastSun = 1;
+
+const cWarmSun = new THREE.Color(0xff9a5c);
+const cWhiteSun = new THREE.Color(0xfff1d6);
 
 const clock = new THREE.Clock();
 const cameraTarget = new THREE.Vector3();
@@ -1792,11 +1840,13 @@ function updateDayNight(dt) {
   }
 
   
-moon.intensity = 2.0 * (1 - sun);
-sunLight.intensity = 2.2 * sun;
-hemi.intensity = 1.05 + 0.9 * sun;
-ambient.intensity = 0.62 + 0.23 * sun;
-moonGlow.intensity = 0.65 * (1 - sun);
+moon.intensity = 2.6 * (1 - sun);
+sunLight.intensity = 2.6 * sun;
+hemi.intensity = 1.25 + 1.05 * sun;
+ambient.intensity = 0.74 + 0.30 * sun + cinematic.getFlash() * 1.7;
+moonGlow.intensity = 1.05 * (1 - sun);
+sunLight.color.lerpColors(cWarmSun, cWhiteSun, sun);
+lastSun = sun;
   
   // Use only one directional shadow light at a time
   moon.castShadow = sun < 0.5;
@@ -1808,10 +1858,12 @@ moonGlow.intensity = 0.65 * (1 - sun);
   
 
 
-  const daylight = new THREE.Color(0x101a2b).lerp(
-  new THREE.Color(0x87b8e8),
+  const daylight = new THREE.Color(0x1a2336).lerp(
+  new THREE.Color(0x9fc6ea),
   sun
 );
+  const duskTint = Math.max(0, 1 - Math.abs(sun - 0.18) * 3.4);
+  daylight.lerp(new THREE.Color(0xe88a5a), duskTint * 0.30);
 
 sky.visible = true;
 sky.material.uniforms.uSun.value = sun;
@@ -1826,6 +1878,8 @@ scene.fog.density = THREE.MathUtils.lerp(
   0.0058,
   nightFog
 );
+
+cinematic.update(dt, sun, player.position);
 
   const label = sun > .58 ? 'DAY' : sun > .2 ? 'DUSK' : 'NIGHT';
   if (ui.clock) ui.clock.textContent = label;
@@ -1863,6 +1917,11 @@ function updateWeather(dt) {
   }
 
   p.needsUpdate = true;
+
+  if (lastSun < 0.35 && random() < dt * 0.055) {
+    cinematic.strike();
+    audio.play('thunder');
+  }
 }
 
 // ---------- Update Fireflies ----------
@@ -2060,6 +2119,11 @@ function applySettings() {
 
   audio.setEnabled(settings.sound);
   audio.setWeather(settings.weather);
+
+  cinematic.setEnabled(settings.postfx && settings.quality !== 'low');
+  cinematic.setQuality(settings.quality);
+  const postfxToggle = $('#postfx-toggle');
+  if (postfxToggle) postfxToggle.checked = settings.postfx;
 
   $('#quality').value = settings.quality;
   $('#sensitivity').value = String(settings.sensitivity);
@@ -2314,6 +2378,8 @@ body.rotation.x = -attackGlow * .22;
   );
 
   const horizontal = Math.cos(pitch) * distance;
+  const yawDelta = yaw - prevYaw;
+  prevYaw = yaw;
 
   desiredCamera.set(
     cameraTarget.x + Math.sin(yaw) * horizontal,
@@ -2323,6 +2389,15 @@ body.rotation.x = -attackGlow * .22;
 
   camera.position.lerp(desiredCamera, 1 - Math.pow(.001, dt));
   camera.lookAt(cameraTarget);
+
+  const rollTarget = THREE.MathUtils.clamp(-yawDelta * 0.9, -0.035, 0.035);
+  camera.rotation.z += (rollTarget - camera.rotation.z) * Math.min(1, dt * 7);
+
+  if (hurtAnimTimer > 0) {
+    const k = hurtAnimTimer * 0.06;
+    camera.position.x += (Math.random() - 0.5) * k;
+    camera.position.y += (Math.random() - 0.5) * k;
+  }
 
   sky.position.copy(camera.position);
   sunLight.position.set(
@@ -2476,6 +2551,12 @@ $('#rain-toggle').addEventListener('change', (e) => {
   applySettings();
 });
 
+const postfxToggle = $('#postfx-toggle');
+if (postfxToggle) postfxToggle.addEventListener('change', (e) => {
+  settings.postfx = e.target.checked;
+  applySettings();
+});
+
 $('#sound-toggle').addEventListener('change', (e) => {
   settings.sound = e.target.checked;
   applySettings();
@@ -2533,6 +2614,7 @@ function resizeGame() {
       : Math.min(devicePixelRatio || 1, 1.5);
 
   renderer.setPixelRatio(ratio);
+  cinematic.resize(width, height, ratio);
 }
 
 addEventListener('resize', resizeGame);
@@ -2558,7 +2640,7 @@ function animate() {
 
   const dt = Math.min(clock.getDelta(), .05);
   update(dt);
-  renderer.render(scene, camera);
+  cinematic.render();
 }
 
 animate();
