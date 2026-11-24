@@ -16,7 +16,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.9</small>
+        <small>ASHEN WILDS · UPDATE 0.11</small>
       </div>
 
       <div class="top-actions">
@@ -69,6 +69,11 @@
         <small>LEVEL</small>
         <b id="level-text">1</b>
       </div>
+
+      <div id="hud-res" aria-label="ทรัพยากร">
+        <span class="res gold" title="ทอง">◈ <b id="hud-gold">60</b></span>
+        <span class="res crystal" title="ผลึกวิญญาณ">✧ <b id="hud-crystal">0</b></span>
+      </div>
     </section>
 
     <section id="quest" class="glass">
@@ -92,12 +97,12 @@
 
       <div class="mobile-actions">
         <button id="jump" type="button">↑ กระโดด</button>
-        <button id="attack" type="button">⚔ โจมตี</button>
+        <button id="attack" type="button">🗡 โจมตี</button>
         <button id="interact" type="button">ใช้ / คุย</button>
         <button id="run" type="button">วิ่ง</button>
         <button id="dodge" type="button">หลบหลีก</button>
         <button id="cast" type="button" disabled>✦ ร่ายเวท</button>
-        <button id="camp" type="button">⛺ ตั้งแคมป์</button>
+        <button id="camp" type="button" aria-label="ตั้งแคมป์" title="ตั้งแคมป์">⛺ แคมป์</button>
       </div>
     </section>
 
@@ -256,6 +261,7 @@
         <button id="shop-close" class="close-btn" type="button">✕</button>
       </div>
       <div class="shop-gold">ทองของคุณ: <strong id="shop-gold">60</strong></div>
+      <div id="shop-rep" class="shop-rep">ชื่อเสียงพ่อค้า 0 · เป็นกลาง</div>
       <small class="equipment-heading">ซื้อสินค้า</small>
       <div id="shop-buy" class="shop-list"></div>
       <small class="equipment-heading">ขายของในกระเป๋า</small>
@@ -272,6 +278,13 @@
         <button id="quest-close" class="close-btn" type="button">✕</button>
       </div>
       <div id="quest-list" class="quest-list"></div>
+      <div class="rep-block">
+        <div class="bounty-head">
+          <b>⚜ ชื่อเสียง</b>
+          <small>การกระทำของเจ้าถูกจดจำ</small>
+        </div>
+        <div id="rep-list" class="rep-list"></div>
+      </div>
       <div class="bounty-block">
         <div class="bounty-head">
           <b>🗡 สัญญาล่า</b>
@@ -284,33 +297,51 @@
     <section id="map-panel" class="panel map-panel hidden" aria-label="แผนที่โลก">
       <div class="panel-head">
         <div>
-          <small>WORLD MAP</small>
-          <b>🗺 อาณาจักรที่ถูกลืม</b>
+          <small>CARTOGRAPHER · WORLD MAP</small>
+          <b>🗺 แผนที่อาณาจักรที่ถูกลืม</b>
         </div>
         <button id="map-close" class="close-btn" type="button">✕</button>
       </div>
       <div class="map-stage">
-        <canvas id="world-map" width="720" height="900"></canvas>
+        <canvas id="world-map" width="900" height="900"></canvas>
+        <div class="map-toolbar">
+          <button id="map-zoom-in" type="button" aria-label="ซูมเข้า">＋</button>
+          <button id="map-zoom-out" type="button" aria-label="ซูมออก">−</button>
+          <button id="map-recenter" type="button" aria-label="กลับมาที่ตัวเรา">◎</button>
+        </div>
         <div class="map-legend">
           <span><i class="dot player"></i>คุณ</span>
-          <span><i class="dot enemy"></i>ศัตรู</span>
+          <span><i class="dot quest"></i>ภารกิจ</span>
+          <span><i class="dot waypoint"></i>จุดเดินทาง</span>
           <span><i class="dot boss"></i>BOSS</span>
           <span><i class="dot npc"></i>NPC</span>
-          <span><i class="dot node"></i>วัตถุดิบ</span>
         </div>
       </div>
-      <div id="map-coords">ตำแหน่ง: 0, 0</div>
-      <p class="note">พื้นที่ที่ยังไม่เคยไปจะถูกปกปิดด้วยหมอก</p>
+      <div id="map-wp" class="map-wp hidden">
+        <span id="map-wp-name">—</span>
+        <button id="map-wp-travel" type="button" class="mini-btn">เดินทางเร็ว</button>
+      </div>
+      <div id="map-coords">ตำแหน่ง: 0, 0 · สำรวจแล้ว 0%</div>
+      <p class="note">ลากเพื่อเลื่อน · หมุนล้อหรือสองนิ้วเพื่อซูม · แตะจุดเดินทางเพื่อเดินทางเร็ว</p>
     </section>
 
     <section id="dialogue-panel" class="panel dialogue-panel hidden" role="dialog" aria-label="บทสนทนา">
-      <div class="panel-head">
-        <b id="dialogue-name">—</b>
+      <div class="panel-head dialogue-head">
+        <div>
+          <small id="dialogue-title">—</small>
+          <b id="dialogue-name">—</b>
+        </div>
+        <span id="dialogue-rep" class="rep-chip">—</span>
         <button id="dialogue-close" class="close-btn" type="button">✕</button>
       </div>
       <p id="dialogue-text"></p>
       <div id="dialogue-choices" class="dialogue-choices"></div>
-      <button id="dialogue-next" class="wide-btn" type="button">ถัดไป</button>
+      <div class="dialogue-ask">
+        <input id="dialogue-ask" type="text" maxlength="90" autocomplete="off"
+          placeholder="พิมพ์คำถามถึงเขา…" aria-label="พิมพ์คำถาม" />
+        <button id="dialogue-ask-btn" type="button">ถาม</button>
+      </div>
+      <button id="dialogue-next" class="wide-btn" type="button">จบการสนทนา</button>
     </section>
   </main>
 
