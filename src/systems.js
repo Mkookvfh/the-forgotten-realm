@@ -161,10 +161,43 @@ export function rarityOf(id) {
   return ITEM_RARITY[id] || 'common';
 }
 
+export const FACTIONS = {
+  kingdom: { name: 'ราชอาณาจักรราเวนฮอลด์', short: 'ราชอาณาจักร', color: '#d8b878' },
+  church: { name: 'ศาสนจักรแห่งแสงจันทร์', short: 'ศาสนจักร', color: '#cfc8a8' },
+  merchants: { name: 'สมาคมพ่อค้าเร่ร่อน', short: 'พ่อค้า', color: '#d8a86a' },
+  outcasts: { name: 'กลุ่มผู้ถูกเนรเทศ', short: 'ผู้ถูกเนรเทศ', color: '#9ad6c2' },
+  ancient: { name: 'องค์กรโบราณ', short: 'องค์กรโบราณ', color: '#b58ce0' }
+};
+
+/* Reputation tiers are shared by the dialogue header, the quest log and the
+   merchant price modifier so a number always reads the same way. */
+export const REP_TIERS = [
+  { min: 40, label: 'ผู้มีพระคุณ', tone: 'ally' },
+  { min: 15, label: 'มิตร', tone: 'friend' },
+  { min: 5, label: 'ไว้เนื้อเชื่อใจ', tone: 'trust' },
+  { min: -4, label: 'เป็นกลาง', tone: 'neutral' },
+  { min: -19, label: 'ระแวง', tone: 'wary' },
+  { min: -100, label: 'เป็นศัตรู', tone: 'enemy' }
+];
+
+/* Waypoints double as the Cartographer checkpoints: standing near one unlocks
+   it, and the world map can then fast-travel to it. */
+export const WAYPOINTS = [
+  { id: 'camp', name: 'ค่ายทุ่งรกร้าง', x: 0, z: 14, region: 'wasteland' },
+  { id: 'ravenhold', name: 'ราเวนโฮลด์', x: -45, z: -45, region: 'ravenhold' },
+  { id: 'thornwick', name: 'ธอร์นวิก', x: -150, z: -40, region: 'ravenhold' },
+  { id: 'stonecircle', name: 'วงหินโบราณ', x: -70, z: -140, region: 'deadwood' },
+  { id: 'varnhal', name: 'นครวาร์นฮัล', x: 160, z: 50, region: 'varnhal' },
+  { id: 'embercamp', name: 'เชิงเอ็มเบอร์พีค', x: 150, z: -150, region: 'emberpeak' },
+  { id: 'mirefall', name: 'หมู่บ้านมิเรฟอลล์', x: -50, z: 205, region: 'mirefall' }
+];
+
 const NPC_DATA = [
   {
     id: 'sage',
     name: 'นักพรตผู้ลืมเลือน',
+    title: 'ผู้เฝ้าศาลเจ้า · ศาสนจักร',
+    faction: 'church',
     position: [5.5, 0, 1],
     color: 0x7486b8,
     quest: 'herb',
@@ -173,15 +206,57 @@ const NPC_DATA = [
       { from: 0.45, to: 0.75, position: [1.5, 0, -43] },
       { from: 0.75, to: 1, position: [5.5, 0, 1] }
     ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'เจ้ากล้าดีที่กลับมาที่ศาลนี้ ทั้งที่มือเปื้อนเลือด...'
+      : tier === 'wary'
+        ? 'เจ้ายังไม่เป็นที่ไว้วางใจ แต่ศาลเจ้าไม่ปิดประตูต่อผู้ใด'
+        : 'เจ้าเดินเข้ามาในดินแดนที่แม้แต่ความทรงจำยังลืมไปแล้ว...',
     lines: [
       'เจ้าเดินเข้ามาในดินแดนที่แม้แต่ความทรงจำยังลืมไปแล้ว...',
       'สมุนไพรในป่ายังมีชีวิต เก็บมาให้ข้า 5 ชิ้นเถิด ข้าจะตอบแทนด้วยยาฟื้นฟู',
       'เมื่อฟ้าสาง ข้าจะไปยืนสวดที่ศาลเจ้า ตามหาข้าได้ที่นั่น'
-    ]
+    ],
+    topics: [
+      {
+        id: 'forest',
+        label: 'เกิดอะไรขึ้นในป่าแห้งตาย?',
+        keys: ['ป่า', 'deadwood', 'แห้งตาย', 'เกิดอะไร'],
+        reply: 'เสียงกระซิบในป่าไม่ใช่ลม ตั้งแต่หอคอยร้างล่ม เงาบางอย่างก็เดินออกมาจากใต้ดิน ผู้พิทักษ์ที่เจ้าฆ่าได้นั้น... มันคือวิญญาณของคนที่เคยสวดที่นี่'
+      },
+      {
+        id: 'guardians',
+        label: 'ผู้พิทักษ์ซากโบราณคืออะไร?',
+        keys: ['ผู้พิทักษ์', 'ซาก', 'วิญญาณ', 'กระดูก'],
+        reply: 'เมื่อองค์กรโบราณผนึกประตู พวกเขาผูกวิญญาณผู้เฝ้าประตูไว้กับกระดูกของตัวเอง ผู้พิทักษ์จึงยังเฝ้าซากที่ไม่มีใครเหลืออยู่'
+      },
+      {
+        id: 'kingdom',
+        label: 'เล่าเรื่องอาณาจักรนี้ให้ฟังหน่อย',
+        keys: ['อาณาจักร', 'ราชา', 'ประวัติ', 'เล่า'],
+        reply: 'ราชอาณาจักรราเวนฮอลด์เคยแผ่จากปราสาทตรงนี้ไปถึงภูเขาไฟ แต่กษัตริย์องค์สุดท้ายห้ามกองทัพจุดไฟบนยอดเขา แล้ววาร์นฮัลก็ไม่ส่งทหารมาอีกเลย'
+      },
+      {
+        id: 'donate',
+        label: 'บริจาค 30 ทองเพื่อจุดตะเกียง',
+        keys: ['บริจาค', 'ตะเกียง', 'ทอง'],
+        once: false,
+        effect: { gold: -30, rep: { church: 6 }, toast: 'ศาสนจักรจดจำความเอื้อเฟื้อนี้' },
+        reply: 'ขอบใจเจ้า แสงเดียวก็พอทำให้คนที่หลงทางมองเห็นศาลนี้'
+      }
+    ],
+    secretTopic: {
+      id: 'order',
+      label: 'ถามถึงแท่นบูชาใต้ศาล (ความลับ)',
+      requiresRep: { faction: 'church', min: 12 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-shrine' },
+      reply: 'ใต้แท่นบูชามีแผ่นศิลาจารึกขององค์กรโบราณ เจ้าอ่านมันได้... มันบอกว่าผู้พิทักษ์ไม่ได้ถูกผูกไว้กับประตู แต่ผูกไว้กับ "คำสัญญา"'
+    }
   },
   {
     id: 'smith',
     name: 'ช่างตีเหล็กเร่ร่อน',
+    title: 'ช่างตีเหล็ก · สมาคมพ่อค้า',
+    faction: 'merchants',
     nameColor: '#d8a86a',
     position: [9, 0, -44],
     color: 0xa8784a,
@@ -191,15 +266,55 @@ const NPC_DATA = [
       { from: 0.35, to: 0.7, position: [15, 0, -56] },
       { from: 0.7, to: 1, position: [9, 0, -44] }
     ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'เจ้ามีเรื่องอะไรกับข้า? ข้าไม่ยุ่งกับคนที่ราชอาณาจักรหมายหัว'
+      : 'เฮ้ นักร่อนเร่! ช่วงนี้ป่า Blackwood ไม่ปลอดภัยเลย มีบางอย่างกำลังออกล่าในยามค่ำคืน',
     lines: [
       'เฮ้ นักร่อนเร่! เหล็กและกระดูกที่เจ้าเก็บมาได้ ฉันเปลี่ยนเป็นอาวุธให้ได้',
       'ฆ่าผู้พิทักษ์ซะ 3 ตัว แล้วเอาแร่มาให้ฉัน แล้วฉันจะสอนวิธีคราฟต์ให้',
       'ตอนเย็นฉันย้ายเตาไปใกล้เหมืองแร่ อย่าลืมแวะไปหา'
-    ]
+    ],
+    topics: [
+      {
+        id: 'blackwood',
+        label: 'เกิดอะไรขึ้นในป่า Blackwood?',
+        keys: ['blackwood', 'ป่า', 'อันตราย', 'คืน'],
+        reply: 'สามคืนแล้วที่มีคนได้ยินเสียงกระดูกเดิน ฉันไม่ใช่คนขี้ขลาด แต่เตาของฉันไม่เคยดับเลยตั้งแต่คืนนั้น ถ้าจะเข้าไป เอาไฟติดมือไปด้วย'
+      },
+      {
+        id: 'work',
+        label: 'มีภารกิจอะไรให้ทำบ้าง?',
+        keys: ['ภารกิจ', 'งาน', 'ช่วย', 'อะไรให้ทำ'],
+        reply: 'เก็บกระดูกผู้พิทักษ์มาให้ข้า แล้วข้าจะสอนตีเหล็กให้ ไม่ต้องกลัวเปื้อนเลือด ข้าก็เปื้อนทุกวัน'
+      },
+      {
+        id: 'weapons',
+        label: 'ขอดูอาวุธที่ขายหน่อย',
+        keys: ['อาวุธ', 'ขาย', 'ดาบ', 'ดูของ'],
+        effect: { action: 'openShop' },
+        reply: 'เข้ามาดูสิ เหล็กทุกชิ้นข้าตีเองกับมือ ไม่มีของปลอมจากตลาดล่าง'
+      },
+      {
+        id: 'guild',
+        label: 'ฝากเงิน 50 ทองกับสมาคมพ่อค้า',
+        keys: ['สมาคม', 'ฝาก', 'พ่อค้า', 'เงิน'],
+        effect: { gold: -50, rep: { merchants: 6 }, toast: 'สมาคมพ่อค้าเปิดบัญชีให้เจ้าแล้ว' },
+        reply: 'ดี! สมาคมจำหน้าคนที่จ่ายตรงเวลา เจ้าจะได้ราคาที่ดีขึ้นในอีกไม่ช้า'
+      }
+    ],
+    secretTopic: {
+      id: 'cursedOre',
+      label: 'ถามเรื่องแร่ที่ติดคำสาป (ความลับ)',
+      requiresRep: { faction: 'merchants', min: 10 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-ore' },
+      reply: 'ในเหมืองใต้ป่ามีแร่ที่เคาะแล้วร้องไห้ องค์กรโบราณเรียกมันว่า "โลหะแห่งคำสัญญา" ข้าเคยขายไปชิ้นหนึ่ง... แล้วลูกค้าคนนั้นก็หายไป'
+    }
   },
   {
     id: 'merchant',
     name: 'พ่อค้าในหมอก',
+    title: 'พ่อค้าเร่ร่อน · สมาคมพ่อค้า',
+    faction: 'merchants',
     nameColor: '#9ad6c2',
     position: [12, 0, 4],
     color: 0x4d8f7e,
@@ -209,53 +324,203 @@ const NPC_DATA = [
       { from: 0.4, to: 0.72, position: [18, 0, -66] },
       { from: 0.72, to: 1, position: [12, 0, 4] }
     ],
+    greet: ({ tier }) => tier === 'friend' || tier === 'ally'
+      ? 'เจ้ามาอีกแล้วหรือ? ข้าวางของดีไว้ให้แล้ว ดูสิ ราคาเป็นมิตรกว่าคนอื่นแน่นอน'
+      : 'ทองไม่มีวันเน่าในดินแดนนี้ ของวิญญาณนั่นต่างหากที่เน่าได้',
     lines: [
       'ทองไม่มีวันเน่าในดินแดนนี้ ของวิญญาณนั่นต่างหากที่เน่าได้',
       'ของข้าล้วนมาจากผู้ที่เดินทางไม่ถึงปลายทาง ซื้อไปเถิด อย่าถามที่มา',
       'กด B เมื่อใดก็ได้เพื่อเปิดร้านของข้า แม้ข้าจะเดินทางไปยังแม่น้ำ'
-    ]
+    ],
+    topics: [
+      {
+        id: 'prices',
+        label: 'ราคาของข้าจะถูกลงไหม?',
+        keys: ['ราคา', 'ลด', 'ถูก', 'ส่วนลด'],
+        dynamic: 'price',
+        reply: 'ยิ่งเจ้าช่วยเหลือสมาคมมากเท่าไร ราคาก็ยิ่งนุ่มนวลขึ้นเท่านั้น'
+      },
+      {
+        id: 'oldmap',
+        label: 'ซื้อแผนที่เก่า (120 ทอง)',
+        keys: ['แผนที่', 'map', 'ซื้อ', 'เก่า'],
+        effect: { gold: -120, rep: { merchants: 4 }, action: 'buyMap', toast: 'พ่อค้าคลี่แผนที่เก่าให้เจ้าดู' },
+        reply: 'แผนที่นี้ข้าซื้อมาจากคนที่กลับมาไม่ได้ มันยังบอกทางไปดินแดนที่เจ้ายังไม่เคยเหยียบ'
+      },
+      {
+        id: 'rumor',
+        label: 'มีข่าวลืออะไรในวาร์นฮัลบ้าง?',
+        keys: ['ข่าว', 'ลือ', 'วาร์นฮัล', 'เมือง'],
+        reply: 'ว่ากันว่ากองทหารวาร์นฮัลกำลังมองหาคนที่จุดไฟบนยอดเอ็มเบอร์พีค ใครจุดไฟ คนนั้นได้เป็นวีรบุรุษหรือเป็นเถ้าถ่าน'
+      },
+      {
+        id: 'smuggle',
+        label: 'รับของเถื่อนไปส่ง (ได้ 40 ทอง)',
+        keys: ['เถื่อน', 'ขนของ', 'ส่งของ'],
+        effect: { gold: 40, rep: { outcasts: 6, kingdom: -4 }, toast: 'กลุ่มผู้ถูกเนรเทศรู้จักชื่อเจ้าแล้ว' },
+        reply: 'ไม่ถามว่าในห่อคืออะไร ขอบใจ เอาไปส่งที่หมู่บ้านมิเรฟอลล์ ผู้ถูกเนรเทศที่นั่นจะจำน้ำใจเจ้า'
+      }
+    ],
+    secretTopic: {
+      id: 'realname',
+      label: 'ถามถึงชื่อจริงของเขา (ความลับ)',
+      requiresRep: { faction: 'merchants', min: 14 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-merchant' },
+      reply: 'ชื่อจริงข้า? ...ข้าเคยเป็นผู้เก็บกวาดซากขององค์กรโบราณ ก่อนจะพบว่าของที่พวกเขาฝังไว้ ขายได้ดีกว่าความภักดี'
+    }
   },
   {
     id: 'ravenkeeper',
     name: 'นายกองราเวนโฮลด์',
+    title: 'นายกองรักษาเมือง · ราชอาณาจักร',
+    faction: 'kingdom',
     nameColor: '#d8b878',
     position: [-45, 0, -45],
     color: 0x8e6a4a,
     schedule: [
       { from: 0, to: 1, position: [-45, 0, -45] }
     ],
+    greet: ({ tier }) => tier === 'ally' || tier === 'friend'
+      ? 'ผู้เดินทาง! ประตูราเวนโฮลด์เปิดให้เจ้าเสมอ ว่ามาสิ ต้องการให้ข้าช่วยอะไร'
+      : 'ราเวนโฮลด์ยังอยู่ได้เพราะผู้เดินทางอย่างเจ้า',
     lines: [
       'ราเวนโฮลด์ยังอยู่ได้เพราะผู้เดินทางอย่างเจ้า',
       'ถัดไปทางตะวันตกคือป่าแห้งตาย อย่าเดินลึกเกินกว่าจะเห็นวงหิน'
-    ]
+    ],
+    topics: [
+      {
+        id: 'ravenhold',
+        label: 'เล่าเรื่องราเวนโฮลด์ให้ฟังหน่อย',
+        keys: ['ราเวนโฮลด์', 'เมือง', 'บ้าน'],
+        reply: 'ราเวนโฮลด์เคยเป็นด่านหน้าของราชอาณาจักร ตอนนี้เหลือแค่ค่ายทหารกับคนที่ไม่มีที่ไป ข้ายังถือธงอยู่เพราะไม่มีใครบอกให้ปลด'
+      },
+      {
+        id: 'war',
+        label: 'ราชอาณาจักรกำลังทำสงครามหรือ?',
+        keys: ['สงคราม', 'ทหาร', 'ราฟ', 'ศัตรู'],
+        reply: 'วาร์นฮัลเรียกมันว่า "การรักษาความสงบ" กลุ่มผู้ถูกเนรเทศเรียกมันว่า "การล่า" ข้าเรียกมันว่าฤดูเก็บศพ'
+      },
+      {
+        id: 'oath',
+        label: 'สาบานตนรับใช้ราชอาณาจักร',
+        keys: ['สาบาน', 'รับใช้', 'เข้าร่วม'],
+        effect: { rep: { kingdom: 10, merchants: -2 }, flag: 'oath-kingdom', toast: 'เจ้ากลายเป็นพันธมิตรของราชอาณาจักร' },
+        reply: 'คุกเข่าลง. ...ลุกขึ้นเถิด ทหารของราฟ ข้ามอบตรานี้ให้เจ้า ใช้มันเข้าประตูวาร์นฮัลได้โดยไม่ถูกตรวจ'
+      },
+      {
+        id: 'deadwood',
+        label: 'วงหินโบราณคืออะไร?',
+        keys: ['วงหิน', 'deadwood', 'ป่า'],
+        reply: 'อย่าไปแตะหินพวกนั้น มันไม่ใช่หินบูชา มันคือหลักผนึก สิ่งที่อยู่ใต้มันยังหายใจอยู่'
+      }
+    ],
+    secretTopic: {
+      id: 'king',
+      label: 'ถามถึงกษัตริย์องค์สุดท้าย (ความลับ)',
+      requiresRep: { faction: 'kingdom', min: 12 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-king' },
+      reply: 'กษัตริย์องค์สุดท้ายไม่ได้สวรรคตบนเตียง พระองค์เสด็จลงไปใต้ปราสาทพร้อมองค์กรโบราณ แล้วประตูก็ปิดจากด้านใน'
+    }
   },
   {
     id: 'varnhalguard',
     name: 'ทหารรักษาพระนคร',
+    title: 'ทหารวาร์นฮัล · ราชอาณาจักร',
+    faction: 'kingdom',
     nameColor: '#e2b45c',
     position: [160, 0, 50],
     color: 0x7d8ba6,
     schedule: [
       { from: 0, to: 1, position: [160, 0, 50] }
     ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'หยุด! เจ้าคือคนที่สมาคมพ่อค้าร้องเรียนเรื่องของเถื่อนใช่ไหม'
+      : 'วาร์นฮัลไม่เคยหลับ แสงไฟในหน้าต่างคือสัญญาณว่ายังมีชีวิตอยู่',
     lines: [
       'วาร์นฮัลไม่เคยหลับ แสงไฟในหน้าต่างคือสัญญาณว่ายังมีชีวิตอยู่',
       'ระวังภูเขาไฟทางใต้ ไฟที่นั่นไม่เคยมอด'
-    ]
+    ],
+    topics: [
+      {
+        id: 'city',
+        label: 'วาร์นฮัลมีอะไรให้สำรวจบ้าง?',
+        keys: ['วาร์นฮัล', 'ตลาด', 'เมือง', 'สำรวจ'],
+        reply: 'ตลาดกลางคึกคักทั้งวัน แต่ระวังกระเป๋า ยิ่งใกล้ตลาดล่าง ราคายิ่งถูก... และของก็ยิ่ง questionable'
+      },
+      {
+        id: 'volcano',
+        label: 'ภูเขาไฟเอ็มเบอร์พีคอันตรายแค่ไหน?',
+        keys: ['ภูเขา', 'ไฟ', 'emberpeak', 'ลาวา'],
+        reply: 'ห่างจากปากปล่องสามร้อยก้าว อากาศก็ร้อนจนเกราะบางๆ ของเจ้าละลายได้ อย่าเข้าไปโดยไม่มีหัวใจศิลา'
+      },
+      {
+        id: 'report',
+        label: 'แจ้งเบาะแสกลุ่มโจร (ได้ 30 ทอง)',
+        keys: ['โจร', 'เบาะแส', 'แจ้ง', 'รางวัล'],
+        effect: { gold: 30, rep: { kingdom: 5 }, toast: 'กองทหารจดบันทึกเบาะแสของเจ้า' },
+        reply: 'ดีมาก ข้าจะส่งคนไปตรวจ เอานี่ไปเป็นค่าเหนื่อย ราชอาณาจักรไม่ลืมคนที่ช่วยเหลือ'
+      }
+    ],
+    secretTopic: {
+      id: 'underpalace',
+      label: 'ถามเรื่องคลังใต้พระราชวัง (ความลับ)',
+      requiresRep: { faction: 'kingdom', min: 12 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-vault' },
+      reply: 'ใต้พระราชวังมีประตูที่ไม่มีลูกกุญแจ ทหารรุ่นก่อนบอกว่ามันเปิดด้วย "คำสัญญา" ไม่ใช่กุญแจ... ข้าไม่เคยกล้าลอง'
+    }
   },
   {
     id: 'mirefarmer',
     name: 'ชาวประมงมิเรฟอลล์',
+    title: 'ชาวประมง · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
     nameColor: '#7fd4e8',
     position: [-50, 0, 205],
     color: 0x5f9d9e,
     schedule: [
       { from: 0, to: 1, position: [-50, 0, 205] }
     ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'กลับไปซะ ชาวบ้านที่นี่ไม่ต้อนรับคนของราชอาณาจักร'
+      : 'ทะเลสาบนี้คืนสิ่งที่เราทิ้งไว้เสมอ แต่ไม่เคยคืนคน',
     lines: [
       'ทะเลสาบนี้คืนสิ่งที่เราทิ้งไว้เสมอ แต่ไม่เคยคืนคน',
       'หากเจ้าพบหีบใต้น้ำ อย่าเปิดตอนฝนตก'
-    ]
+    ],
+    topics: [
+      {
+        id: 'lake',
+        label: 'ทะเลสาบนี้มีตำนานอะไร?',
+        keys: ['ทะเลสาบ', 'มิเรฟอลล์', 'น้ำ', 'ตำนาน'],
+        reply: 'ก่อนน้ำจะท่วม ที่นี่เคยเป็นอารามของศาสนจักร คนแก่บอกว่ากระดิ่งยังดังใต้น้ำทุกคืนพระจันทร์เต็มดวง'
+      },
+      {
+        id: 'drowned',
+        label: 'คนที่หายไปในทะเลสาบไปไหน?',
+        keys: ['จม', 'หาย', 'คน', 'วิญญาณ'],
+        reply: 'บางคนว่าพวกเขากลับมาดำรงอยู่ใต้ผืนน้ำ ไม่แก่ ไม่ตาย แต่ก็ไม่มีความสุข ฟังดูเหมือนคำสาปขององค์กรโบราณ'
+      },
+      {
+        id: 'boat',
+        label: 'ช่วยซ่อมเรือ 40 ทอง',
+        keys: ['เรือ', 'ซ่อม', 'ช่วย', 'ทอง'],
+        effect: { gold: -40, rep: { outcasts: 6 }, toast: 'ชาวมิเรฟอลล์เริ่มไว้ใจเจ้า' },
+        reply: 'ขอบใจ ไม้ในหมู่บ้านนี้หายาก แต่เจ้ากลับเอาไม้มาซ่อมให้โดยไม่ขออะไร... ชาวบ้านจะจำเจ้า'
+      },
+      {
+        id: 'smuggler',
+        label: 'รู้จักพ่อค้าในหมอกไหม?',
+        keys: ['พ่อค้า', 'หมอก', 'สมาคม'],
+        reply: 'พ่อค้าในหมอก? เขาไม่เคยโกหกเรื่องสินค้า แต่ก็ไม่เคยบอกว่าของมาจากไหน ถ้าเขาส่งของมาให้เจ้า ก็อย่าเปิดห่อกลางน้ำ'
+      }
+    ],
+    secretTopic: {
+      id: 'abbey',
+      label: 'ถามเรื่องอารามที่จมอยู่ (ความลับ)',
+      requiresRep: { faction: 'outcasts', min: 10 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-abbey' },
+      reply: 'อารามที่จมนั้นไม่มีพระอยู่เลย มีแต่แผ่นศิลาที่จารชื่อกษัตริย์ทุกองค์ องค์กรโบราณจดชื่อทุกคนที่ "สัญญา" ไว้กับประตู... ชื่อสุดท้ายยังว่างอยู่'
+    }
   }
 ];
 
@@ -351,6 +616,151 @@ export function createSystems(ctx) {
     if (typeof state.classId !== 'string') state.classId = null;
     if (!state.upgrades || typeof state.upgrades !== 'object') state.upgrades = {};
     if (!Array.isArray(state.bounties)) state.bounties = [];
+
+    if (!state.reputation || typeof state.reputation !== 'object') {
+      state.reputation = {};
+    }
+    for (const id of Object.keys(FACTIONS)) {
+      state.reputation[id] = THREE.MathUtils.clamp(
+        Math.round(Number(state.reputation[id]) || 0), -100, 100
+      );
+    }
+    if (!state.flags || typeof state.flags !== 'object') state.flags = {};
+    if (!Array.isArray(state.waypoints)) state.waypoints = [];
+    if (!Array.isArray(state.explored)) state.explored = [];
+    state.cartographer = Math.max(0, Math.round(Number(state.cartographer) || 0));
+  }
+
+  /* ---------------- Reputation, factions and choices ---------------- */
+
+  const REP_MODULE_KEY = 'reputation-log';
+
+  function repValue(faction) {
+    return THREE.MathUtils.clamp(
+      Math.round(Number(state.reputation && state.reputation[faction]) || 0),
+      -100, 100
+    );
+  }
+
+  function repTier(value = 0) {
+    return REP_TIERS.find((tier) => value >= tier.min) ||
+      REP_TIERS[REP_TIERS.length - 1];
+  }
+
+  function repPriceModifier() {
+    // +40 reputation is roughly a 20% discount, -40 a 20% markup.
+    return THREE.MathUtils.clamp(-repValue('merchants') * 0.005, -0.2, 0.2);
+  }
+
+  function shopPrice(item) {
+    return Math.max(1, Math.round(item.price * (1 + repPriceModifier())));
+  }
+
+  function addReputation(faction, amount, reason = '') {
+    if (!FACTIONS[faction] || !amount) return;
+    const before = repValue(faction);
+    const after = THREE.MathUtils.clamp(before + Math.round(amount), -100, 100);
+    state.reputation[faction] = after;
+    if (after === before) return;
+
+    state.repLog = Array.isArray(state.repLog) ? state.repLog : [];
+    state.repLog.push({ faction, amount: after - before, reason });
+    if (state.repLog.length > 12) state.repLog.shift();
+
+    const sign = after - before > 0 ? '+' : '';
+    toast(`${FACTIONS[faction].short} ${sign}${after - before}` +
+      (reason ? ` · ${reason}` : ''));
+    renderRep();
+    if (dialogue) renderDialogue();
+  }
+
+  function renderRep() {
+    const list = $('#rep-list');
+    if (!list) return;
+    list.innerHTML = Object.entries(FACTIONS).map(([id, faction]) => {
+      const value = repValue(id);
+      const tier = repTier(value);
+      const percent = Math.round((value + 100) / 2);
+      return (
+        `<div class="rep-row" data-tone="${tier.tone}">` +
+        `<span class="rep-name">${faction.short}</span>` +
+        `<span class="rep-track"><i style="width:${percent}%"></i></span>` +
+        `<span class="rep-value">${value > 0 ? '+' : ''}${value} · ${tier.label}</span>` +
+        `</div>`
+      );
+    }).join('');
+  }
+
+  /* Cartographer / fog of war ---------------------------------------- */
+
+  const FOG_CELL = 16;
+  const FOG_COLS = Math.ceil((worldBounds.maxX - worldBounds.minX) / FOG_CELL);
+  const FOG_ROWS = Math.ceil((worldBounds.maxZ - worldBounds.minZ) / FOG_CELL);
+  let fogSet = null;
+  let fogTimer = 0;
+  let mapTimer = 0;
+
+  function fogIndex(x, z) {
+    const gx = Math.floor((x - worldBounds.minX) / FOG_CELL);
+    const gz = Math.floor((z - worldBounds.minZ) / FOG_CELL);
+    if (gx < 0 || gz < 0 || gx >= FOG_COLS || gz >= FOG_ROWS) return -1;
+    return gz * FOG_COLS + gx;
+  }
+
+  function ensureFog() {
+    if (fogSet) return;
+    fogSet = new Set((state.explored || []).map((v) => Number(v)));
+  }
+
+  // A load replaces state.explored wholesale, so the cached fog grid has to
+  // be rebuilt or the map keeps showing the previous run's explored cells.
+  function resetExploration() {
+    fogSet = null;
+    ensureFog();
+  }
+
+  function markExplored() {
+    ensureFog();
+    const radius = 2;
+    const cx = Math.floor((player.position.x - worldBounds.minX) / FOG_CELL);
+    const cz = Math.floor((player.position.z - worldBounds.minZ) / FOG_CELL);
+    let added = false;
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const gx = cx + dx;
+        const gz = cz + dz;
+        if (gx < 0 || gz < 0 || gx >= FOG_COLS || gz >= FOG_ROWS) continue;
+        if (dx * dx + dz * dz > radius * radius + 1) continue;
+        const index = gz * FOG_COLS + gx;
+        if (!fogSet.has(index)) {
+          fogSet.add(index);
+          state.explored.push(index);
+          added = true;
+        }
+      }
+    }
+    return added;
+  }
+
+  function exploredPercent() {
+    ensureFog();
+    return Math.min(100, Math.round(fogSet.size / (FOG_COLS * FOG_ROWS) * 100));
+  }
+
+  function unlockNearbyWaypoints() {
+    for (const wp of WAYPOINTS) {
+      if (state.waypoints.includes(wp.id)) continue;
+      const distance = Math.hypot(player.position.x - wp.x, player.position.z - wp.z);
+      if (distance < 16) {
+        state.waypoints.push(wp.id);
+        toast(`บันทึกจุดเดินทาง: ${wp.name}`);
+      }
+    }
+  }
+
+  function discoveredRegion(regionId) {
+    return Array.isArray(state.discoveredRegions) &&
+      state.discoveredRegions.includes(regionId);
   }
 
   function getCount(id) {
@@ -662,7 +1072,9 @@ export function createSystems(ctx) {
     makeBurst(secret.position, secret.userData.color);
     secret.visible = false;
     toast(`ค้นพบ ${data.name}${loot.gold ? ` · ทองคำ +${loot.gold}` : ''}`);
+    addReputation('ancient', 2, 'ค้นพบความลับ');
     refreshInventoryUI();
+    refreshQuestUI();
     updateHud();
     return true;
   }
@@ -1025,10 +1437,18 @@ export function createSystems(ctx) {
       })
       .join('');
 
+    const secretsFound = (state.discoveredSecrets || []).length;
+    const hiddenHtml =
+      `<div class="quest-entry hidden-quest">` +
+      `<b>🗝 ภารกิจลับ</b>` +
+      `<small>ค้นพบความลับในโลก ${secretsFound}/18 · ค่าชื่อเสียงองค์กรโบราณ ${repValue('ancient')}</small>` +
+      `<small>${secretsFound ? 'ความลับที่พบถูกบันทึกบนแผนที่' : 'ยังไม่มีผู้ค้นพบความลับนี้'}</small>` +
+      `</div>`;
+
     list.innerHTML = (
       `<div class="quest-entry main-quest">` +
       `<b>✦ ภารกิจหลัก</b><small>${mainText}</small></div>` +
-      sideHtml
+      sideHtml + hiddenHtml
     );
 
     ensureBounties();
@@ -1059,6 +1479,8 @@ export function createSystems(ctx) {
         ? 'รับสัญญาชุดใหม่'
         : `สัญญาใหม่ (${BOUNTY_REROLL_COST} ทอง)`;
     }
+
+    renderRep();
   }
 
   function acceptQuest(id) {
@@ -1079,22 +1501,233 @@ export function createSystems(ctx) {
     return !progress || progress.status === 'locked';
   }
 
+  function npcTier(npc) {
+    return repTier(repValue(npc.faction || 'outcasts'));
+  }
+
+  function dialogueContext(npc) {
+    const tier = npcTier(npc);
+    return {
+      rep: repValue(npc.faction),
+      tier: tier.tone,
+      label: tier.label,
+      flags: state.flags,
+      questStage: state.questStage
+    };
+  }
+
+  function topicUnlocked(topic) {
+    if (!topic) return false;
+    if (topic.requiresRep) {
+      return repValue(topic.requiresRep.faction) >= topic.requiresRep.min;
+    }
+    if (topic.once && state.flags[`topic-${topic.id}`]) return false;
+    return true;
+  }
+
+  function topicLabel(topic) {
+    if (topic.requiresRep) return `🔒 ${topic.label}`;
+    return topic.label;
+  }
+
+  function priceSentence() {
+    const value = repValue('merchants');
+    const mod = Math.round(repPriceModifier() * 100);
+    if (mod === 0) return 'ตอนนี้ข้าขายราคาปกติให้เจ้า ถ้าช่วยสมาคมมากขึ้น ข้าอาจลดให้';
+    return mod < 0
+      ? `ตอนนี้เจ้าซื้อถูกลง ${Math.abs(mod)}% จากราคาปกติ (ชื่อเสียงพ่อค้า ${value})`
+      : `ตอนนี้เจ้าซื้อแพงขึ้น ${mod}% จากราคาปกติ (ชื่อเสียงพ่อค้า ${value})`;
+  }
+
+  function revealRegionForMap() {
+    const undiscovered = regions.filter((region) => !discoveredRegion(region.id));
+    if (!undiscovered.length) {
+      toast('เจ้ารู้จักทุกภูมิภาคในแผนที่นี้แล้ว');
+      return;
+    }
+    undiscovered.sort((a, b) => {
+      const da = Math.hypot(a.center.x - player.position.x, a.center.z - player.position.z);
+      const db = Math.hypot(b.center.x - player.position.x, b.center.z - player.position.z);
+      return da - db;
+    });
+    const region = undiscovered[0];
+    state.discoveredRegions.push(region.id);
+    state.cartographer += 1;
+    toast(`แผนที่เก่าผยให้เห็น: ${region.name}`);
+    audio && audio.play('pickup');
+  }
+
+  function applyTopicEffect(npc, topic) {
+    const effect = topic.effect;
+    if (!effect) return true;
+
+    if (effect.gold && effect.gold < 0 && state.gold < -effect.gold) {
+      toast(`ต้องมี ${-effect.gold} ทองก่อน`);
+      return false;
+    }
+
+    if (effect.gold) {
+      state.gold = Math.max(0, state.gold + effect.gold);
+      updateHud();
+    }
+    if (effect.rep) {
+      for (const [faction, amount] of Object.entries(effect.rep)) {
+        addReputation(faction, amount, topic.label);
+      }
+    }
+    if (effect.flag) state.flags[effect.flag] = true;
+    if (effect.once !== false) state.flags[`topic-${topic.id}`] = true;
+
+    if (effect.action === 'openShop') {
+      closeDialogue();
+      openShop();
+      return true;
+    }
+    if (effect.action === 'buyMap') revealRegionForMap();
+    if (effect.toast && !effect.rep) toast(effect.toast);
+    return true;
+  }
+
+  function chooseTopic(topic) {
+    if (!dialogue) return;
+    if (!topicUnlocked(topic)) {
+      toast(topic.requiresRep
+        ? `ต้องมีความสัมพันธ์กับ${FACTIONS[topic.requiresRep.faction].short}อย่างน้อย ${topic.requiresRep.min}`
+        : 'หัวข้อนี้ถูกใช้ไปแล้ว');
+      return;
+    }
+    if (!applyTopicEffect(dialogue.npc, topic)) return;
+
+    let text = topic.reply;
+    if (topic.dynamic === 'price') text = `${text}\n\n${priceSentence()}`;
+    dialogue.mode = 'reply';
+    dialogue.text = text;
+    dialogue.topicId = topic.id;
+    renderDialogue();
+  }
+
+  function backToTopics() {
+    if (!dialogue) return;
+    dialogue.mode = 'topics';
+    dialogue.text = dialogue.npc.greet
+      ? dialogue.npc.greet(dialogueContext(dialogue.npc))
+      : (dialogue.npc.lines && dialogue.npc.lines[0]) || '';
+    renderDialogue();
+  }
+
+  function askNpc(text) {
+    if (!dialogue) return;
+    const query = String(text || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!query) return;
+
+    const npc = dialogue.npc;
+    const pool = [
+      ...(npc.topics || []),
+      ...(topicUnlocked(npc.secretTopic) ? [npc.secretTopic] : [])
+    ];
+    let best = null;
+    let bestScore = 0;
+    for (const topic of pool) {
+      let score = 0;
+      for (const key of topic.keys || []) {
+        if (query.includes(String(key).toLowerCase().replace(/\s+/g, ''))) {
+          score += Math.max(1, key.length);
+        }
+      }
+      if (score > bestScore) {
+        best = topic;
+        bestScore = score;
+      }
+    }
+
+    if (best) {
+      if (best.requiresRep && !topicUnlocked(best)) {
+        dialogue.mode = 'reply';
+        dialogue.text = `เรื่องนั้น... เจ้ายังไม่ใช่คนที่ข้าจะไว้ใจได้`;
+        renderDialogue();
+        return;
+      }
+      chooseTopic(best);
+      return;
+    }
+
+    const tier = npcTier(npc);
+    dialogue.mode = 'reply';
+    dialogue.text =
+      `ข้าไม่รู้เรื่องนั้นดีพอ (${tier.label}ต่อ${FACTIONS[npc.faction].short}) ` +
+      `ลองถามเรื่องที่ข้ารู้ เช่น ${(npc.topics || []).slice(0, 2).map((t) => `“${t.label}”`).join(' หรือ ')}`;
+    renderDialogue();
+  }
+
   function renderDialogue() {
     if (!dialogue) return;
 
     const nameEl = $('#dialogue-name');
+    const titleEl = $('#dialogue-title');
+    const repEl = $('#dialogue-rep');
     const textEl = $('#dialogue-text');
+    const choicesEl = $('#dialogue-choices');
     const nextEl = $('#dialogue-next');
+    const askRow = $('.dialogue-ask');
     if (!nameEl || !textEl || !nextEl) return;
 
     const npc = dialogue.npc;
-    const isLast = dialogue.index >= npc.lines.length - 1;
-
+    const tier = npcTier(npc);
     nameEl.textContent = npc.name;
-    textEl.textContent = npc.lines[dialogue.index];
-    nextEl.textContent = isLast
-      ? (questAvailable(npc) ? 'รับภารกิจ' : 'จบการสนทนา')
-      : 'ถัดไป';
+    if (titleEl) titleEl.textContent = npc.title || 'ชาวเมือง';
+    if (repEl) {
+      repEl.textContent = `${FACTIONS[npc.faction].short} · ${tier.label}`;
+      repEl.dataset.tone = tier.tone;
+      repEl.title = `ชื่อเสียง ${repValue(npc.faction)}`;
+    }
+    textEl.textContent = dialogue.text;
+
+    if (choicesEl) {
+      choicesEl.innerHTML = '';
+      if (dialogue.mode === 'reply') {
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'dialogue-back';
+        back.textContent = '↩ กลับไปถามเรื่องอื่น';
+        back.addEventListener('click', backToTopics);
+        choicesEl.appendChild(back);
+      } else {
+        if (questAvailable(npc)) {
+          const accept = document.createElement('button');
+          accept.type = 'button';
+          accept.className = 'dialogue-topic quest';
+          accept.innerHTML = `<span>✦ รับภารกิจ: ${SIDE_QUESTS[npc.quest].title}</span>`;
+          accept.addEventListener('click', () => {
+            acceptQuest(npc.quest);
+            backToTopics();
+          });
+          choicesEl.appendChild(accept);
+        }
+        for (const topic of npc.topics || []) {
+          if (!topicUnlocked(topic)) continue;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'dialogue-topic';
+          button.innerHTML = `<span>${topicLabel(topic)}</span>`;
+          button.addEventListener('click', () => chooseTopic(topic));
+          choicesEl.appendChild(button);
+        }
+        if (topicUnlocked(npc.secretTopic)) {
+          const secret = document.createElement('button');
+          secret.type = 'button';
+          secret.className = 'dialogue-topic secret';
+          secret.innerHTML = `<span>🗝 ${npc.secretTopic.label}</span>`;
+          secret.addEventListener('click', () => chooseTopic(npc.secretTopic));
+          choicesEl.appendChild(secret);
+        }
+      }
+    }
+
+    if (askRow) askRow.classList.toggle('hidden', dialogue.mode !== 'topics');
+    const askInput = $('#dialogue-ask');
+    if (askInput) askInput.value = '';
+
+    nextEl.textContent = questAvailable(npc) ? 'รับภารกิจ' : 'จบการสนทนา';
   }
 
   function closeDialogue() {
@@ -1104,7 +1737,11 @@ export function createSystems(ctx) {
   }
 
   function openDialogue(npc) {
-    dialogue = { npc, index: 0 };
+    dialogue = {
+      npc,
+      mode: 'topics',
+      text: npc.greet ? npc.greet(dialogueContext(npc)) : (npc.lines && npc.lines[0]) || ''
+    };
     const panel = $('#dialogue-panel');
     if (panel) panel.classList.remove('hidden');
     renderDialogue();
@@ -1183,14 +1820,15 @@ export function createSystems(ctx) {
       buyContainer.innerHTML = SHOP_ITEMS.map((item) => {
         const owned = item.id !== 'potion' && owns(item.id) &&
           !['herb', 'ore', 'wood', 'bone', 'meat', 'darkShard', 'essence', 'stoneHeart'].includes(item.id);
-        const disabled = gold < item.price || owned ? ' disabled' : '';
+        const price = shopPrice(item);
+        const disabled = gold < price || owned ? ' disabled' : '';
         const label = owned ? 'มีแล้ว' : item.name;
         const rarity = item.rarity
           ? ` <em class="rarity ${item.rarity}">[${RARITY[item.rarity].name}]</em>`
           : '';
         return (
           `<button type="button" data-buy="${item.id}"${disabled}>` +
-          `<span>${label}${rarity}</span><strong>${item.price} ◈</strong></button>`
+          `<span>${label}${rarity}</span><strong>${price} ◈</strong></button>`
         );
       }).join('');
     }
@@ -1210,14 +1848,26 @@ export function createSystems(ctx) {
 
     const hudGold = $('#gold-count');
     if (hudGold) hudGold.textContent = String(gold);
+
+    const repLabel = $('#shop-rep');
+    if (repLabel) {
+      const value = repValue('merchants');
+      const mod = Math.round(repPriceModifier() * 100);
+      const tier = repTier(value);
+      repLabel.textContent = mod === 0
+        ? `ชื่อเสียงพ่อค้า ${value} · ${tier.label}`
+        : `ชื่อเสียงพ่อค้า ${value} · ${tier.label} · ราคา ${mod > 0 ? '+' : ''}${mod}%`;
+      repLabel.dataset.tone = tier.tone;
+    }
   }
 
   function buyItem(id) {
     const item = SHOP_ITEMS.find((entry) => entry.id === id);
     if (!item) return;
-    if (state.gold < item.price) return toast('ทองไม่เพียงพอ');
+    const price = shopPrice(item);
+    if (state.gold < price) return toast('ทองไม่เพียงพอ');
 
-    state.gold -= item.price;
+    state.gold -= price;
     if (id === 'potion') state.potions++;
     else addItem(id, 1);
 
@@ -1362,117 +2012,822 @@ export function createSystems(ctx) {
     }
   }
 
+  /* ---------------- Living world map (parchment) ---------------- */
+
+  const MAP_SIZE = 900;
+  const MAP_PAD = 48;
+  const MAP_INNER = MAP_SIZE - MAP_PAD * 2;
+  const MAP_MAX_SCALE = 5;
+
+  const mapView = {
+    scale: 1,
+    tx: 0,
+    ty: 0,
+    bound: false,
+    lastYaw: 0,
+    dragging: false,
+    moved: 0,
+    lastX: 0,
+    lastY: 0,
+    pointers: new Map(),
+    pinchDist: 0,
+    selected: null
+  };
+
+  let parchmentCanvas = null;
+  let fogPattern = null;
+
+  const MAP_ROADS = [
+    [[-45, -45], [9, -8], [45, -50], [55, 0], [42, 50]],
+    [[-45, -45], [-70, -140]],
+    [[9, -8], [42, 50], [-50, 205]],
+    [[55, 0], [160, 50]],
+    [[160, 50], [150, -150], [159, -177]],
+    [[-45, -45], [-150, -40], [-165, -155]]
+  ];
+
+  function hashString(text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) / 4294967296;
+  }
+
+  function seeded(seed) {
+    let value = Math.floor(seed * 2147483647) || 1;
+    return () => {
+      value = (value * 16807) % 2147483647;
+      return value / 2147483647;
+    };
+  }
+
+  function mapX(x) {
+    return MAP_PAD + (x - worldBounds.minX) /
+      (worldBounds.maxX - worldBounds.minX) * MAP_INNER;
+  }
+
+  function mapY(z) {
+    return MAP_PAD + (z - worldBounds.minZ) /
+      (worldBounds.maxZ - worldBounds.minZ) * MAP_INNER;
+  }
+
+  function makeParchment() {
+    if (parchmentCanvas) return parchmentCanvas;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = MAP_SIZE;
+    const g = canvas.getContext('2d');
+
+    const base = g.createRadialGradient(
+      MAP_SIZE * .46, MAP_SIZE * .38, MAP_SIZE * .05,
+      MAP_SIZE * .5, MAP_SIZE * .5, MAP_SIZE * .78
+    );
+    base.addColorStop(0, '#f3e3bd');
+    base.addColorStop(.55, '#e8d3a7');
+    base.addColorStop(.85, '#d8bd8b');
+    base.addColorStop(1, '#b8935f');
+    g.fillStyle = base;
+    g.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+
+    const rnd = seeded(.42);
+    for (let i = 0; i < 5200; i++) {
+      const x = rnd() * MAP_SIZE;
+      const y = rnd() * MAP_SIZE;
+      const r = rnd() * 1.7 + .3;
+      const dark = rnd() > .45;
+      g.fillStyle = dark ? `rgba(94,66,32,${.02 + rnd() * .07})`
+        : `rgba(255,246,218,${.02 + rnd() * .08})`;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    for (let i = 0; i < 220; i++) {
+      const x = rnd() * MAP_SIZE;
+      const y = rnd() * MAP_SIZE;
+      g.strokeStyle = `rgba(120,88,48,${.02 + rnd() * .04})`;
+      g.lineWidth = .5 + rnd();
+      g.beginPath();
+      g.moveTo(x, y);
+      g.quadraticCurveTo(
+        x + (rnd() - .5) * 80, y + (rnd() - .5) * 30,
+        x + (rnd() - .5) * 160, y + (rnd() - .5) * 40
+      );
+      g.stroke();
+    }
+
+    // Burned, uneven border so the sheet reads as an old chart.
+    g.strokeStyle = 'rgba(82,52,24,0.55)';
+    g.lineWidth = 10;
+    g.strokeRect(14, 14, MAP_SIZE - 28, MAP_SIZE - 28);
+    g.strokeStyle = 'rgba(255,244,214,0.35)';
+    g.lineWidth = 2;
+    g.strokeRect(26, 26, MAP_SIZE - 52, MAP_SIZE - 52);
+
+    parchmentCanvas = canvas;
+    return canvas;
+  }
+
+  function makeFogPattern(g) {
+    if (fogPattern) return fogPattern;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 12;
+    const p = canvas.getContext('2d');
+    p.fillStyle = 'rgba(74,50,24,0.30)';
+    p.fillRect(0, 0, 12, 12);
+    p.strokeStyle = 'rgba(50,32,14,0.28)';
+    p.lineWidth = 1;
+    p.beginPath();
+    p.moveTo(-2, 10); p.lineTo(10, -2);
+    p.moveTo(4, 16); p.lineTo(16, 4);
+    p.stroke();
+    fogPattern = g.createPattern(canvas, 'repeat');
+    return fogPattern;
+  }
+
+  function regionBlob(g, region) {
+    const cx = mapX(region.center.x);
+    const cy = mapY(region.center.z);
+    const radius = region.radius /
+      (worldBounds.maxX - worldBounds.minX) * MAP_INNER;
+    const seed = hashString(region.id) * 20;
+    const points = 54;
+    g.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const angle = i / points * Math.PI * 2;
+      const wobble = 1 +
+        Math.sin(angle * 3 + seed) * .10 +
+        Math.sin(angle * 7 + seed * 1.7) * .05 +
+        Math.sin(angle * 13 + seed * .6) * .025;
+      const x = cx + Math.cos(angle) * radius * wobble;
+      const y = cy + Math.sin(angle) * radius * wobble;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.closePath();
+    return { cx, cy, radius };
+  }
+
+  function drawTree(g, x, y, size) {
+    g.strokeStyle = '#5a4326';
+    g.lineWidth = Math.max(.8, size * .16);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x, y - size * .55);
+    g.stroke();
+    g.fillStyle = '#5c6b3c';
+    g.beginPath();
+    g.moveTo(x, y - size);
+    g.lineTo(x - size * .42, y - size * .5);
+    g.lineTo(x + size * .42, y - size * .5);
+    g.closePath();
+    g.fill();
+  }
+
+  function drawMountain(g, x, y, size) {
+    g.strokeStyle = '#5a4326';
+    g.lineWidth = Math.max(.9, size * .14);
+    g.beginPath();
+    g.moveTo(x - size * .8, y);
+    g.lineTo(x, y - size);
+    g.lineTo(x + size * .8, y);
+    g.stroke();
+    g.strokeStyle = 'rgba(90,67,38,.55)';
+    g.beginPath();
+    g.moveTo(x - size * .18, y - size * .7);
+    g.lineTo(x + size * .22, y - size * .25);
+    g.stroke();
+  }
+
+  function drawWave(g, x, y, size) {
+    g.strokeStyle = 'rgba(56,92,108,.65)';
+    g.lineWidth = Math.max(.8, size * .14);
+    g.beginPath();
+    g.moveTo(x - size, y);
+    g.quadraticCurveTo(x - size * .5, y - size * .5, x, y);
+    g.quadraticCurveTo(x + size * .5, y + size * .5, x + size, y);
+    g.stroke();
+  }
+
+  function drawTown(g, x, y, size, big) {
+    g.fillStyle = big ? '#7a4a22' : '#6b4526';
+    g.strokeStyle = '#4a2f17';
+    g.lineWidth = 1.3;
+    g.beginPath();
+    g.rect(x - size * .55, y - size * .5, size * 1.1, size * .9);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x - size * .75, y - size * .5);
+    g.lineTo(x, y - size * 1.1);
+    g.lineTo(x + size * .75, y - size * .5);
+    g.closePath();
+    g.fillStyle = '#8a5a2c';
+    g.fill();
+    g.stroke();
+    if (big) {
+      g.beginPath();
+      g.moveTo(x + size * .25, y - size * .95);
+      g.lineTo(x + size * .25, y - size * 1.7);
+      g.strokeStyle = '#4a2f17';
+      g.stroke();
+      g.beginPath();
+      g.moveTo(x + size * .25, y - size * 1.7);
+      g.lineTo(x + size * .85, y - size * 1.5);
+      g.lineTo(x + size * .25, y - size * 1.3);
+      g.closePath();
+      g.fillStyle = '#a3121c';
+      g.fill();
+    }
+  }
+
+  function drawCave(g, x, y, size) {
+    g.fillStyle = '#4d3a26';
+    g.beginPath();
+    g.arc(x, y, size * .7, Math.PI, Math.PI * 2);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#e8d3a7';
+    g.beginPath();
+    g.arc(x, y, size * .34, Math.PI, Math.PI * 2);
+    g.closePath();
+    g.fill();
+  }
+
+  function drawRuin(g, x, y, size) {
+    g.strokeStyle = '#5d4a33';
+    g.lineWidth = size * .22;
+    g.beginPath();
+    g.moveTo(x - size * .6, y);
+    g.lineTo(x - size * .6, y - size);
+    g.moveTo(x, y);
+    g.lineTo(x, y - size * .7);
+    g.moveTo(x + size * .6, y);
+    g.lineTo(x + size * .6, y - size * .9);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x - size * .8, y);
+    g.lineTo(x + size * .8, y);
+    g.stroke();
+  }
+
+  function drawSkull(g, x, y, size) {
+    g.fillStyle = 'rgba(150,22,32,.92)';
+    g.beginPath();
+    g.arc(x, y - size * .1, size * .62, 0, Math.PI * 2);
+    g.fill();
+    g.fillRect(x - size * .34, y + size * .34, size * .68, size * .38);
+    g.fillStyle = '#f3e3bd';
+    g.beginPath();
+    g.arc(x - size * .24, y - size * .16, size * .15, 0, Math.PI * 2);
+    g.arc(x + size * .24, y - size * .16, size * .15, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  function drawStar(g, x, y, size, color) {
+    g.fillStyle = color;
+    g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? size * .45 : size;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      i ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.closePath();
+    g.fill();
+  }
+
+  function drawBanner(g, x, y, size, unlocked) {
+    g.strokeStyle = unlocked ? '#5b3c18' : 'rgba(80,60,36,.55)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(x, y + size * .9);
+    g.lineTo(x, y - size);
+    g.stroke();
+    g.fillStyle = unlocked ? '#d9a63c' : 'rgba(120,96,64,.45)';
+    g.beginPath();
+    g.moveTo(x, y - size);
+    g.lineTo(x + size * .95, y - size * .72);
+    g.lineTo(x, y - size * .4);
+    g.closePath();
+    g.fill();
+    if (unlocked) {
+      g.strokeStyle = 'rgba(74,47,23,.8)';
+      g.lineWidth = 1;
+      g.stroke();
+    }
+  }
+
+  function drawChest(g, x, y, size) {
+    g.fillStyle = '#8a5a24';
+    g.fillRect(x - size * .5, y - size * .25, size, size * .55);
+    g.fillStyle = '#c89b45';
+    g.fillRect(x - size * .5, y - size * .42, size, size * .2);
+    g.fillStyle = '#5a3a18';
+    g.fillRect(x - size * .08, y - size * .4, size * .16, size * .7);
+  }
+
+  function mainQuestMarker() {
+    if (state.questStage === 0) return { x: 0, z: -48, label: 'หอคอยร้าง' };
+    if (state.questStage === 1) return { x: 0, z: -86, label: 'ซากโบราณ' };
+    return null;
+  }
+
+  function drawQuestMarkers(g) {
+    const main = mainQuestMarker();
+    if (main && discoveredRegion('wasteland')) {
+      const x = mapX(main.x);
+      const y = mapY(main.z);
+      g.save();
+      g.shadowColor = 'rgba(246,206,110,.9)';
+      g.shadowBlur = 12;
+      drawStar(g, x, y, 13, '#e8a92a');
+      g.restore();
+      if (mapView.scale >= 1.45) {
+        g.font = '700 15px Georgia, "Noto Serif Thai", serif';
+        g.fillStyle = '#4a2f17';
+        g.textAlign = 'center';
+        g.fillText(main.label, x, y - 20);
+      }
+    }
+
+    for (const npc of npcs) {
+      const data = NPC_DATA.find((entry) => entry.id === npc.userData.npcId);
+      if (!data || !data.quest) continue;
+      const progress = state.quests[data.quest];
+      const active = progress && progress.status === 'active';
+      const available = !progress || progress.status === 'locked';
+      if (!active && !available) continue;
+      if (!discoveredRegion(regionOf(npc.position.x, npc.position.z))) continue;
+      const x = mapX(npc.position.x);
+      const y = mapY(npc.position.z);
+      drawStar(g, x, y - 16, 7, active ? '#c98a1e' : '#e8c14a');
+    }
+  }
+
+  function regionOf(x, z) {
+    for (const region of regions) {
+      if (Math.hypot(x - region.center.x, z - region.center.z) <= region.radius) {
+        return region.id;
+      }
+    }
+    return null;
+  }
+
   function drawWorldMap(yaw) {
     const canvas = $('#world-map');
     if (!canvas) return;
+    ensureFog();
+    bindMapControls(canvas);
 
+    mapView.lastYaw = Number.isFinite(yaw) ? yaw : mapView.lastYaw;
     const g = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    const minX = worldBounds.minX;
-    const maxX = worldBounds.maxX;
-    const minZ = worldBounds.minZ;
-    const maxZ = worldBounds.maxZ;
-    const toX = (x) => (x - minX) / (maxX - minX) * width;
-    const toY = (z) => (z - minZ) / (maxZ - minZ) * height;
+    const size = canvas.width;
 
-    g.fillStyle = '#0a0f18';
-    g.fillRect(0, 0, width, height);
-
-    g.strokeStyle = '#ffffff10';
-    g.lineWidth = 1;
-    for (let x = minX; x <= maxX; x += 40) {
-      g.beginPath();
-      g.moveTo(toX(x), 0);
-      g.lineTo(toX(x), height);
-      g.stroke();
-    }
-    for (let z = minZ; z <= maxZ; z += 40) {
-      g.beginPath();
-      g.moveTo(0, toY(z));
-      g.lineTo(width, toY(z));
-      g.stroke();
-    }
-
-    for (const region of regions) {
-      const px = toX(region.center.x);
-      const py = toY(region.center.z);
-      const radius = region.radius * (width / (maxX - minX));
-      const discovered = state.discoveredRegions.includes(region.id);
-
-      g.beginPath();
-      g.arc(px, py, radius, 0, Math.PI * 2);
-      g.fillStyle = discovered ? '#d8b87812' : '#05070da8';
-      g.fill();
-      g.strokeStyle = discovered ? '#c9a86a66' : '#ffffff18';
-      g.lineWidth = 1.5;
-      g.stroke();
-
-      g.fillStyle = discovered ? '#e6d3a4' : '#7a7b80';
-      g.font = '13px sans-serif';
-      g.textAlign = 'center';
-      g.fillText(discovered ? region.name : '???', px, py - radius - 6);
-    }
-
-    const dot = (position, color, size, label) => {
-      const px = toX(position.x);
-      const py = toY(position.z);
-
-      g.fillStyle = color;
-      g.beginPath();
-      g.arc(px, py, size, 0, Math.PI * 2);
-      g.fill();
-
-      if (label) {
-        g.fillStyle = '#e8e1d3';
-        g.font = '11px sans-serif';
-        g.textAlign = 'left';
-        g.fillText(label, px + size + 4, py + 4);
-      }
-    };
-
-    for (const landmark of staticLandmarks) {
-      if (state.discoveredRegions.includes(landmark.region)) {
-        dot(landmark.position, landmark.color, 5, landmark.name);
-      }
-    }
-    for (const secret of secrets) {
-      if (secret.visible && state.discoveredRegions.includes(
-        secret.userData.secretData.region
-      )) {
-        dot(secret.position, '#f0d69a', 3.5, secret.userData.secretData.name);
-      }
-    }
-    for (const npc of npcs) dot(npc.position, '#7fd4e8', 4, 'NPC');
-    for (const node of nodes) {
-      if (node.userData.amount > 0) {
-        dot(node.position, `#${MATERIAL_INFO[node.userData.type].color.toString(16).padStart(6, '0')}`, 3);
-      }
-    }
-    for (const drop of drops) dot(drop.position, '#f0d69a', 3);
-    for (const enemy of enemies) {
-      if (!enemy.userData.alive) continue;
-      const isBoss = enemy.userData.type === 'boss';
-      dot(enemy.position, isBoss ? '#ff4fd8' : '#ff5b52', isBoss ? 8 : 4,
-        isBoss ? 'BOSS' : null);
-    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, size, size);
+    g.drawImage(makeParchment(), 0, 0);
 
     g.save();
-    g.translate(toX(player.position.x), toY(player.position.z));
-    g.rotate(yaw);
-    g.fillStyle = '#f5e3b3';
+    g.translate(mapView.tx, mapView.ty);
+    g.scale(mapView.scale, mapView.scale);
+
+    // Below this zoom the small labels would collide; the icons still show.
+    const showDetail = mapView.scale >= 1.45;
+    const showTownNames = mapView.scale >= 1.85;
+    mapView.labelBoxes = [];
+
+    // Cartographic labels are only placed when they do not collide with a
+    // label already on the sheet, so a town cluster stays readable.
+    const mapLabel = (text, x, y, font, color) => {
+      g.font = font;
+      const w = g.measureText(text).width;
+      const size = parseFloat((font.match(/([\d.]+)px/) || [0, 14])[1]);
+      const h = size * 1.1;
+      const box = { x: x - w / 2 - 3, y: y - h, w: w + 6, h: h + 4 };
+      for (const other of mapView.labelBoxes) {
+        if (!(box.x + box.w < other.x || box.x > other.x + other.w ||
+              box.y + box.h < other.y || box.y > other.y + other.h)) return false;
+      }
+      mapView.labelBoxes.push(box);
+      g.fillStyle = color;
+      g.textAlign = 'center';
+      g.fillText(text, x, y);
+      return true;
+    };
+
+    // Region shapes and terrain glyphs.
+    for (const region of regions) {
+      const discovered = discoveredRegion(region.id);
+      const { cx, cy, radius } = regionBlob(g, region);
+      g.globalAlpha = discovered ? .30 : .16;
+      g.fillStyle = region.color;
+      g.fill();
+      g.globalAlpha = 1;
+      g.strokeStyle = discovered ? 'rgba(88,60,30,.65)' : 'rgba(88,60,30,.3)';
+      g.lineWidth = discovered ? 2 : 1.2;
+      g.setLineDash(discovered ? [] : [5, 6]);
+      g.stroke();
+      g.setLineDash([]);
+
+      const rnd = seeded(hashString(region.id + 'glyph'));
+      if (region.id === 'deadwood' || region.id === 'ravenhold') {
+        for (let i = 0; i < 16; i++) {
+          const a = rnd() * Math.PI * 2;
+          const d = Math.sqrt(rnd()) * radius * .82;
+          drawTree(g, cx + Math.cos(a) * d, cy + Math.sin(a) * d, 7 + rnd() * 4);
+        }
+      }
+      if (region.id === 'emberpeak') {
+        for (let i = 0; i < 7; i++) {
+          const a = rnd() * Math.PI * 2;
+          const d = Math.sqrt(rnd()) * radius * .7;
+          drawMountain(g, cx + Math.cos(a) * d, cy + Math.sin(a) * d, 12 + rnd() * 8);
+        }
+      }
+      if (region.id === 'mirefall') {
+        for (let i = 0; i < 9; i++) {
+          const a = rnd() * Math.PI * 2;
+          const d = Math.sqrt(rnd()) * radius * .75;
+          drawWave(g, cx + Math.cos(a) * d, cy + Math.sin(a) * d, 6 + rnd() * 4);
+        }
+      }
+
+      if (mapView.scale < 1.8) {
+        mapLabel(
+          discovered ? region.name : '· · ·',
+          cx, cy - radius * .12,
+          `700 ${discovered ? (mapView.scale < 1.45 ? 20 : 24) : 18}px Georgia, "Noto Serif Thai", serif`,
+          discovered ? 'rgba(58,39,23,.92)' : 'rgba(90,70,44,.55)'
+        );
+      }
+    }
+
+    // Roads
+    g.strokeStyle = 'rgba(122,86,46,.55)';
+    g.lineWidth = 1.6;
+    g.setLineDash([7, 5]);
+    for (const road of MAP_ROADS) {
+      g.beginPath();
+      road.forEach(([x, z], i) => {
+        i ? g.lineTo(mapX(x), mapY(z)) : g.moveTo(mapX(x), mapY(z));
+      });
+      g.stroke();
+    }
+    g.setLineDash([]);
+
+    // Landmarks
+    for (const landmark of staticLandmarks) {
+      if (!discoveredRegion(landmark.region)) continue;
+      const x = mapX(landmark.position.x);
+      const y = mapY(landmark.position.z);
+      const name = landmark.name || '';
+      if (/ปราสาท|วาร์นฮัล|ราเวนโฮลด์|เมือง|หมู่บ้าน/.test(name)) {
+        drawTown(g, x, y, landmark.size ? 6.5 : 5, /วาร์นฮัล|ปราสาท/.test(name));
+      } else if (/ถ้ำ/.test(name)) {
+        drawCave(g, x, y, 9);
+      } else if (/วงหิน|อาราม/.test(name)) {
+        drawRuin(g, x, y, 10);
+      } else if (/ภูเขา|ปล่อง/.test(name)) {
+        drawMountain(g, x, y, 16);
+      } else if (/ทะเลสาบ/.test(name)) {
+        drawWave(g, x, y, 9);
+      } else {
+        g.fillStyle = '#6b4526';
+        g.beginPath();
+        g.arc(x, y, 3.4, 0, Math.PI * 2);
+        g.fill();
+      }
+      if (showTownNames) {
+        mapLabel(name, x, y + 20, '600 13px Georgia, "Noto Serif Thai", serif',
+          'rgba(48,32,18,.9)');
+      }
+    }
+
+    // Waypoints
+    for (const wp of WAYPOINTS) {
+      const unlocked = state.waypoints.includes(wp.id);
+      if (!unlocked && !discoveredRegion(wp.region)) continue;
+      const x = mapX(wp.x);
+      const y = mapY(wp.z);
+      drawBanner(g, x, y, 10, unlocked);
+      if (mapView.selected === wp.id) {
+        g.strokeStyle = '#c8891c';
+        g.lineWidth = 2.5;
+        g.beginPath();
+        g.arc(x, y - 2, 19, 0, Math.PI * 2);
+        g.stroke();
+      }
+      if (showDetail) {
+        mapLabel(unlocked ? wp.name : '???', x, y + 30,
+          `600 ${unlocked ? 13 : 12}px Georgia, "Noto Serif Thai", serif`,
+          unlocked ? '#3f2a14' : 'rgba(70,52,30,.6)');
+      }
+    }
+
+    // Secrets and NPCs
+    for (const secret of secrets) {
+      const id = secret.userData.secretData.id;
+      if (!state.discoveredSecrets.includes(id)) continue;
+      if (!discoveredRegion(secret.userData.secretData.region)) continue;
+      drawChest(g, mapX(secret.position.x), mapY(secret.position.z), 11);
+    }
+
+    for (const npc of npcs) {
+      const region = regionOf(npc.position.x, npc.position.z);
+      if (!discoveredRegion(region)) continue;
+      const x = mapX(npc.position.x);
+      const y = mapY(npc.position.z);
+      g.fillStyle = '#2f6d80';
+      g.beginPath();
+      g.arc(x, y, 4.6, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#f3e3bd';
+      g.lineWidth = 1.4;
+      g.stroke();
+    }
+
+    // Enemies / bosses
+    for (const enemy of enemies) {
+      if (!enemy.userData.alive) continue;
+      const region = regionOf(enemy.position.x, enemy.position.z);
+      if (!discoveredRegion(region)) continue;
+      const boss = enemy.userData.type === 'boss' || enemy.userData.type === 'dungeonBoss';
+      const x = mapX(enemy.position.x);
+      const y = mapY(enemy.position.z);
+      if (boss) {
+        drawSkull(g, x, y, 16);
+      } else {
+        g.fillStyle = 'rgba(156,34,34,.55)';
+        g.beginPath();
+        g.arc(x, y, 2.8, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+
+    drawQuestMarkers(g);
+
+    // Fog of war on top of everything that lives on the land.
+    g.save();
+    g.globalAlpha = .85;
+    g.fillStyle = makeFogPattern(g);
+    for (let gz = 0; gz < FOG_ROWS; gz++) {
+      for (let gx = 0; gx < FOG_COLS; gx++) {
+        const index = gz * FOG_COLS + gx;
+        if (fogSet.has(index)) continue;
+        const x = worldBounds.minX + gx * FOG_CELL;
+        const z = worldBounds.minZ + gz * FOG_CELL;
+        // Snap each cell to whole pixels so neighbouring cells share an
+        // edge: fractional rects would overlap and paint a dark grid.
+        const x0 = Math.round(mapX(x));
+        const y0 = Math.round(mapY(z));
+        const x1 = Math.round(mapX(x + FOG_CELL));
+        const y1 = Math.round(mapY(z + FOG_CELL));
+        g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
+    }
+    g.restore();
+
+    // Player marker sits above the fog.
+    const px = mapX(player.position.x);
+    const py = mapY(player.position.z);
+    g.save();
+    g.translate(px, py);
+    g.rotate(mapView.lastYaw + Math.PI);
+    g.fillStyle = '#8a1f1f';
+    g.strokeStyle = '#f7e7bf';
+    g.lineWidth = 2;
     g.beginPath();
-    g.moveTo(0, -11);
-    g.lineTo(-7, 8);
-    g.lineTo(7, 8);
+    g.moveTo(0, -13);
+    g.lineTo(-9, 9);
+    g.lineTo(0, 4);
+    g.lineTo(9, 9);
     g.closePath();
     g.fill();
+    g.stroke();
     g.restore();
+    g.strokeStyle = 'rgba(138,31,31,.5)';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(px, py, 17, 0, Math.PI * 2);
+    g.stroke();
+
+    // Compass rose
+    const cxRose = MAP_SIZE - 96;
+    const cyRose = 96;
+    g.save();
+    g.translate(cxRose, cyRose);
+    g.strokeStyle = 'rgba(74,47,23,.6)';
+    g.lineWidth = 1.6;
+    g.beginPath();
+    g.arc(0, 0, 34, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.arc(0, 0, 24, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = 'rgba(86,54,26,.85)';
+    for (let i = 0; i < 4; i++) {
+      g.save();
+      g.rotate(i * Math.PI / 2);
+      g.beginPath();
+      g.moveTo(0, -58);
+      g.lineTo(5, -34);
+      g.lineTo(-5, -34);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+    g.fillStyle = '#4a2f17';
+    g.font = '700 15px Georgia, serif';
+    g.textAlign = 'center';
+    g.fillText('N', 0, -64);
+    g.restore();
+
+    g.restore();
+
+    // Frame, cartouche and live readouts.
+    g.strokeStyle = 'rgba(58,38,18,.75)';
+    g.lineWidth = 3;
+    g.strokeRect(10, 10, size - 20, size - 20);
 
     const coords = $('#map-coords');
     if (coords) {
-      coords.textContent = `ตำแหน่ง: X ${Math.round(player.position.x)} · Z ${Math.round(player.position.z)}`;
+      coords.textContent =
+        `ตำแหน่ง: X ${Math.round(player.position.x)} · Z ${Math.round(player.position.z)}` +
+        ` · สำรวจแล้ว ${exploredPercent()}% · จุดเดินทาง ${state.waypoints.length}/${WAYPOINTS.length}`;
     }
+
+    const selected = WAYPOINTS.find((wp) => wp.id === mapView.selected);
+    const wpBox = $('#map-wp');
+    const wpName = $('#map-wp-name');
+    if (wpBox && wpName) {
+      wpBox.classList.toggle('hidden', !selected);
+      if (selected) wpName.textContent = `⚑ ${selected.name}`;
+    }
+  }
+
+  function clampMapPan(canvas) {
+    const size = canvas ? canvas.width : MAP_SIZE;
+    if (mapView.scale <= 1.01) {
+      mapView.scale = 1;
+      mapView.tx = 0;
+      mapView.ty = 0;
+      return;
+    }
+    const min = size - size * mapView.scale;
+    mapView.tx = THREE.MathUtils.clamp(mapView.tx, min, 0);
+    mapView.ty = THREE.MathUtils.clamp(mapView.ty, min, 0);
+  }
+
+  function zoomMap(factor, clientX, clientY) {
+    const canvas = $('#world-map');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleFactor = rect.width ? canvas.width / rect.width : 1;
+    let sx = canvas.width / 2;
+    let sy = canvas.height / 2;
+    if (Number.isFinite(clientX)) {
+      sx = (clientX - rect.left) * scaleFactor;
+      sy = (clientY - rect.top) * scaleFactor;
+    }
+    const next = THREE.MathUtils.clamp(mapView.scale * factor, 1, MAP_MAX_SCALE);
+    if (next === mapView.scale) return;
+    const ratio = next / mapView.scale;
+    mapView.tx = sx - (sx - mapView.tx) * ratio;
+    mapView.ty = sy - (sy - mapView.ty) * ratio;
+    mapView.scale = next;
+    clampMapPan(canvas);
+    drawWorldMap(mapView.lastYaw);
+  }
+
+  function selectWaypointAt(clientX, clientY) {
+    const canvas = $('#world-map');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleFactor = rect.width ? canvas.width / rect.width : 1;
+    const bx = ((clientX - rect.left) * scaleFactor - mapView.tx) / mapView.scale;
+    const by = ((clientY - rect.top) * scaleFactor - mapView.ty) / mapView.scale;
+
+    let hit = null;
+    for (const wp of WAYPOINTS) {
+      if (!state.waypoints.includes(wp.id)) continue;
+      const dx = bx - mapX(wp.x);
+      const dy = by - (mapY(wp.z) - 6);
+      if (Math.hypot(dx, dy) < 26 / mapView.scale + 8) {
+        hit = wp;
+        break;
+      }
+    }
+    mapView.selected = hit ? hit.id : null;
+    const travel = $('#map-wp-travel');
+    if (travel) travel.disabled = !hit;
+    drawWorldMap(mapView.lastYaw);
+  }
+
+  function closeMapPanel() {
+    const panel = $('#map-panel');
+    if (panel) panel.classList.add('hidden');
+    const button = $('#map-open');
+    if (button) button.setAttribute('aria-expanded', 'false');
+  }
+
+  function travelToSelectedWaypoint() {
+    const wp = WAYPOINTS.find((entry) => entry.id === mapView.selected);
+    if (!wp || !state.waypoints.includes(wp.id)) return;
+    if (typeof ctx.teleportTo !== 'function') return;
+    ctx.teleportTo(wp.x, wp.z);
+    toast(`เดินทางถึง: ${wp.name}`);
+    closeMapPanel();
+  }
+
+  function bindMapControls(canvas) {
+    if (mapView.bound) return;
+    mapView.bound = true;
+
+    const zoomIn = $('#map-zoom-in');
+    const zoomOut = $('#map-zoom-out');
+    const recenter = $('#map-recenter');
+    const travel = $('#map-wp-travel');
+    if (zoomIn) zoomIn.addEventListener('click', () => zoomMap(1.45));
+    if (zoomOut) zoomOut.addEventListener('click', () => zoomMap(1 / 1.45));
+    if (recenter) {
+      recenter.addEventListener('click', () => {
+        mapView.scale = 2.4;
+        mapView.tx = MAP_SIZE / 2 - mapX(player.position.x) * mapView.scale;
+        mapView.ty = MAP_SIZE / 2 - mapY(player.position.z) * mapView.scale;
+        clampMapPan(canvas);
+        drawWorldMap(mapView.lastYaw);
+      });
+    }
+    if (travel) travel.addEventListener('click', travelToSelectedWaypoint);
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      zoomMap(event.deltaY < 0 ? 1.18 : 1 / 1.18, event.clientX, event.clientY);
+    }, { passive: false });
+
+    canvas.addEventListener('pointerdown', (event) => {
+      canvas.setPointerCapture(event.pointerId);
+      mapView.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (mapView.pointers.size === 1) {
+        mapView.dragging = true;
+        mapView.moved = 0;
+        mapView.lastX = event.clientX;
+        mapView.lastY = event.clientY;
+        canvas.style.cursor = 'grabbing';
+      } else if (mapView.pointers.size === 2) {
+        const [a, b] = [...mapView.pointers.values()];
+        mapView.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      }
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!mapView.pointers.has(event.pointerId)) return;
+      mapView.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (mapView.pointers.size === 2) {
+        const [a, b] = [...mapView.pointers.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (mapView.pinchDist > 0) {
+          zoomMap(dist / mapView.pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        }
+        mapView.pinchDist = dist;
+        return;
+      }
+
+      if (!mapView.dragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleFactor = rect.width ? canvas.width / rect.width : 1;
+      const dx = (event.clientX - mapView.lastX) * scaleFactor;
+      const dy = (event.clientY - mapView.lastY) * scaleFactor;
+      mapView.moved += Math.abs(dx) + Math.abs(dy);
+      mapView.lastX = event.clientX;
+      mapView.lastY = event.clientY;
+
+      if (mapView.scale > 1.01) {
+        mapView.tx += dx * mapView.scale;
+        mapView.ty += dy * mapView.scale;
+        clampMapPan(canvas);
+        drawWorldMap(mapView.lastYaw);
+      }
+    });
+
+    const endPointer = (event) => {
+      mapView.pointers.delete(event.pointerId);
+      if (mapView.pointers.size < 2) mapView.pinchDist = 0;
+      if (mapView.pointers.size === 0) {
+        const wasDrag = mapView.moved > 6;
+        mapView.dragging = false;
+        canvas.style.cursor = 'grab';
+        if (!wasDrag) selectWaypointAt(event.clientX, event.clientY);
+      }
+    };
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
   }
 
   function updateNpcSchedules(dt, yaw) {
@@ -1603,9 +2958,20 @@ export function createSystems(ctx) {
 
     updateMinimap(yaw);
 
+    fogTimer += dt;
+    if (fogTimer > 0.4) {
+      fogTimer = 0;
+      markExplored();
+      unlockNearbyWaypoints();
+    }
+
     const mapPanel = $('#map-panel');
     if (mapPanel && !mapPanel.classList.contains('hidden')) {
-      drawWorldMap(yaw);
+      mapTimer += dt;
+      if (mapTimer > 0.25) {
+        mapTimer = 0;
+        drawWorldMap(yaw);
+      }
     }
 
     renderSpells();
@@ -1735,15 +3101,26 @@ export function createSystems(ctx) {
       if (!dialogue) return;
 
       const npc = dialogue.npc;
-      if (dialogue.index < npc.lines.length - 1) {
-        dialogue.index++;
-        renderDialogue();
-        return;
-      }
-
       if (questAvailable(npc)) acceptQuest(npc.quest);
       closeDialogue();
       if (npc.shop) openShop();
+    });
+  }
+
+  const askButton = $('#dialogue-ask-btn');
+  const askInput = $('#dialogue-ask');
+  if (askButton && askInput) {
+    const submit = () => {
+      if (!dialogue) return;
+      askNpc(askInput.value);
+      askInput.value = '';
+    };
+    askButton.addEventListener('click', submit);
+    askInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
     });
   }
 
@@ -1819,6 +3196,12 @@ export function createSystems(ctx) {
     openShop,
     closeShop,
     toggleShop,
-    renderShop
+    renderShop,
+    addReputation,
+    repValue,
+    repTier,
+    exploredPercent,
+    resetExploration,
+    teleportToWaypoint: travelToSelectedWaypoint
   };
 }

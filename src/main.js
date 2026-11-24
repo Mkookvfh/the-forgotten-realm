@@ -14,6 +14,8 @@ import { createCinematic } from './cinematic.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
+import './hud-theme.css';
+import './hud-world.css';
 
 // ---------- DOM ----------
 const $ = (selector) => document.querySelector(selector);
@@ -28,6 +30,7 @@ const ui = {
   clock: $('#clock'), toast: $('#toast'), hint: $('#interaction-hint'),
   settings: $('#settings-panel'), inventory: $('#inventory'),
   shop: $('#shop-panel'), gold: $('#gold-count'),
+  hudGold: $('#hud-gold'), hudCrystal: $('#hud-crystal'),
   sideQuest: $('#side-quest-text')
 };
 
@@ -104,6 +107,11 @@ const state = {
   weatherOn: true, dead: false,
   discoveredRegions: [],
   discoveredSecrets: [],
+  reputation: {},
+  flags: {},
+  waypoints: [],
+  explored: [],
+  cartographer: 0,
   dungeonCleared: false,
   respawnPoint: null
 };
@@ -133,6 +141,8 @@ function updateHud() {
   ui.crystals.textContent = String(state.crystals);
   ui.potions.textContent = String(state.potions);
   if (ui.gold) ui.gold.textContent = String(state.gold);
+  if (ui.hudGold) ui.hudGold.textContent = String(state.gold);
+  if (ui.hudCrystal) ui.hudCrystal.textContent = String(state.crystals);
   if (ui.sideQuest) ui.sideQuest.textContent = activeQuestTrackerText();
 
   ui.quest.textContent = state.questStage === 0
@@ -1286,6 +1296,15 @@ const systems = createSystems({
   refreshEquipmentUI,
   defeatEnemy,
   getTerrainHeight,
+  teleportTo: (x, z) => {
+    const ground = getTerrainHeight(x, z, player.position.y);
+    player.position.set(x, Number.isFinite(ground) ? ground : player.position.y, z);
+    verticalVelocity = 0;
+    grounded = true;
+    cameraReady = false;
+    cameraEyeY = null;
+    worldStreamer.update(player.position);
+  },
   audio,
   worldBounds: WORLD_BOUNDS,
   staticLandmarks: [
@@ -1675,6 +1694,10 @@ const cameraTarget = new THREE.Vector3();
 const smoothTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 let cameraReady = false;
+// Screen-space stabilizer: walking over the blocky terrain moves the player's
+// feet in 0.5-1 m steps, which used to be copied straight into the camera.
+// We keep a separate, heavily damped height for the eye so the view glides.
+let cameraEyeY = null;
 
 
 function saveGame(showMessage = true, slot = currentSlot) {
@@ -1682,7 +1705,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 8,
+    version: 9,
     slot,
     dungeonActive,
     player: [
@@ -1813,6 +1836,26 @@ function loadGame(slot = currentSlot) {
     state.discoveredSecrets = Array.isArray(data.state.discoveredSecrets)
       ? data.state.discoveredSecrets.filter(id => typeof id === 'string')
       : [];
+    if (data.state.reputation && typeof data.state.reputation === 'object') {
+      state.reputation = { ...data.state.reputation };
+    }
+    if (data.state.flags && typeof data.state.flags === 'object') {
+      state.flags = { ...data.state.flags };
+    }
+    if (Array.isArray(data.state.waypoints)) {
+      state.waypoints = data.state.waypoints.filter((id) => typeof id === 'string');
+    }
+    if (Array.isArray(data.state.explored)) {
+      state.explored = data.state.explored
+        .map((value) => Math.round(Number(value)))
+        .filter((value) => Number.isFinite(value) && value >= 0 && value < 4000);
+    }
+    if (Number.isFinite(Number(data.state.cartographer))) {
+      state.cartographer = Math.max(0, Math.round(Number(data.state.cartographer)));
+    }
+    if (typeof systems.resetExploration === 'function') {
+      systems.resetExploration();
+    }
 
     state.classId = classDefs[data.state.classId] ? data.state.classId : null;
     state.respawnPoint =
@@ -2962,7 +3005,16 @@ body.rotation.x = -attackGlow * .22;
       verticalVelocity <= 0 &&
       player.position.y <= terrainHeight + 0.2;
 
-    if (followingGround || landing) {
+    if (followingGround) {
+      // Ease small terrain steps (voxel cells are ~0.5-1 m tall). Snapping the
+      // feet to every cell edge is what made the camera bob on rough ground.
+      const step = terrainHeight - player.position.y;
+      const ease = 1 - Math.pow(1e-6, dt);
+      player.position.y += step * Math.min(1, ease * 1.6);
+      if (Math.abs(step) < 0.02) player.position.y = terrainHeight;
+      verticalVelocity = 0;
+      grounded = true;
+    } else if (landing) {
       player.position.y = terrainHeight;
       verticalVelocity = 0;
       grounded = true;
@@ -3020,12 +3072,24 @@ body.rotation.x = -attackGlow * .22;
   // single terrain step or frame hitch cannot make the view snap sideways.
   if (!cameraReady) {
     smoothTarget.copy(cameraTarget);
+    cameraEyeY = cameraTarget.y;
     cameraReady = true;
   } else {
     smoothTarget.lerp(
       cameraTarget,
       Math.min(.55, 1 - Math.pow(1e-10, dt))
     );
+
+    // Height is stabilized twice: a slow spring keeps the eye from chasing
+    // every step, and a dead zone swallows the sub-centimetre noise left over
+    // from easing the feet over cell edges.
+    const eyeTarget = cameraTarget.y;
+    const eyeDelta = eyeTarget - cameraEyeY;
+    if (Math.abs(eyeDelta) > 0.06) {
+      const k = 1 - Math.pow(1e-3, Math.min(dt, 1 / 20));
+      cameraEyeY += eyeDelta * k;
+    }
+    smoothTarget.y = cameraEyeY;
   }
 
   const horizontal = Math.cos(pitch) * distance;
@@ -3037,6 +3101,19 @@ body.rotation.x = -attackGlow * .22;
     smoothTarget.y + Math.sin(pitch) * distance,
     smoothTarget.z + Math.cos(yaw) * horizontal
   );
+
+  // Sample the ground under the *target* eye position and lift the target
+  // before smoothing. Doing the correction on the target keeps the actual eye
+  // on a smooth exponential path instead of snapping up when a voxel step
+  // slides underneath it.
+  const desiredGround = getTerrainHeight(
+    desiredCamera.x,
+    desiredCamera.z,
+    desiredCamera.y
+  );
+  if (desiredGround !== null) {
+    desiredCamera.y = Math.max(desiredCamera.y, desiredGround + .7);
+  }
 
   // Cap the smoothing step: chunk streaming and GC cause occasional long
   // frames, and letting a 300 ms frame move the eye 30% of the way to its
@@ -3052,8 +3129,10 @@ body.rotation.x = -attackGlow * .22;
     camera.position.z,
     camera.position.y
   );
-  if (cameraGround !== null && camera.position.y < cameraGround + .7) {
-    camera.position.y = cameraGround + .7;
+  // Safety net only: the lifted target above should keep the eye clear, so
+  // this correction is a last resort for very steep cliffs.
+  if (cameraGround !== null && camera.position.y < cameraGround + .2) {
+    camera.position.y = cameraGround + .2;
   }
 
   const rollTarget = THREE.MathUtils.clamp(-yawDelta * 0.9, -0.02, 0.02);
