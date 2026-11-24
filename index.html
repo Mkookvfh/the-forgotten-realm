@@ -16,7 +16,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.11</small>
+        <small>ASHEN WILDS · UPDATE 0.12</small>
       </div>
 
       <div class="top-actions">
@@ -84,6 +84,16 @@
 
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="interaction-hint"></div>
+
+    <div id="combo-chip" class="combo-chip hidden">
+      <div class="combo-orb"><b id="combo-count">0</b></div>
+      <div class="combo-body">
+        <strong id="combo-tier">พันธะเลือด</strong>
+        <small id="combo-bonus">ตีต่อเนื่องเพื่อสะสมพลัง</small>
+        <div class="combo-track"><i id="combo-fill"></i></div>
+      </div>
+    </div>
+    <div id="float-layer" aria-hidden="true"></div>
 
     <div id="minimap-wrap" aria-label="แผนที่ย่อและเข็มทิศ">
       <canvas id="minimap" width="160" height="160"></canvas>
@@ -212,6 +222,11 @@
         <span>พลังโจมตี <strong id="attack-stat">1</strong></span>
         <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
         <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
+        <span>คอมโบสูงสุด <strong id="combo-best">0</strong></span>
+      </div>
+      <div class="equipment-block combo-explain">
+        <small class="equipment-heading">🩸 พันธะเลือด</small>
+        <p>ตีศัตรูต่อเนื่องภายใน 2.8 วินาทีเพื่อสะสมคอมโบ · 5 / 10 / 15 คอมโบจะเพิ่มดาเมจและดูดเลือดคืนให้เจ้าทุกครั้งที่โจมตี</p>
       </div>
       <div class="equipment-block"><small class="equipment-heading">สายอาชีพ</small>
         <div class="equipment-buttons"><button type="button" data-class="warrior">นักรบ</button><button type="button" data-class="ranger">พราน</button><button type="button" data-class="mage">จอมเวท</button></div>
