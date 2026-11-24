@@ -212,6 +212,10 @@ export function createAudio() {
       case 'craft':
         chord([392, 523, 659], 0.16, 0.05);
         break;
+      case 'blood':
+        tone(190, 0.26, 'sine', 0.075, 84);
+        noise(0.13, 0.05);
+        break;
       case 'quest':
         chord([523, 659, 784], 0.2, 0.06);
         break;

@@ -512,3 +512,215 @@
     overflow-y: auto;
   }
 }
+
+/* ---------- Update 0.12 · Blood Pact combo ---------- */
+.combo-chip {
+  --combo-accent: #6a4f31;
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 188px;
+  padding: 7px 12px 9px 8px;
+  border: 2px solid var(--ui-wood, #4a2f1b);
+  border-radius: 15px;
+  background: linear-gradient(160deg, #f7e9c9, #e4c99c);
+  box-shadow:
+    inset 0 0 0 1px #fff6dd,
+    0 4px 0 #2b1a0e,
+    0 10px 20px #0007;
+  pointer-events: none;
+  z-index: 7;
+  transition: box-shadow .2s ease;
+}
+
+.combo-orb {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 2px solid #6b1d24;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #a52a34, #621019 62%, #34070c);
+  box-shadow: inset 0 0 10px #ff8a8a44, 0 1px 0 #fff3d4aa;
+  color: #ffe1d4;
+  transition: color .2s ease, box-shadow .2s ease;
+}
+
+.combo-orb b {
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #0008;
+}
+
+.combo-body {
+  display: grid;
+  gap: 2px;
+  min-width: 118px;
+}
+
+.combo-body strong {
+  color: var(--combo-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .4px;
+}
+
+.combo-body small {
+  color: var(--ui-ink-soft, #6a4f31);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.combo-track {
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 99px;
+  background: #6d472633;
+  overflow: hidden;
+}
+
+.combo-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8f2330, var(--combo-accent));
+  transition: width .08s linear;
+}
+
+.combo-chip.tier-1 { --combo-accent: #25705f; }
+.combo-chip.tier-1 .combo-orb {
+  border-color: #25705f;
+  box-shadow: inset 0 0 10px #74d6cf66, 0 0 12px #2ad6c933;
+}
+
+.combo-chip.tier-2 { --combo-accent: #a8671a; }
+.combo-chip.tier-2 .combo-orb {
+  border-color: #a8671a;
+  box-shadow: inset 0 0 10px #f0b04c66, 0 0 14px #f0a94b44;
+}
+
+.combo-chip.tier-3 {
+  --combo-accent: #9c1f2a;
+  animation: combo-thirst 1.6s ease-in-out infinite;
+}
+
+.combo-chip.tier-3 .combo-orb {
+  border-color: #9c1f2a;
+  box-shadow: inset 0 0 12px #ff5a5a77, 0 0 18px #ff2e2e55;
+}
+
+@keyframes combo-thirst {
+  50% {
+    box-shadow:
+      inset 0 0 0 1px #fff6dd,
+      0 4px 0 #2b1a0e,
+      0 10px 20px #0007,
+      0 0 18px #c22a2a66;
+  }
+}
+
+.combo-chip.pop .combo-orb b {
+  animation: combo-pop .18s ease-out;
+}
+
+@keyframes combo-pop {
+  0% { transform: scale(.72); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.combo-chip.tier-up {
+  animation: combo-tier-up .5s ease-out;
+}
+
+@keyframes combo-tier-up {
+  0% { transform: translateX(-50%) scale(1); }
+  35% { transform: translateX(-50%) scale(1.08); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+body:has(.panel:not(.hidden)) .combo-chip {
+  opacity: 0;
+  visibility: hidden;
+}
+
+#float-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.float-text {
+  position: absolute;
+  color: #ff8080;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: .3px;
+  transform: translate(-50%, -50%);
+  text-shadow: 0 2px 6px #000, 0 0 12px currentColor;
+  animation: float-rise .95s ease-out forwards;
+  white-space: nowrap;
+}
+
+.float-text.burst {
+  color: #ffd36b;
+  font-size: 17px;
+}
+
+@keyframes float-rise {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(.7); }
+  18% { opacity: 1; transform: translate(-50%, -60%) scale(1.08); }
+  100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+}
+
+.combo-explain p {
+  margin: 0;
+  color: #a9a29a;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 650px) {
+  .combo-chip {
+    bottom: 190px;
+    min-width: 164px;
+    padding: 6px 10px 8px 7px;
+    gap: 8px;
+  }
+
+  .combo-orb { width: 34px; height: 34px; }
+  .combo-orb b { font-size: 15px; }
+  .combo-body { min-width: 104px; }
+  .combo-body strong { font-size: 10px; }
+  .combo-body small { font-size: 8px; }
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  .combo-chip {
+    top: 188px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    transform: none;
+  }
+
+  .combo-chip.tier-up {
+    animation: combo-tier-up-side .5s ease-out;
+  }
+}
+
+@keyframes combo-tier-up-side {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}

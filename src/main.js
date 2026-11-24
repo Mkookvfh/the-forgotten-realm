@@ -34,6 +34,16 @@ const ui = {
   sideQuest: $('#side-quest-text')
 };
 
+const comboUI = {
+  chip: $('#combo-chip'),
+  count: $('#combo-count'),
+  tier: $('#combo-tier'),
+  bonus: $('#combo-bonus'),
+  fill: $('#combo-fill'),
+  best: $('#combo-best'),
+  layer: $('#float-layer')
+};
+
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const settings = {
   quality: 'medium',
@@ -113,7 +123,8 @@ const state = {
   explored: [],
   cartographer: 0,
   dungeonCleared: false,
-  respawnPoint: null
+  respawnPoint: null,
+  comboBest: 0
 };
 
 let toastTimer = 0;
@@ -232,6 +243,9 @@ function refreshEquipmentUI() {
   }
   if (defenseLabel) defenseLabel.textContent = `${Math.round(armorReduction() * 100)}%`;
   if (skillLabel) skillLabel.textContent = String(state.skillPoints);
+
+  const comboBestLabel = $('#combo-best');
+  if (comboBestLabel) comboBestLabel.textContent = String(state.comboBest || 0);
 
   renderUpgradeUI();
 
@@ -1303,6 +1317,7 @@ const systems = createSystems({
     grounded = true;
     cameraReady = false;
     cameraEyeY = null;
+    breakCombo();
     worldStreamer.update(player.position);
   },
   audio,
@@ -1705,7 +1720,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 9,
+    version: 10,
     slot,
     dungeonActive,
     player: [
@@ -1826,6 +1841,9 @@ function loadGame(slot = currentSlot) {
       Number(data.state.attackBonus) || 0, 0, 5
     );
     state.skillPoints = Math.max(0, Number(data.state.skillPoints) || 0);
+    state.comboBest = Math.max(0, Math.round(Number(data.state.comboBest) || 0));
+    breakCombo();
+    if (comboUI.best) comboUI.best.textContent = String(state.comboBest);
     state.potions = Math.max(0, state.potions);
     state.crystals = Math.max(0, state.crystals);
     state.level = Math.max(1, state.level);
@@ -1975,6 +1993,152 @@ function usePotion() {
   toast('ใช้ยาฟื้นฟู +45 HP');
 }
 
+// ---------- Update 0.12 · Blood Pact (combo lifesteal) ----------
+const COMBO_WINDOW = 2.8;
+const COMBO_MAX = 20;
+const COMBO_TIERS = [
+  { min: 0, tier: 0, name: 'สงบ', mult: 1, leech: 0 },
+  { min: 5, tier: 1, name: 'ไหลเวียน', mult: 1.08, leech: 1 },
+  { min: 10, tier: 2, name: 'คลั่ง', mult: 1.18, leech: 2 },
+  { min: 15, tier: 3, name: 'กระหายเลือด', mult: 1.3, leech: 3 }
+];
+
+let combo = 0;
+let comboTimer = 0;
+const _floatVec = new THREE.Vector3();
+
+function comboStats(stacks = combo) {
+  let entry = COMBO_TIERS[0];
+  for (const tier of COMBO_TIERS) {
+    if (stacks >= tier.min) entry = tier;
+  }
+  return entry;
+}
+
+function comboBonusText(tier) {
+  if (tier.tier === 0) {
+    return `อีก ${Math.max(1, 5 - combo)} ครั้ง → ไหลเวียน`;
+  }
+  const percent = Math.round((tier.mult - 1) * 100);
+  return `+${percent}% ดาเมจ · ดูดเลือด ${tier.leech} HP/ครั้ง`;
+}
+
+function refreshComboHud(pop = false) {
+  const chip = comboUI.chip;
+  if (!chip) return;
+
+  if (combo <= 0) {
+    chip.classList.add('hidden');
+    chip.classList.remove('tier-1', 'tier-2', 'tier-3', 'pop', 'tier-up');
+    if (comboUI.fill) comboUI.fill.style.width = '0%';
+    return;
+  }
+
+  const tier = comboStats();
+  chip.classList.remove('hidden', 'tier-1', 'tier-2', 'tier-3');
+  if (tier.tier > 0) chip.classList.add(`tier-${tier.tier}`);
+
+  if (comboUI.count) comboUI.count.textContent = String(combo);
+  if (comboUI.tier) comboUI.tier.textContent = tier.name;
+  if (comboUI.bonus) comboUI.bonus.textContent = comboBonusText(tier);
+  if (comboUI.fill) {
+    comboUI.fill.style.width = `${Math.max(0, comboTimer / COMBO_WINDOW * 100)}%`;
+  }
+
+  if (pop) {
+    chip.classList.remove('pop');
+    void chip.offsetWidth;
+    chip.classList.add('pop');
+  }
+}
+
+function comboLevelUp(tier) {
+  audio.play('blood');
+  toast(`พันธะเลือด · ${tier.name}! +${Math.round((tier.mult - 1) * 100)}% ดาเมจ · ดูดเลือด ${tier.leech} HP/ครั้ง`);
+  spawnFloatText('พันธะเลือด!', 'burst');
+  const chip = comboUI.chip;
+  if (chip) {
+    chip.classList.remove('tier-up');
+    void chip.offsetWidth;
+    chip.classList.add('tier-up');
+  }
+}
+
+function registerComboHit() {
+  const before = comboStats().tier;
+  combo = Math.min(COMBO_MAX, combo + 1);
+  comboTimer = COMBO_WINDOW;
+
+  if (combo > state.comboBest) {
+    state.comboBest = combo;
+    if (comboUI.best) comboUI.best.textContent = String(combo);
+  }
+
+  const tier = comboStats();
+  if (tier.tier > before) comboLevelUp(tier);
+  refreshComboHud(true);
+}
+
+function healFromBloodPact(amount) {
+  if (amount <= 0 || state.dead) return;
+
+  const before = state.hp;
+  state.hp = Math.min(state.maxHp, state.hp + amount);
+  const healed = state.hp - before;
+  if (healed <= 0) return;
+
+  spawnFloatText(`+${Math.round(healed * 10) / 10}`, 'leech');
+  updateHud();
+}
+
+function updateCombo(dt) {
+  if (combo <= 0) return;
+
+  comboTimer -= dt;
+  if (comboTimer <= 0) {
+    breakCombo();
+    return;
+  }
+
+  if (comboUI.fill) {
+    comboUI.fill.style.width = `${Math.max(0, comboTimer / COMBO_WINDOW * 100)}%`;
+  }
+}
+
+function breakCombo() {
+  if (combo === 0 && comboTimer === 0) {
+    if (comboUI.chip) comboUI.chip.classList.add('hidden');
+    return;
+  }
+
+  combo = 0;
+  comboTimer = 0;
+  refreshComboHud(false);
+}
+
+function spawnFloatText(text, tone = 'leech') {
+  const layer = comboUI.layer;
+  if (!layer) return;
+
+  const node = document.createElement('span');
+  node.className = `float-text${tone === 'burst' ? ' burst' : ''}`;
+  node.textContent = text;
+  layer.appendChild(node);
+
+  _floatVec.set(player.position.x, player.position.y + 2.35, player.position.z);
+  _floatVec.project(camera);
+  if (_floatVec.z > 1) {
+    node.remove();
+    return;
+  }
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  node.style.left = `${rect.left + (_floatVec.x * .5 + .5) * rect.width}px`;
+  node.style.top = `${rect.top + (-_floatVec.y * .5 + .5) * rect.height}px`;
+  node.addEventListener('animationend', () => node.remove(), { once: true });
+  setTimeout(() => node.remove(), 1200);
+}
+
 function gainXp(amount) {
   state.xp += amount;
 
@@ -2044,15 +2208,24 @@ const projectiles = [];
 
 function damageEnemy(enemy, amount, options = {}) {
   const data = enemy.userData;
-  if (!data.alive) return;
+  if (!data.alive) return 0;
 
-  data.hp -= amount;
+  // The blood pact amplifies every weapon hit and feeds the combo meter.
+  const dealt = amount * comboStats().mult;
+
+  data.hp -= dealt;
   data.hurtTimer = .3;
   if (options.slow) {
     data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
   }
 
+  registerComboHit();
+  const tier = comboStats();
+  if (tier.leech > 0) healFromBloodPact(tier.leech);
+
   if (data.hp <= 0) defeatEnemy(enemy);
+
+  return dealt;
 }
 
 function spawnProjectile(weapon, damage) {
@@ -2112,9 +2285,9 @@ function updateProjectiles(dt) {
     }
 
     if (hit) {
-      damageEnemy(hit, shot.damage, { slow: shot.slow });
+      const dealt = damageEnemy(hit, shot.damage, { slow: shot.slow });
       if (hit.userData.alive) {
-        toast(`โจมตีโดน ${hit.userData.name} -${Math.round(shot.damage * 10) / 10}`);
+        toast(`โจมตีโดน ${hit.userData.name} -${Math.round(dealt * 10) / 10}`);
         audio.play('hit');
       }
     }
@@ -2133,6 +2306,7 @@ function handlePlayerDeath() {
   state.stamina = 100;
   state.mana = state.maxMana;
   invulnerabilityTimer = 1.5;
+  breakCombo();
 
   const point = Array.isArray(state.respawnPoint) ? state.respawnPoint : [0, 3];
   const rx = Number.isFinite(point[0]) ? point[0] : 0;
@@ -2339,10 +2513,10 @@ function attack() {
   }
 
   if (target) {
-    damageEnemy(target, damage);
+    const dealt = damageEnemy(target, damage);
     audio.play('hit');
     if (target.userData.alive) {
-      toast(`โจมตี ${target.userData.name} -${Math.round(damage * 10) / 10}`);
+      toast(`โจมตี ${target.userData.name} -${Math.round(dealt * 10) / 10}`);
     }
   } else {
     toast('ไม่มีศัตรูอยู่ในระยะ');
@@ -2828,6 +3002,7 @@ function update(dt) {
   invulnerabilityTimer = Math.max(0, invulnerabilityTimer - dt);
   attackAnimTimer = Math.max(0, attackAnimTimer - dt);
   hurtAnimTimer = Math.max(0, hurtAnimTimer - dt);
+  updateCombo(dt);
 
   if (input.dodgePressed) {
     input.dodgePressed = false;
