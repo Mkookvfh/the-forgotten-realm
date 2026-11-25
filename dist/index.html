@@ -8,8 +8,8 @@
   <meta name="description" content="The Forgotten Realm - Dark Fantasy 3D Adventure">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e18'/%3E%3Cpath d='M16 4l7 10-7 14-7-14z' fill='%238b7bd1'/%3E%3Cpath d='M16 4l7 10H9z' fill='%23b7a8f0'/%3E%3C/svg%3E">
   <title>THE FORGOTTEN REALM</title>
-  <script type="module" crossorigin src="/assets/index-w9yA3O0M.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DX7Cuck8.css">
+  <script type="module" crossorigin src="/assets/index-CODzCIMW.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C995bG1K.css">
 </head>
 <body>
   <div id="game"></div>
@@ -18,7 +18,7 @@
     <header class="topbar">
       <div class="brand">
         <strong>THE FORGOTTEN REALM</strong>
-        <small>ASHEN WILDS · UPDATE 0.12</small>
+        <small>ASHEN WILDS · UPDATE 0.13</small>
       </div>
 
       <div class="top-actions">
@@ -96,6 +96,16 @@
       </div>
     </div>
     <div id="float-layer" aria-hidden="true"></div>
+
+    <div id="companion-chip" class="companion-chip hidden">
+      <span class="companion-orb" aria-hidden="true"></span>
+      <div class="companion-body">
+        <small>สหายร่วมทาง</small>
+        <strong id="companion-name">—</strong>
+        <span id="companion-role">—</span>
+      </div>
+      <button id="companion-dismiss" type="button" aria-label="แยกทางกับสหาย" title="แยกทาง">✕</button>
+    </div>
 
     <div id="minimap-wrap" aria-label="แผนที่ย่อและเข็มทิศ">
       <canvas id="minimap" width="160" height="160"></canvas>
@@ -225,10 +235,15 @@
         <span>ลดความเสียหาย <strong id="defense-stat">0%</strong></span>
         <span>แต้มทักษะ <strong id="skill-points">0</strong></span>
         <span>คอมโบสูงสุด <strong id="combo-best">0</strong></span>
+        <span>สหายร่วมทาง <strong id="companion-info">ไม่มี</strong></span>
       </div>
       <div class="equipment-block combo-explain">
         <small class="equipment-heading">🩸 พันธะเลือด</small>
         <p>ตีศัตรูต่อเนื่องภายใน 2.8 วินาทีเพื่อสะสมคอมโบ · 5 / 10 / 15 คอมโบจะเพิ่มดาเมจและดูดเลือดคืนให้เจ้าทุกครั้งที่โจมตี</p>
+      </div>
+      <div class="equipment-block combo-explain">
+        <small class="equipment-heading">🛡 สหายร่วมทาง</small>
+        <p>จ้างทหารรับจ้าง พรานเถ้าถ่าน หรือนักเวทพเนจรได้จากค่ายและเมือง · สหายจะเดินตามและโจมตีศัตรูให้เจ้า แต่ไม่สะสมคอมโบพันธะเลือด · กด ✕ ที่ป้ายมุมจอเพื่อแยกทาง</p>
       </div>
       <div class="equipment-block"><small class="equipment-heading">สายอาชีพ</small>
         <div class="equipment-buttons"><button type="button" data-class="warrior">นักรบ</button><button type="button" data-class="ranger">พราน</button><button type="button" data-class="mage">จอมเวท</button></div>
