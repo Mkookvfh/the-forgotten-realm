@@ -102,7 +102,9 @@ const BOUNTY_TYPES = [
   { type: 'guardian', name: 'ล่าผู้พิทักษ์ซากโบราณ', items: ['bone', 'ore'] },
   { type: 'wraith', name: 'ขับไล่ผีร้าย', items: ['essence', 'darkShard'] },
   { type: 'brute', name: 'ปราบยักษ์หิน', items: ['stoneHeart', 'ore'] },
-  { type: 'wolf', name: 'กำจัดหมาป่ามืด', items: ['meat', 'bone'] }
+  { type: 'wolf', name: 'กำจัดหมาป่ามืด', items: ['meat', 'bone'] },
+  { type: 'raider', name: 'ล่าหัวขโมยแดนเถ้าถ่าน', items: ['ore', 'meat'] },
+  { type: 'revenant', name: 'ขับไล่ทหารกลายพันธุ์', items: ['bone', 'darkShard'] }
 ];
 
 const BOUNTY_REROLL_COST = 60;
@@ -139,6 +141,21 @@ const LOOT_TABLE = {
     { id: 'meat', chance: .8, min: 1, max: 2 },
     { id: 'herb', chance: 1, min: 1, max: 2 },
     { id: 'wood', chance: .6, min: 1, max: 1 }
+  ],
+  raider: [
+    { id: 'ore', chance: .75, min: 1, max: 1 },
+    { id: 'meat', chance: .55, min: 1, max: 1 },
+    { id: 'darkShard', chance: .2, min: 1, max: 1 }
+  ],
+  revenant: [
+    { id: 'bone', chance: 1, min: 1, max: 2 },
+    { id: 'darkShard', chance: .5, min: 1, max: 1 },
+    { id: 'essence', chance: .35, min: 1, max: 1 }
+  ],
+  warlord: [
+    { id: 'stoneHeart', chance: 1, min: 1, max: 2 },
+    { id: 'bossRelic', chance: .25, min: 1, max: 1 },
+    { id: 'ore', chance: 1, min: 2, max: 3 }
   ]
 };
 
@@ -521,6 +538,674 @@ const NPC_DATA = [
       effect: { rep: { ancient: 4 }, flag: 'secret-abbey' },
       reply: 'อารามที่จมนั้นไม่มีพระอยู่เลย มีแต่แผ่นศิลาที่จารชื่อกษัตริย์ทุกองค์ องค์กรโบราณจดชื่อทุกคนที่ "สัญญา" ไว้กับประตู... ชื่อสุดท้ายยังว่างอยู่'
     }
+  },
+  {
+    id: 'pilgrim',
+    name: 'นักแสวงบุญ',
+    title: 'ผู้เดินทางตามแสงจันทร์ · ศาสนจักร',
+    faction: 'church',
+    position: [4, 0, 18],
+    color: 0xb9a67a,
+    sprite: 'priest',
+    schedule: [
+      { from: 0, to: .5, position: [4, 0, 18] },
+      { from: .5, to: .68, position: [10, 0, 26] },
+      { from: .68, to: 1, position: [4, 0, 18] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'ข้าเห็นเลือดบนมือเจ้า... แต่ศาลเจ้ายังเปิดให้ทุกคนอยู่'
+      : 'เจ้าคือคนที่เดินออกจากค่ายตอนเช้าหรือ? ข้าเห็นเงาแปลกๆ ตามหลังเจ้า',
+    lines: [
+      'ข้าเดินตามแสงจันทร์มาสามคืน ไม่เคยเห็นมันสว่างเท่าคืนนี้',
+      'ถ้าเจ้าพบศาลเจ้า บอกนักพรตว่าข้ายังเดินอยู่'
+    ],
+    topics: [
+      {
+        id: 'pilgrim-field',
+        label: 'ทำไมทุ่งนี้ถึงรกร้าง?',
+        keys: ['ทุ่ง', 'รกร้าง', 'ทำไม', 'แผ่นดิน'],
+        reply: 'เมื่อหอคอยล่ม แผ่นดินก็จำเสียงของมันไม่ได้อีก น้ำในแม่น้ำลาวาไหลย้อนขึ้นมาสองวันเต็ม แล้วหญ้าที่ขึ้นใหม่ก็ไม่เคยมีกลิ่นอีกเลย'
+      },
+      {
+        id: 'pilgrim-shrine',
+        label: 'ศาลเจ้าแห่งนี้มีใครดูแล?',
+        keys: ['ศาล', 'นักพรต', 'ดูแล', 'แสงจันทร์'],
+        reply: 'นักพรตผู้ลืมเลือนยังจุดตะเกียงทุกคืน ข้าเคยถามว่าทำไมไม่ย้ายไปที่อื่น ท่านตอบว่า "ข้าลืมทางไปที่อื่นแล้ว"'
+      },
+      {
+        id: 'pilgrim-omen',
+        label: 'เจ้าเห็นลางร้ายอะไรบ้าง?',
+        keys: ['ลาง', 'ร้าย', 'เห็น', 'ฝัน'],
+        reply: 'ข้าฝันเห็นทหารหุ้มเกราะยืนเรียงรายอยู่ชายป่า แต่ละคนไม่มีหน้า พอตื่นขึ้นมา ข้าได้ยินเสียงเหล็กกระทบกันจากทางตะวันออก'
+      }
+    ]
+  },
+  {
+    id: 'gravedigger',
+    name: 'คนขุดหลุมศพ',
+    title: 'ผู้ขุดหลุม · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#b3a48c',
+    position: [-16, 0, -2],
+    color: 0x8a7f6a,
+    sprite: 'rogue',
+    schedule: [
+      { from: 0, to: 1, position: [-16, 0, -2] }
+    ],
+    greet: () => 'ระวังที่ยืนหน่อย ที่ตรงนั้นข้าเพิ่งขุดเมื่อวาน ยังไม่แน่ใจว่าเจ้าของหลุมกลับมาแล้วหรือยัง',
+    lines: [
+      'ในดินแดนนี้ คนตายไม่เคยได้อยู่คนเดียว',
+      'ข้าขุดหลุมให้ทั้งคนเป็นและคนที่ยังไม่รู้ว่าตัวเองตาย'
+    ],
+    topics: [
+      {
+        id: 'grave-work',
+        label: 'ขุดหลุมมากมายขนาดนี้ทำไม?',
+        keys: ['ขุด', 'หลุม', 'มาก', 'ทำไม'],
+        reply: 'ทุกคืนมีคนเดินออกมาจากซากปราสาทแล้วล้มลงกลางทุ่ง เช้ามาก็เหลือแต่กระดูก ข้าไม่รู้ว่าพวกเขาตายมาแล้วหรือเพิ่งตาย ข้าจึงขุดให้ทั้งสองกรณี'
+      },
+      {
+        id: 'grave-bone',
+        label: 'กระดูกพวกนี้ขายได้ที่ไหน?',
+        keys: ['กระดูก', 'ขาย', 'ที่ไหน', 'เงิน'],
+        reply: 'สมาคมพ่อค้ารับซื้อทุกชิ้นที่ยังมีร่องรอยสลัก พวกเขาไม่ถามว่ามาจากหลุมไหน ข้าก็ไม่ถามว่าส่งไปทำอะไร'
+      },
+      {
+        id: 'grave-pay',
+        label: 'จ่าย 15 ทองให้ขุดหลุมฝังศพให้ (ได้ชื่อเสียงผู้ถูกเนรเทศ)',
+        keys: ['จ่าย', 'ทอง', 'ฝัง', 'ช่วย'],
+        effect: { gold: -15, rep: { outcasts: 5 }, toast: 'คนถูกเนรเทศจดจำน้ำใจของเจ้า' },
+        reply: 'ขอบใจ ข้าจะฝังคนที่ไม่มีชื่อกำกับไว้ตรงหัวเนิน เผื่อวันหนึ่งมีคนมาเรียกชื่อเขาถูก'
+      }
+    ]
+  },
+  {
+    id: 'refugee',
+    name: 'ผู้ลี้ภัยจากหุบเขา',
+    title: 'ผู้อพยพ · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#c2a583',
+    position: [16, 0, 26],
+    color: 0xa88f70,
+    sprite: 'rogue',
+    schedule: [
+      { from: 0, to: .55, position: [16, 0, 26] },
+      { from: .55, to: .8, position: [10, 0, 22] },
+      { from: .8, to: 1, position: [16, 0, 26] }
+    ],
+    greet: () => 'อย่าเดินตรงไปทางนั้น ฝูงหมาป่ามืดเพิ่งลากคนเฝ้าค่ายไปเมื่อคืน',
+    lines: [
+      'ข้าออกจากหุบเขามาสองอาทิตย์ ยังไม่เห็นใครในหมู่เราที่ไปถึงปลายทางเลย',
+      'ค่ายนี้ไม่มีกำแพง มีแต่กองไฟกับคนที่ไม่มีที่ไป'
+    ],
+    topics: [
+      {
+        id: 'refugee-camp',
+        label: 'ค่ายนี้ปลอดภัยพอจะพักได้ไหม?',
+        keys: ['ค่าย', 'ปลอดภัย', 'พัก', 'นอน'],
+        reply: 'กลางวันปลอดภัย กลางคืนไม่เคยมีใครรับประกัน ชาวค่ายผลัดกันเฝ้าไฟ ถ้าเจ้าจะพัก อย่าให้ไฟดับก็พอ'
+      },
+      {
+        id: 'refugee-food',
+        label: 'แบ่งเสบียงให้ (10 ทอง)',
+        keys: ['เสบียง', 'อาหาร', 'แบ่ง', 'ช่วย'],
+        effect: { gold: -10, rep: { outcasts: 3 }, toast: 'ผู้ลี้ภัยแบ่งความอบอุ่นตอบเจ้า' },
+        reply: 'แค่ขนมปังแข็งๆ ก็พอ... ขอบใจ ข้าจะบอกเด็กๆ ว่ามีคนดีเดินผ่านค่ายนี้'
+      },
+      {
+        id: 'refugee-road',
+        label: 'ไปราเวนโฮลด์ทางไหน?',
+        keys: ['ราเวนโฮลด์', 'ทาง', 'ไป', 'หมู่บ้าน'],
+        reply: 'ขึ้นไปทางตะวันตกเฉียงเหนือ เดินตามเสาไฟที่ยังไม่ล้ม ถ้าเจอทางแยกที่ไม่มีป้าย ให้เลี้ยวซ้าย ราเวนโฮลด์อยู่ปลายทางนั้น'
+      }
+    ]
+  },
+  {
+    id: 'wanderer',
+    name: 'นักเดินทางไร้ชื่อ',
+    title: 'นักสำรวจซาก · สมาคมพ่อค้า',
+    faction: 'merchants',
+    nameColor: '#a9b8c9',
+    position: [28, 0, -58],
+    color: 0x7d8ba6,
+    sprite: 'soldier',
+    schedule: [
+      { from: 0, to: .4, position: [28, 0, -58] },
+      { from: .4, to: .7, position: [34, 0, -66] },
+      { from: .7, to: 1, position: [28, 0, -58] }
+    ],
+    greet: ({ tier }) => tier === 'friend' || tier === 'ally'
+      ? 'เจ้ามาแล้ว! ข้าพบรอยเท้าแปลกใหม่เมื่อคืน อยากดูไหม'
+      : 'ข้าไม่มีชื่อให้จำ แต่มีแผนที่ให้ดู ถ้าเจ้ามีทอง',
+    lines: [
+      'ทุกซากที่ข้าเข้าไป มีทางออกเสมอ แต่ไม่ใช่ทางที่ข้าเข้ามา',
+      'ถ้าเจ้าหลงทาง ให้มองหาหินที่ไม่มีตะไคร่ นั่นแหละทางกลับ'
+    ],
+    topics: [
+      {
+        id: 'wanderer-south',
+        label: 'ทางใต้มีอะไรบ้าง?',
+        keys: ['ใต้', 'ทาง', 'มีอะไร', 'ภูเขา'],
+        reply: 'ทางใต้เป็นที่ราบเถ้าถ่านจนถึงเชิงเอ็มเบอร์พีค มีโจรตั้งค่ายอยู่สองแห่ง พวกเขาไม่แต่งกายเหมือนทหาร แต่ถือดาบดีกว่าทหารเสียอีก'
+      },
+      {
+        id: 'wanderer-ruins',
+        label: 'ซากโบราณข้างหน้าเข้าได้ไหม?',
+        keys: ['ซาก', 'โบราณ', 'เข้า', 'หอคอย'],
+        reply: 'เข้าได้ แต่ประตูชั้นในปิดอยู่ ผู้พิทักษ์ที่เดินอยู่ข้างนอกคือคนที่พยายามเปิดมันครั้งก่อน อย่าไปยืนใกล้กำแพงด้านตะวันออก'
+      },
+      {
+        id: 'wanderer-advice',
+        label: 'มีคำแนะนำสำหรับนักเดินทางไหม?',
+        keys: ['แนะนำ', 'เดินทาง', 'คำ', 'ระวัง'],
+        reply: 'อย่าตีศัตรูโดยไม่มองที่เท้า บางตัวยืนบนกระดูกที่ยังขยับได้ และถ้าเจ้าจ้างใครร่วมทาง ให้ฟังเสียงเขาเวลากลางคืน เขาจะได้ยินก่อนเจ้าเสมอ'
+      }
+    ]
+  },
+  {
+    id: 'sellsword',
+    name: 'ทหารรับจ้าง',
+    title: 'ดาบรับจ้าง · สมาคมทหาร',
+    faction: 'merchants',
+    nameColor: '#e0a06a',
+    position: [-52, 0, -32],
+    color: 0xc9773f,
+    sprite: 'soldier',
+    schedule: [
+      { from: 0, to: .3, position: [-52, 0, -32] },
+      { from: .3, to: .55, position: [-48, 0, -38] },
+      { from: .55, to: 1, position: [-52, 0, -32] }
+    ],
+    greet: ({ tier }) => tier === 'friend' || tier === 'ally'
+      ? 'เจ้ากลับมาแล้ว? ดาบข้ายังคมอยู่ อยากให้เดินเป็นเพื่อนอีกไหม'
+      : 'ข้าดูจากฝีมือเจ้าแล้ว เจ้าต้องการดาบเพิ่มอีกเล่มแน่',
+    lines: [
+      'ข้าตีดาบให้ตัวเองเล่มเดียวตอนอายุสิบหก ตอนนี้ยังใช้เล่มเดิม',
+      'จ้างข้าแล้วเจ้าจะไม่ต้องหันหลังบ่อยๆ อีก'
+    ],
+    topics: [
+      {
+        id: 'sellsword-story',
+        label: 'เล่าเรื่องที่ผ่านมาของเจ้าให้ฟังหน่อย',
+        keys: ['เล่า', 'เรื่อง', 'ผ่านมา', 'ประวัติ'],
+        reply: 'ข้ารบในกองทหารราบราเวนโฮลด์จนวันหนึ่งคำสั่งให้เผาหมู่บ้านของตัวเอง ข้าวางดาบลงวันนั้น แล้วไม่เคยรับคำสั่งใครฟรีอีกเลย'
+      },
+      {
+        id: 'sellsword-hire',
+        label: 'จ้างสหายร่วมทาง',
+        keys: ['จ้าง', 'สหาย', 'ร่วมทาง', 'เดินด้วย'],
+        companionId: 'sellsword',
+        effect: { action: 'hire', companion: 'sellsword' },
+        reply: 'ตกลง ข้าจะเดินขนาบข้างเจ้า ไม่แย่งของ ข้าขอแค่ค่าดาบกับข้าวหนึ่งมื้อ'
+      },
+      {
+        id: 'sellsword-danger',
+        label: 'ศัตรูแบบไหนควรระวังที่สุด?',
+        keys: ['ศัตรู', 'ระวัง', 'อันตราย', 'แบบไหน'],
+        reply: 'พวกถือคทาไม่ใช่ปัญหา ตัวที่อันตรายคืออสูรศิลาที่ไม่ถอยและโจรที่ล้อมเจ้าเป็นวง ถ้าเจ้าเห็นธงแดงสามผืน ให้ถอยก่อน อย่าวิ่งเข้าไป'
+      }
+    ]
+  },
+  {
+    id: 'innkeeper',
+    name: 'เจ้าของโรงเตี๊ยม',
+    title: 'โรงเตี๊ยมกลืนเงา · สมาคมพ่อค้า',
+    faction: 'merchants',
+    nameColor: '#c49a6c',
+    position: [-40, 0, -53],
+    color: 0xb07b52,
+    sprite: 'merchant',
+    schedule: [
+      { from: 0, to: 1, position: [-40, 0, -53] }
+    ],
+    greet: () => 'เข้ามาสิ ไฟในเตายังแดงอยู่ กองทัพจะผ่านไปผ่านมากี่ครั้ง โรงเตี๊ยมข้าก็ไม่เคยปิด',
+    lines: [
+      'ข่าวดีคือไม่มีใครตายในโรงเตี๊ยมข้า ข่าวร้ายคือบางคนออกไปแล้วก็ไม่กลับมา',
+      'เตียงริมหน้าต่างมีคนตายเมื่อสัปดาห์ก่อน ข้าล้างแล้ว ไม่ต้องห่วง'
+    ],
+    topics: [
+      {
+        id: 'inn-rumor',
+        label: 'มีข่าวอะไรในราเวนโฮลด์บ้าง?',
+        keys: ['ข่าว', 'ราเวนโฮลด์', 'ลือ', 'อะไร'],
+        reply: 'มีคนเห็นทหารหุ้มเกราะเดินอยู่กลางป่าเมื่อคืน พวกเขาไม่พูด ไม่ตอบ และไม่เงยหน้า พอฟ้าเริ่มสางก็หายไปทั้งกลุ่ม'
+      },
+      {
+        id: 'inn-meal',
+        label: 'ขอสตูว์ร้อนๆ หน่อย (12 ทอง)',
+        keys: ['สตูว์', 'อาหาร', 'กิน', 'มื้อ'],
+        effect: { gold: -12, rep: { merchants: 2 }, toast: 'ท้องอุ่นแล้ว หายเหนื่อยขึ้น' },
+        reply: 'มีเนื้อเค็มกับหัวหอมเท่านั้น แต่พอใส่พริกป่าแล้วก็อร่อยจนลืมว่าเนื้ออาจจะมาจากอะไร'
+      },
+      {
+        id: 'inn-room',
+        label: 'ห้องนอนราคาเท่าไหร่?',
+        keys: ['ห้อง', 'นอน', 'ราคา', 'เท่าไหร่'],
+        reply: 'ข้าไม่ให้เช่าห้องแล้ว ตอนนี้โรงเตี๊ยมกลายเป็นที่พักของผู้ลี้ภัย ถ้าเจ้าอยากนอน ให้ไปตั้งแคมป์ข้างกองไฟแทน ปลอดภัยกว่าห้องชั้นบนของข้าเสียอีก'
+      }
+    ]
+  },
+  {
+    id: 'hawker',
+    name: 'พ่อค้าแผงลอย',
+    title: 'แผงของเก่า · สมาคมพ่อค้า',
+    faction: 'merchants',
+    nameColor: '#9ad6c2',
+    position: [-58, 0, -40],
+    color: 0x9ad6c2,
+    sprite: 'merchant',
+    schedule: [
+      { from: 0, to: .5, position: [-58, 0, -40] },
+      { from: .5, to: .72, position: [-50, 0, -46] },
+      { from: .72, to: 1, position: [-58, 0, -40] }
+    ],
+    greet: () => 'ของทุกชิ้นข้ามาจากคนที่ไม่ได้ใช้มันอีกแล้ว ราคาจึงถูกกว่าที่อื่น',
+    lines: [
+      'ถ้าเจ้าเห็นของถูกเกินไป ให้ถามก่อนว่ามันเคยเป็นของใคร',
+      'ข้าขายทุกอย่าง ยกเว้นความจริง'
+    ],
+    topics: [
+      {
+        id: 'hawker-goods',
+        label: 'ขอดูของที่ขายหน่อย',
+        keys: ['ขอดู', 'ขาย', 'ของ', 'สินค้า'],
+        effect: { action: 'openShop' },
+        reply: 'ตามสบาย มองได้ แตะไม่ได้ ของบางชิ้นยังจำเจ้าของเดิมได้'
+      },
+      {
+        id: 'hawker-news',
+        label: 'ได้ยินอะไรเกี่ยวกับโจรป่าบ้าง?',
+        keys: ['โจร', 'ป่า', 'ได้ยิน', 'ข่าว'],
+        reply: 'พวกเขาไม่ใช่โจรธรรมดา ข้าเคยขายมีดให้คนหนึ่ง เขาจ่ายด้วยเหรียญที่สลักรูปนกกา เหรียญแบบนั้นมีเฉพาะในคลังราเวนโฮลด์'
+      }
+    ]
+  },
+  {
+    id: 'ranger',
+    name: 'พรานเถ้าถ่าน',
+    title: 'พรานป่าแห้งตาย · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#9fe0a5',
+    position: [-70, 0, -140],
+    color: 0x7fc48a,
+    sprite: 'ranger',
+    schedule: [
+      { from: 0, to: .35, position: [-70, 0, -140] },
+      { from: .35, to: .65, position: [-78, 0, -148] },
+      { from: .65, to: 1, position: [-70, 0, -140] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'เจ้าเหยียบวงหินผิดด้าน ระวังตัวไว้'
+      : 'ข้าเห็นเจ้ามาจากไกล ฝีเท้าเจ้าเงียบดี แต่ไม่เงียบเท่าพวกที่เดินตามเจ้า',
+    lines: [
+      'ป่าแห้งตายไม่ได้ตายเพราะไฟ มันตายเพราะมีบางอย่างดื่มน้ำจากราก',
+      'ข้าอยู่ที่นี่คนเดียว เพราะไม่มีใครทนความเงียบแบบนี้ได้'
+    ],
+    topics: [
+      {
+        id: 'ranger-deadwood',
+        label: 'ป่าแห้งตายเกิดขึ้นได้อย่างไร?',
+        keys: ['ป่า', 'แห้ง', 'ตาย', 'เกิดขึ้น'],
+        reply: 'คืนหนึ่งมีเสียงเหมือนน้ำถูกสูบลงดิน เช้ามาต้นไม้ทั้งป่าก็ยืนตายพร้อมกัน ข้าขุดดูใต้ราก เจอแผ่นศิลาเขียนว่า "ผู้เฝ้าประตูหิว"'
+      },
+      {
+        id: 'ranger-hire',
+        label: 'จ้างสหายร่วมทาง',
+        keys: ['จ้าง', 'สหาย', 'ร่วมทาง', 'เดินด้วย'],
+        companionId: 'ranger',
+        effect: { action: 'hire', companion: 'ranger' },
+        reply: 'ข้าจะไปด้วย ดอกธนูข้าไม่พลาดเป้าที่หายใจ แต่ถ้าเจ้าพาไปในที่ที่ไม่มีลม ข้าอาจลังเล'
+      },
+      {
+        id: 'ranger-stone',
+        label: 'วงหินโบราณใช้ทำอะไร?',
+        keys: ['วงหิน', 'หิน', 'โบราณ', 'ทำอะไร'],
+        reply: 'มันไม่ได้ใช้บูชา มันใช้กักเสียง หินแต่ละก้อนจดจำคำสัญญาของคนที่ยืนกลางวง ตอนนี้มันยังได้ยินเสียงใครบางคนอยู่'
+      }
+    ]
+  },
+  {
+    id: 'hermit',
+    name: 'ฤๅษีป่าแห้งตาย',
+    title: 'ผู้สวดกล่อมรากไม้ · ศาสนจักร',
+    faction: 'church',
+    nameColor: '#c8bea2',
+    position: [-150, 0, -138],
+    color: 0xa9a07e,
+    sprite: 'priest',
+    schedule: [
+      { from: 0, to: 1, position: [-150, 0, -138] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'มือเจ้าเปื้อน แต่ใจเจ้ายังได้ยินข้า นั่งลงก่อน'
+      : 'เจ้ามาไกลเพื่อฟังคนแก่พูดเรื่องต้นไม้ตายหรือ?',
+    lines: [
+      'ข้าสวดให้รากไม้ทุกคืน มันไม่ตอบ แต่บางคืนมันก็ร้องไห้',
+      'ความเงียบของป่านี้หนักกว่าที่เจ้าคิด'
+    ],
+    topics: [
+      {
+        id: 'hermit-forest',
+        label: 'เจ้าอยู่ในป่านี้มานานแค่ไหน?',
+        keys: ['ป่า', 'นาน', 'อยู่', 'แค่ไหน'],
+        reply: 'ข้าจำไม่ได้ว่ามากี่ฤดู ใบไม้ไม่ผลิอีกแล้วจึงไม่มีอะไรบอกเวลา ข้ารู้เพียงว่าทุกคืนที่มีหมอก ต้นไม้จะขยับเข้าหากัน'
+      },
+      {
+        id: 'hermit-pray',
+        label: 'ขอพรให้การเดินทางปลอดภัย',
+        keys: ['พร', 'สวด', 'ปลอดภัย', 'เดินทาง'],
+        effect: { rep: { church: 4 }, toast: 'ฤๅษีสวดพรให้เจ้า · ศาสนจักรพอใจ' },
+        reply: 'ขอให้แสงจันทร์ส่องทางเจ้า และขอให้สิ่งที่ตามเจ้ามองไม่เห็นเจ้าในคืนนี้'
+      }
+    ],
+    secretTopic: {
+      id: 'hermit-root',
+      label: 'ถามถึงเสียงร้องใต้รากไม้ (ความลับ)',
+      requiresRep: { faction: 'church', min: 10 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-root' },
+      reply: 'ใต้รากไม้มีห้องโถงขององค์กรโบราณ พวกเขาไม่ได้ผนึกประตูด้วยหิน แต่ผนึกด้วยชื่อของคนที่ยังมีชีวิต ข้าคือชื่อหนึ่งในนั้น'
+    }
+  },
+  {
+    id: 'scout',
+    name: 'พรานสำรวจชายแดน',
+    title: 'สายลับชายแดน · ราชอาณาจักร',
+    faction: 'kingdom',
+    nameColor: '#b5c288',
+    position: [-188, 0, -186],
+    color: 0x8a9b6a,
+    sprite: 'ranger',
+    schedule: [
+      { from: 0, to: .45, position: [-188, 0, -186] },
+      { from: .45, to: .7, position: [-180, 0, -178] },
+      { from: .7, to: 1, position: [-188, 0, -186] }
+    ],
+    greet: () => 'หยุดตรงนั้น ใครส่งเจ้ามา? ...ไม่เป็นไร เจ้าดูไม่เหมือนคนของพวกโจร',
+    lines: [
+      'ข้าถูกส่งมาดูว่าป่าด้านนี้ยังส่งเสียงหรือไม่',
+      'ถ้าเจ้าจะผ่านไปทางตะวันออก อย่าเก็บของที่วางอยู่กลางทาง'
+    ],
+    topics: [
+      {
+        id: 'scout-trail',
+        label: 'เจ้ากำลังตามรอยอะไรอยู่?',
+        keys: ['ตามรอย', 'รอย', 'อะไร', 'กำลัง'],
+        reply: 'รอยเท้าขนาดเท้าคน แต่หนักกว่าคนสามเท่า เดินเป็นวงกลมรอบวงหินทุกคืน ข้าไม่กล้าเข้าไปดูใกล้ๆ'
+      },
+      {
+        id: 'scout-beast',
+        label: 'มีสัตว์ร้ายใหม่แถวนี้ไหม?',
+        keys: ['สัตว์', 'ร้าย', 'ใหม่', 'หมาป่า'],
+        reply: 'หมาป่ามืดยังอยู่ แต่ตัวที่ข้ากลัวคือคนที่เดินมากับมัน บางคนสวมเสื้อคลุมราชอาณาจักร แต่ไม่ตอบรหัสผ่าน'
+      }
+    ]
+  },
+  {
+    id: 'warden',
+    name: 'นักเวทพเนจร',
+    title: 'ผู้เร่ร่อน · องค์กรโบราณ',
+    faction: 'ancient',
+    nameColor: '#b7c1ff',
+    position: [146, 0, 66],
+    color: 0x9aa8ec,
+    sprite: 'priest',
+    schedule: [
+      { from: 0, to: .4, position: [146, 0, 66] },
+      { from: .4, to: .7, position: [154, 0, 60] },
+      { from: .7, to: 1, position: [146, 0, 66] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'เจ้าไม่มีสิทธิ์ยืนในที่ที่คำสัญญาถูกจดไว้'
+      : 'ข้ารู้สึกได้ว่าเจ้าเคยแตะแผ่นศิลาของเรา',
+    lines: [
+      'เวทของเราไม่ใช่ไฟหรือน้ำแข็ง แต่คือการยืมความหนาวจากที่ที่ไม่มีแสง',
+      'ทุกคาถามีราคา บางทีราคาคือความทรงจำ'
+    ],
+    topics: [
+      {
+        id: 'warden-magic',
+        label: 'เวทของเจ้าทำงานอย่างไร?',
+        keys: ['เวท', 'ทำงาน', 'อย่างไร', 'คาถา'],
+        reply: 'ข้าไม่ได้สร้างความหนาว ข้าแค่เปิดช่องเล็กๆ ให้ความหนาวจากอีกด้านไหลผ่าน ถ้าเปิดกว้างเกินไป มันจะไม่ยอมปิด'
+      },
+      {
+        id: 'warden-hire',
+        label: 'จ้างสหายร่วมทาง',
+        keys: ['จ้าง', 'สหาย', 'ร่วมทาง', 'เดินด้วย'],
+        companionId: 'warden',
+        effect: { action: 'hire', companion: 'warden' },
+        reply: 'ข้าจะไปกับเจ้า ความหนาวของข้าอาจทำให้ศัตรูช้าลง แต่เจ้าต้องไม่ยืนใกล้เกินไปตอนข้าร่าย'
+      },
+      {
+        id: 'warden-frost',
+        label: 'ความหนาวจากอีกด้านคืออะไร?',
+        keys: ['หนาว', 'อีกด้าน', 'ความ', 'น้ำแข็ง'],
+        reply: 'ที่ที่ไม่มีแสงยังมีลมอยู่ ลมนั้นพัดผ่านประตูที่องค์กรผนึกไว้ เมื่อมันรั่วออกมา มันจะพาความอบอุ่นของคนที่ยืนใกล้ไปด้วย'
+      }
+    ]
+  },
+  {
+    id: 'scholar',
+    name: 'นักปราชญ์วาร์นฮัล',
+    title: 'ผู้จดบันทึกประวัติศาสตร์ · องค์กรโบราณ',
+    faction: 'ancient',
+    nameColor: '#c9a6f0',
+    position: [172, 0, 44],
+    color: 0xb58ce0,
+    sprite: 'sage',
+    schedule: [
+      { from: 0, to: 1, position: [172, 0, 44] }
+    ],
+    greet: () => 'ระวัง อย่าเหยียบหน้ากระดาษที่ปลิวอยู่ ข้าใช้เวลาสามปีเรียงมัน',
+    lines: [
+      'ประวัติศาสตร์ของวาร์นฮัลถูกเขียนซ้ำสามครั้ง ทุกครั้งมีชื่อกษัตริย์หายไปหนึ่งชื่อ',
+      'ข้าเก็บเฉพาะสิ่งที่คนอื่นเผาไม่หมด'
+    ],
+    topics: [
+      {
+        id: 'scholar-city',
+        label: 'วาร์นฮัลเคยรุ่งเรืองแค่ไหน?',
+        keys: ['วาร์นฮัล', 'รุ่งเรือง', 'เมือง', 'เคย'],
+        reply: 'เคยมีหอสมุดสามชั้นและตลาดที่เปิดทั้งคืน ตอนนี้เหลือตลาดกลางกับหอสมุดที่ไฟไหม้ไปครึ่งหนึ่ง ข้ายังนอนในปีกที่เหลืออยู่'
+      },
+      {
+        id: 'scholar-order',
+        label: 'องค์กรโบราณคือใคร?',
+        keys: ['องค์กร', 'โบราณ', 'ใคร', 'สมาคม'],
+        reply: 'พวกเขาไม่ใช่ศาสนจักรและไม่ใช่ราชสำนัก พวกเขาคือคนที่จดคำสัญญาระหว่างมนุษย์กับประตู หลังประตูปิด พวกเขาก็หายไปพร้อมคำสัญญา'
+      }
+    ],
+    secretTopic: {
+      id: 'scholar-lastking',
+      label: 'ถามถึงกษัตริย์ที่หายไปจากบันทึก (ความลับ)',
+      requiresRep: { faction: 'ancient', min: 8 },
+      effect: { rep: { ancient: 3 }, flag: 'secret-lastking' },
+      reply: 'กษัตริย์องค์สุดท้ายไม่ได้หายไป พระองค์คือผู้ลงนามคนสุดท้าย ชื่อของพระองค์ถูกขูดออกเพราะประตูไม่ยอมรับพระองค์เป็นผู้เฝ้า'
+    }
+  },
+  {
+    id: 'guardcaptain',
+    name: 'นายทหารยามวาร์นฮัล',
+    title: 'ผู้คุมด่านกลางเมือง · ราชอาณาจักร',
+    faction: 'kingdom',
+    nameColor: '#e2c48a',
+    position: [166, 0, 34],
+    color: 0xd8b878,
+    sprite: 'soldier',
+    schedule: [
+      { from: 0, to: 1, position: [166, 0, 34] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'ข้าจำหน้าเจ้าได้จากประกาศของสมาคมพ่อค้า อย่าทำอะไรให้ข้าต้องทำงานหนัก'
+      : 'ผ่านได้ แต่ถ้าเห็นธงแดงสามผืนนอกกำแพง ให้รีบกลับมาบอกข้า',
+    lines: [
+      'กำแพงนี้สูงเท่าเดิมมาสี่สิบปี แต่คนที่เฝ้ามันเปลี่ยนไปทุกฤดู',
+      'ถ้าเจ้าฆ่าโจรได้ ข้าจดชื่อเจ้าไว้ในบัญชีรางวัล'
+    ],
+    topics: [
+      {
+        id: 'guard-duty',
+        label: 'ตอนนี้กองทหารกำลังทำอะไร?',
+        keys: ['กองทหาร', 'ทำอะไร', 'ตอนนี้', 'ยาม'],
+        reply: 'เราส่งคนออกไปดูชายป่าทุกวัน แต่ไม่เคยมีใครกลับมาครบทีม ข้ากำลังคิดว่าจะหยุดส่งคนไป หรือส่งไปทั้งกองดี'
+      },
+      {
+        id: 'guard-bounty',
+        label: 'แจ้งเบาะแสโจร (รับ 30 ทอง)',
+        keys: ['แจ้ง', 'เบาะแส', 'โจร', 'รางวัล'],
+        effect: { gold: 30, rep: { kingdom: 5 }, toast: 'กองทหารบันทึกเบาะแสของเจ้าแล้ว' },
+        reply: 'ขอบใจ ข้าจะส่งหน่วยลาดตระเวนไปตรวจทางใต้ เอานี่ไปเป็นค่าเหนื่อย ราชอาณาจักรไม่ลืมคนที่ช่วย'
+      }
+    ]
+  },
+  {
+    id: 'ashminer',
+    name: 'คนงานเหมืองเถ้าถ่าน',
+    title: 'คนขุดแร่ · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#c99a80',
+    position: [140, 0, -160],
+    color: 0xa0785e,
+    sprite: 'smith',
+    schedule: [
+      { from: 0, to: .5, position: [140, 0, -160] },
+      { from: .5, to: .75, position: [148, 0, -166] },
+      { from: .75, to: 1, position: [140, 0, -160] }
+    ],
+    greet: () => 'ระวังพื้นตรงนั้น มันบางเหมือนเปลือกไข่ ข้าสูญเสียเพื่อนไปสองคนเมื่อเดือนก่อน',
+    lines: [
+      'ใต้ภูเขานี้มีแร่ที่ร้อนจนต้องขุดตอนกลางคืน',
+      'ค่าจ้างดี แต่ไม่มีใครอยู่ครบฤดูกาล'
+    ],
+    topics: [
+      {
+        id: 'miner-mine',
+        label: 'เหมืองนี้ขุดอะไรอยู่?',
+        keys: ['เหมือง', 'ขุด', 'อะไร', 'แร่'],
+        reply: 'แร่ดำที่เอาไปตีอาวุธได้ แต่บางก้อนมีสีแดงเหมือนถ่านที่ยังไม่ดับ ขนขึ้นมาแล้วมันยังอุ่นอยู่ทั้งคืน'
+      },
+      {
+        id: 'miner-lava',
+        label: 'ลาวาในเหมืองอันตรายไหม?',
+        keys: ['ลาวา', 'อันตราย', 'ร้อน', 'ภูเขา'],
+        reply: 'มันไม่ใช่ลาวาธรรมดา มันไหลขึ้นบนเหมือนมีคนเรียกกลับ บางคืนเราต้องเอาน้ำเย็นราดทางเดิมซ้ำๆ เพื่อไม่ให้มันปีนมาถึงปากเหมือง'
+      }
+    ]
+  },
+  {
+    id: 'firepriest',
+    name: 'นักบวชไฟ',
+    title: 'ผู้เฝ้าปล่องภูเขา · ศาสนจักร',
+    faction: 'church',
+    nameColor: '#e8a074',
+    position: [176, 0, -196],
+    color: 0xd2845a,
+    sprite: 'priest',
+    schedule: [
+      { from: 0, to: 1, position: [176, 0, -196] }
+    ],
+    greet: ({ tier }) => tier === 'enemy'
+      ? 'ไฟที่นี่ไม่ตัดสินคน แต่ข้าตัดสิน'
+      : 'เจ้ามาใกล้พอที่จะได้ยินไฟพูดหรือยัง?',
+    lines: [
+      'เราไม่บูชาไฟ เราฟังมัน',
+      'ไฟที่เอ็มเบอร์พีคไม่เคยมอด เพราะมันไม่ใช่ไฟที่เราจุด'
+    ],
+    topics: [
+      {
+        id: 'priest-flame',
+        label: 'ทำไมไฟที่นี่ไม่มอด?',
+        keys: ['ไฟ', 'มอด', 'ทำไม', 'ไม่ดับ'],
+        reply: 'ใต้ปล่องมีห้องที่องค์กรโบราณจุดตะเกียงไว้ก่อนปิดประตู เปลวไฟนั้นไม่ต้องการอากาศ ไม่ต้องการเชื้อเพลิง มันต้องการเพียงคำสัญญาที่ถูกจำ'
+      },
+      {
+        id: 'priest-pilgrim',
+        label: 'นักแสวงบุญควรทำอะไรที่นี่?',
+        keys: ['แสวงบุญ', 'ทำอะไร', 'ที่นี่', 'ควร'],
+        reply: 'อย่าโยนของลงปล่อง อย่าพูดชื่อคนที่ยังมีชีวิต และถ้าได้ยินเสียงตัวเองตอบกลับมา ให้เดินถอยหลังจนพ้นขอบหิน'
+      }
+    ],
+    secretTopic: {
+      id: 'priest-heart',
+      label: 'ถามถึงหัวใจศิลาในปล่องไฟ (ความลับ)',
+      requiresRep: { faction: 'church', min: 12 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-heart' },
+      reply: 'หัวใจศิลาคือชิ้นส่วนสุดท้ายของประตู มันถูกฝังในปล่องไฟเพื่อไม่ให้ใครประกอบประตูกลับได้ แต่ศิลาทุกก้อนที่เจ้าเก็บมา... มันกำลังเรียกหากัน'
+    }
+  },
+  {
+    id: 'ferryman',
+    name: 'คนพายเรือมิเรฟอลล์',
+    title: 'ผู้พาข้ามทะเลสาบ · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#a8e0ee',
+    position: [-196, 0, 182],
+    color: 0x7fb8c8,
+    sprite: 'ranger',
+    schedule: [
+      { from: 0, to: .6, position: [-196, 0, 182] },
+      { from: .6, to: .85, position: [-188, 0, 190] },
+      { from: .85, to: 1, position: [-196, 0, 182] }
+    ],
+    greet: () => 'จะข้ามไปฝั่งโน้นหรือ? ข้าพาไปได้ แต่ไม่รับปากว่าจะพากลับมา',
+    lines: [
+      'น้ำในทะเลสาบนี้ไม่กี่ปีก็เปลี่ยนสี ไม่มีใครรู้ว่ามันเอาสีจากไหนมา',
+      'เรือข้ามฟากลำนี้ซ่อมมาแล้วสิบเอ็ดครั้ง ข้ายังไม่กล้าทิ้งมัน'
+    ],
+    topics: [
+      {
+        id: 'ferry-lake',
+        label: 'ทะเลสาบนี้มีอะไรอยู่ในน้ำ?',
+        keys: ['ทะเลสาบ', 'น้ำ', 'อะไร', 'ในน้ำ'],
+        reply: 'มีกระดิ่งกับหลังคาอาราม บางคืนที่น้ำนิ่ง เจ้าจะเห็นยอดแหลมโผล่ขึ้นมาแค่ปลายนิ้ว แล้วก็จมกลับไป'
+      },
+      {
+        id: 'ferry-cross',
+        label: 'จ้างพาข้ามทะเลสาบ (20 ทอง)',
+        keys: ['จ้าง', 'ข้าม', 'เรือ', 'พาไป'],
+        effect: { gold: -20, rep: { outcasts: 4 }, toast: 'คนพายเรือจดจำเจ้าไว้' },
+        reply: 'ขึ้นมาเถิด อย่าเอามือแตะน้ำถ้าไม่จำเป็น และถ้าเราเห็นไฟใต้น้ำ ให้หลับตาจนกว่าข้าจะบอก'
+      }
+    ],
+    secretTopic: {
+      id: 'ferry-bell',
+      label: 'ถามถึงกระดิ่งใต้น้ำ (ความลับ)',
+      requiresRep: { faction: 'outcasts', min: 8 },
+      effect: { rep: { ancient: 4 }, flag: 'secret-bell' },
+      reply: 'กระดิ่งนั้นดังเฉพาะเมื่อมีคนพูดชื่อกษัตริย์องค์สุดท้ายใกล้น้ำ อารามที่จมไม่ได้เก็บศพ มันเก็บชื่อที่ไม่มีใครกล้าออกเสียง'
+    }
+  },
+  {
+    id: 'netmender',
+    name: 'ช่างซ่อมอวน',
+    title: 'ช่างเย็บอวน · ผู้ถูกเนรเทศ',
+    faction: 'outcasts',
+    nameColor: '#a8c4ad',
+    position: [-150, 0, 150],
+    color: 0x86a08a,
+    sprite: 'smith',
+    schedule: [
+      { from: 0, to: 1, position: [-150, 0, 150] }
+    ],
+    greet: () => 'นั่งลงได้ ข้ายังต้องเย็บอวนอีกสามผืนก่อนพระอาทิตย์ตก',
+    lines: [
+      'อวนทุกผืนที่ขาด มีรอยฟันที่ทำด้วยของที่ไม่ใช่ปลา',
+      'เด็กในหมู่บ้านไม่กล้าลงน้ำแล้ว ข้าเลยต้องเย็บอวนให้ผู้ใหญ่ใช้แทน'
+    ],
+    topics: [
+      {
+        id: 'net-fish',
+        label: 'ชาวประมงจับอะไรได้บ้าง?',
+        keys: ['จับ', 'ปลา', 'ได้อะไร', 'อวน'],
+        reply: 'ปลาเงินกับปลาเงา ปลาเงานั้นเนื้อจืดแต่หนังใช้ทำถุงน้ำได้ดี ส่วนปลาเงินขายได้ราคาดีที่ตลาดวาร์นฮัล'
+      },
+      {
+        id: 'net-story',
+        label: 'รอยฟันในอวนเกิดจากอะไร?',
+        keys: ['รอยฟัน', 'อวน', 'เกิด', 'อะไร'],
+        reply: 'ข้าเคยเห็นครั้งเดียว มันเป็นเงาใต้เรือที่ใหญ่เท่าบ้าน มันไม่กัดอวน แต่ฟันของมันเกี่ยวไปตอนว่ายผ่าน ตอนนั้นข้าตัดอวนทิ้งแล้วพายกลับฝั่งทันที'
+      }
+    ]
   }
 ];
 
@@ -547,6 +1232,38 @@ const NPC_SPRITE_STYLES = {
       body: '#4d8f7e', light: '#6fb5a2', dark: '#2c574d',
       accent: '#c9a86a', skin: '#d5a47e', hood: '#3e6c60',
       eye: '#243a38', boot: '#25283a', metal: '#d8b45c'
+    }
+  },
+  soldier: {
+    kind: 'humanoid', variant: 'smith',
+    palette: {
+      body: '#6b6f7d', light: '#8d92a0', dark: '#3f434e',
+      accent: '#8c3a3a', skin: '#d5a47e', hood: '#4a4e5a',
+      eye: '#2a2020', boot: '#23262e', metal: '#c8cbd0'
+    }
+  },
+  ranger: {
+    kind: 'humanoid', variant: 'ranger',
+    palette: {
+      body: '#557a52', light: '#759a6e', dark: '#314a30',
+      accent: '#b5763a', skin: '#d5a47e', hood: '#3a5539',
+      eye: '#2a2020', boot: '#2b2118', metal: '#c8cbd0'
+    }
+  },
+  priest: {
+    kind: 'humanoid', variant: 'priest',
+    palette: {
+      body: '#8a8068', light: '#b0a488', dark: '#5a5240',
+      accent: '#c9a86a', skin: '#d5a47e', hood: '#6b624d',
+      eye: '#e8e2c8', boot: '#3a3428', metal: '#d8b45c'
+    }
+  },
+  rogue: {
+    kind: 'humanoid', variant: 'merchant',
+    palette: {
+      body: '#5b5148', light: '#7c7063', dark: '#37312b',
+      accent: '#9c5b3a', skin: '#d5a47e', hood: '#453d35',
+      eye: '#2a2020', boot: '#2b241d', metal: '#b8bcc4'
     }
   }
 };
@@ -577,7 +1294,8 @@ export function createSystems(ctx) {
   const {
     scene, player, state, toast, gainXp, updateHud,
     refreshEquipmentUI, defeatEnemy, enemies, staticLandmarks, regions,
-    getTerrainHeight, audio, worldBounds = WORLD_BOUNDS
+    getTerrainHeight, audio, worldBounds = WORLD_BOUNDS,
+    hireCompanion, getCompanionId, companionInfo
   } = ctx;
 
   function surfaceY(x, z, baseY = 0) {
@@ -1106,13 +1824,21 @@ export function createSystems(ctx) {
 
   function getNpcTexture(data) {
     if (!npcTextures.has(data.id)) {
-      npcTextures.set(
-        data.id,
-        createCharacterAtlas(NPC_SPRITE_STYLES[data.id] || {
-          kind: 'humanoid',
-          palette: { body: `#${data.color.toString(16).padStart(6, '0')}` }
-        })
-      );
+      const style = NPC_SPRITE_STYLES[data.sprite] ||
+        NPC_SPRITE_STYLES[data.id] ||
+        { kind: 'humanoid', palette: {} };
+      const palette = { ...(style.palette || {}) };
+
+      // New NPCs reuse an archetype silhouette but keep their own body tint,
+      // so the crowd reads as individuals without a texture per villager.
+      if (data.sprite && Number.isFinite(data.color)) {
+        const base = new THREE.Color(data.color);
+        palette.body = `#${base.getHexString()}`;
+        palette.light = `#${base.clone().offsetHSL(0, .04, .14).getHexString()}`;
+        palette.dark = `#${base.clone().offsetHSL(0, -.02, -.13).getHexString()}`;
+      }
+
+      npcTextures.set(data.id, createCharacterAtlas({ ...style, palette }));
     }
     return npcTextures.get(data.id);
   }
@@ -1527,6 +2253,16 @@ export function createSystems(ctx) {
 
   function topicLabel(topic) {
     if (topic.requiresRep) return `🔒 ${topic.label}`;
+    if (topic.companionId && typeof companionInfo === 'function') {
+      const info = companionInfo(topic.companionId);
+      if (info) {
+        const hired = typeof getCompanionId === 'function' &&
+          getCompanionId() === topic.companionId;
+        return hired
+          ? `${info.name} · กำลังร่วมทางกับเจ้า`
+          : `จ้าง ${info.name} (${info.cost} ทอง)`;
+      }
+    }
     return topic.label;
   }
 
@@ -1560,6 +2296,12 @@ export function createSystems(ctx) {
   function applyTopicEffect(npc, topic) {
     const effect = topic.effect;
     if (!effect) return true;
+
+    if (effect.action === 'hire') {
+      const hired = typeof hireCompanion === 'function' &&
+        hireCompanion(effect.companion);
+      return Boolean(hired);
+    }
 
     if (effect.gold && effect.gold < 0 && state.gold < -effect.gold) {
       toast(`ต้องมี ${-effect.gold} ทองก่อน`);
@@ -1757,7 +2499,10 @@ export function createSystems(ctx) {
     let nearestDistance = Infinity;
 
     for (const npc of npcs) {
-      const distance = player.position.distanceTo(npc.position);
+      const distance = Math.hypot(
+        player.position.x - npc.position.x,
+        player.position.z - npc.position.z
+      );
       if (distance < 4 && distance < nearestDistance) {
         nearest = npc;
         nearestDistance = distance;
@@ -2854,7 +3599,6 @@ export function createSystems(ctx) {
         const step = Math.min(distance, dt * .85);
         npc.position.x += dx / distance * step;
         npc.position.z += dz / distance * step;
-        npc.position.y = surfaceY(npc.position.x, npc.position.z, goal.y);
         npc.rotation.y = Math.atan2(dx, dz);
       } else {
         const nearX = player.position.x - npc.position.x;
@@ -2864,7 +3608,14 @@ export function createSystems(ctx) {
         }
       }
 
-      updateCharacterAnimation(npc.userData, dt, yaw, npc.rotation.y);
+      // Keep idle NPCs glued to the streamed terrain; otherwise a villager
+      // placed before its chunk loads would float at y=0 and never be
+      // reachable by the 3D interaction radius.
+      npc.position.y = surfaceY(npc.position.x, npc.position.z, goal.y);
+
+      if (npc.position.distanceTo(player.position) < 55) {
+        updateCharacterAnimation(npc.userData, dt, yaw, npc.rotation.y);
+      }
     }
   }
 
@@ -2935,7 +3686,10 @@ export function createSystems(ctx) {
       let text = '';
 
       for (const npc of npcs) {
-        if (player.position.distanceTo(npc.position) < 4) {
+        if (Math.hypot(
+          player.position.x - npc.position.x,
+          player.position.z - npc.position.z
+        ) < 4) {
           text = npc.userData.npcId === 'merchant'
             ? 'กด E คุย · B เปิดร้านค้า'
             : 'กด E / ใช้ เพื่อสนทนา';

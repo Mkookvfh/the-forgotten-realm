@@ -91,6 +91,17 @@ function drawCharacter(ctx, ox, oy, spec) {
       px(7, 17, 4, 9, '#3e6c60');
       px(21, 17, 4, 9, '#3e6c60');
     }
+    if (variant === 'ranger') {
+      px(11, 2, 2, 3, p.accent);
+      px(22, 19, 2, 9, p.dark);
+      px(21, 18, 4, 1, p.metal);
+    }
+    if (variant === 'priest') {
+      px(13, 16, 6, 8, p.accent);
+      px(14, 3, 4, 1, p.metal);
+      px(9, 24, 4, 4, p.hood);
+      px(19, 24, 4, 4, p.hood);
+    }
 
     if (attack) {
       px(side ? 23 : 6, 15, 9, 3, p.metal);

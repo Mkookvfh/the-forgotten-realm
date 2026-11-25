@@ -44,6 +44,14 @@ const comboUI = {
   layer: $('#float-layer')
 };
 
+const companionUI = {
+  chip: $('#companion-chip'),
+  name: $('#companion-name'),
+  role: $('#companion-role'),
+  dismiss: $('#companion-dismiss'),
+  info: $('#companion-info')
+};
+
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const settings = {
   quality: 'medium',
@@ -124,7 +132,8 @@ const state = {
   cartographer: 0,
   dungeonCleared: false,
   respawnPoint: null,
-  comboBest: 0
+  comboBest: 0,
+  companion: null
 };
 
 let toastTimer = 0;
@@ -1088,6 +1097,21 @@ const enemyTypes = {
     name: 'กวางวิญญาณ', hp: 2, damage: 0, speed: 3.2,
     aggro: 7, reach: 1, cooldown: 2, xp: 15,
     scale: .7, color: 0x58715c, emissive: 0x1b2c1f, eye: 0xbaff91
+  },
+  raider: {
+    name: 'โจรแดนเถ้าถ่าน', hp: 4, damage: 7, speed: 2.15,
+    aggro: 13, reach: 1.55, cooldown: 1.15, xp: 45,
+    scale: 1, color: 0x4a3a2e, emissive: 0x1a0f08, eye: 0xffb35c
+  },
+  revenant: {
+    name: 'ทหารกลายพันธุ์', hp: 8, damage: 11, speed: 1.3,
+    aggro: 13, reach: 2.0, cooldown: 1.45, xp: 85,
+    scale: 1.15, color: 0x3b4450, emissive: 0x14202a, eye: 0x9fe8ff
+  },
+  warlord: {
+    name: 'หัวหน้าโจร', hp: 15, damage: 14, speed: 1.35,
+    aggro: 16, reach: 2.6, cooldown: 1.5, xp: 180,
+    scale: 1.7, color: 0x5a2f2a, emissive: 0x2a0d0d, eye: 0xff7a4d
   }
 };
 
@@ -1142,6 +1166,30 @@ const enemySpriteStyles = {
     palette: {
       body: '#58715c', light: '#7c9a7f', dark: '#314434',
       accent: '#b6d9a2', eye: '#baff91'
+    }
+  },
+  raider: {
+    kind: 'humanoid', variant: 'merchant',
+    palette: {
+      body: '#4a3a2e', light: '#6b5441', dark: '#2b2119',
+      accent: '#8c3a2e', skin: '#c9936f', hood: '#3a2c22',
+      eye: '#2a2020', boot: '#241b14', metal: '#b0a184'
+    }
+  },
+  revenant: {
+    kind: 'humanoid', variant: 'smith',
+    palette: {
+      body: '#3b4450', light: '#596472', dark: '#20262e',
+      accent: '#5a8ba0', skin: '#8d9aa6', hood: '#2a323c',
+      eye: '#9fe8ff', boot: '#1a1f25', metal: '#c3ccd6'
+    }
+  },
+  warlord: {
+    kind: 'humanoid', boss: true, variant: 'smith',
+    palette: {
+      body: '#5a2f2a', light: '#8a4a3c', dark: '#331713',
+      accent: '#d8a23c', skin: '#b8825f', hood: '#47231d',
+      eye: '#ff7a4d', boot: '#2a1511', metal: '#d8b45c'
     }
   }
 };
@@ -1278,7 +1326,32 @@ const enemySpawns = [
   ['guardian', 20, 10],
   ['deer', -8, 24],
   ['boss', 160, -177],
-  ['dungeonBoss', -170, 160]
+  ['dungeonBoss', -170, 160],
+  // 0.13 · raider camps and patrols across every region
+  ['raider', 26, -18],
+  ['raider', 34, -30],
+  ['revenant', 22, -50],
+  ['warlord', 32, -40],
+  ['raider', -66, -28],
+  ['raider', -70, -48],
+  ['revenant', -58, -64],
+  ['raider', -118, -128],
+  ['raider', -128, -140],
+  ['revenant', -158, -118],
+  ['warlord', -124, -134],
+  ['wraith', -142, -190],
+  ['raider', 118, 30],
+  ['raider', 126, 44],
+  ['revenant', 190, 66],
+  ['warlord', 120, 38],
+  ['raider', 128, -140],
+  ['raider', 138, -148],
+  ['revenant', 186, -158],
+  ['warlord', 132, -146],
+  ['raider', -128, 138],
+  ['raider', -138, 148],
+  ['revenant', -180, 138],
+  ['warlord', -132, 142]
 ];
 
 for (const [type, x, z] of enemySpawns) spawnEnemy(type, x, z);
@@ -1309,6 +1382,12 @@ const systems = createSystems({
   updateHud,
   refreshEquipmentUI,
   defeatEnemy,
+  hireCompanion,
+  getCompanionId: () => state.companion,
+  companionInfo: (id) => {
+    const def = COMPANION_DEFS[id];
+    return def ? { name: def.name, cost: def.cost, role: def.role } : null;
+  },
   getTerrainHeight,
   teleportTo: (x, z) => {
     const ground = getTerrainHeight(x, z, player.position.y);
@@ -1720,7 +1799,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 10,
+    version: 11,
     slot,
     dungeonActive,
     player: [
@@ -1842,6 +1921,9 @@ function loadGame(slot = currentSlot) {
     );
     state.skillPoints = Math.max(0, Number(data.state.skillPoints) || 0);
     state.comboBest = Math.max(0, Math.round(Number(data.state.comboBest) || 0));
+    state.companion = COMPANION_DEFS[data.state.companion]
+      ? data.state.companion
+      : null;
     breakCombo();
     if (comboUI.best) comboUI.best.textContent = String(state.comboBest);
     state.potions = Math.max(0, state.potions);
@@ -1967,6 +2049,7 @@ function loadGame(slot = currentSlot) {
     const slotSelect = $('#save-slot');
     if (slotSelect) slotSelect.value = String(slot);
 
+    syncCompanionFromState();
     applySettings();
     updateHud();
     refreshEquipmentUI();
@@ -2139,6 +2222,344 @@ function spawnFloatText(text, tone = 'leech') {
   setTimeout(() => node.remove(), 1200);
 }
 
+// ---------- Update 0.13 · Wayfarer's Bond (hireable companion) ----------
+/* One hired blade walks with the player: it follows, auto-attacks nearby
+   enemies and never feeds the Blood Pact combo. Hiring happens through
+   dialogue with the three mercenary NPCs spread across the map. */
+const COMPANION_DEFS = {
+  sellsword: {
+    name: 'ทหารรับจ้าง', role: 'ดาบประชิด · คอยคุ้มกันข้างกาย',
+    cost: 220, damage: 3.4, range: 3.0, cooldown: 1.0,
+    color: 0xc9773f
+  },
+  ranger: {
+    name: 'พรานเถ้าถ่าน', role: 'ธนูยาว · ยิงจากระยะไกล',
+    cost: 260, damage: 2.3, range: 12, cooldown: .95,
+    color: 0x7fc48a, bolt: 0xffd27a
+  },
+  warden: {
+    name: 'นักเวทพเนจร', role: 'เวทเหมันต์ · ทำให้ศัตรูช้าลง',
+    cost: 320, damage: 2.9, range: 10, cooldown: 1.35,
+    color: 0x9aa8ec, bolt: 0x9fe8ff, slow: 1.8
+  }
+};
+
+const companionSpriteStyles = {
+  sellsword: {
+    kind: 'humanoid', variant: 'smith',
+    palette: {
+      body: '#a5623c', light: '#c98550', dark: '#5e341f',
+      accent: '#39404f', skin: '#d5a47e', hood: '#453222',
+      eye: '#2a2020', boot: '#2b2118', metal: '#cfd2d8'
+    }
+  },
+  ranger: {
+    kind: 'humanoid', variant: 'ranger',
+    palette: {
+      body: '#4f7a52', light: '#6f9c6d', dark: '#2d4a30',
+      accent: '#b5763a', skin: '#d5a47e', hood: '#3a5539',
+      eye: '#2a2020', boot: '#2b2118', metal: '#c8cbd0'
+    }
+  },
+  warden: {
+    kind: 'humanoid', variant: 'priest',
+    palette: {
+      body: '#56609c', light: '#7b86c6', dark: '#323a68',
+      accent: '#c9a86a', skin: '#d5a47e', hood: '#3d4677',
+      eye: '#e8e2c8', boot: '#25283a', metal: '#d8b45c'
+    }
+  }
+};
+
+const companionTextures = new Map();
+const companionShots = [];
+const companionFx = [];
+let companionMesh = null;
+let companionCooldown = 0;
+
+function getCompanionTexture(id) {
+  if (!companionTextures.has(id)) {
+    companionTextures.set(
+      id,
+      createCharacterAtlas(companionSpriteStyles[id] || companionSpriteStyles.sellsword)
+    );
+  }
+  return companionTextures.get(id);
+}
+
+function refreshCompanionHud() {
+  const chip = companionUI.chip;
+  if (!chip) return;
+
+  const def = COMPANION_DEFS[state.companion];
+  if (!def) {
+    chip.classList.add('hidden');
+    if (companionUI.info) companionUI.info.textContent = 'ไม่มี';
+    return;
+  }
+
+  chip.classList.remove('hidden');
+  if (companionUI.info) companionUI.info.textContent = def.name;
+  chip.style.setProperty(
+    '--ally-accent',
+    `#${def.color.toString(16).padStart(6, '0')}`
+  );
+  if (companionUI.name) companionUI.name.textContent = def.name;
+  if (companionUI.role) companionUI.role.textContent = def.role;
+}
+
+function removeCompanionMesh() {
+  if (!companionMesh) return;
+  scene.remove(companionMesh);
+  companionMesh = null;
+}
+
+function spawnCompanion(id, { silent = false } = {}) {
+  const def = COMPANION_DEFS[id];
+  if (!def) return false;
+
+  removeCompanionMesh();
+
+  const group = new THREE.Group();
+  const sprite = createCharacterSprite(getCompanionTexture(id), 1.5, 2);
+  group.add(sprite);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(.4, 16),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000, transparent: true, opacity: .25, depthWrite: false
+    })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.025;
+  group.add(shadow);
+
+  const mark = new THREE.Mesh(
+    new THREE.TorusGeometry(.46, .035, 6, 20),
+    new THREE.MeshBasicMaterial({ color: def.color })
+  );
+  mark.rotation.x = Math.PI / 2;
+  mark.position.y = .06;
+  group.add(mark);
+
+  const angle = player.rotation.y + Math.PI * .7;
+  const spawnX = player.position.x + Math.sin(angle) * 1.8;
+  const spawnZ = player.position.z + Math.cos(angle) * 1.8;
+  const spawnY = getTerrainHeight(spawnX, spawnZ, player.position.y) ?? player.position.y;
+  group.position.set(spawnX, spawnY, spawnZ);
+  group.userData = {
+    kind: 'companion',
+    companionId: id,
+    sprite,
+    animTime: 0,
+    hurtTimer: 0,
+    attackTimer: 0,
+    deathTimer: 0,
+    directionRow: 0,
+    moving: false,
+    baseTint: 0xffffff,
+    target: new THREE.Vector3(spawnX, spawnY, spawnZ)
+  };
+
+  scene.add(group);
+  companionMesh = group;
+  companionCooldown = .7;
+  state.companion = id;
+  refreshCompanionHud();
+
+  if (!silent) {
+    audio.play('level');
+    toast(`${def.name}ร่วมเดินทางกับเจ้าแล้ว`);
+  }
+  return true;
+}
+
+function hireCompanion(id) {
+  const def = COMPANION_DEFS[id];
+  if (!def) return false;
+  if (state.companion === id) {
+    toast(`${def.name}ยังร่วมทางอยู่กับเจ้า`);
+    return false;
+  }
+  if (state.companion) {
+    toast('แยกทางกับสหายคนเดิมก่อนจึงจะจ้างคนใหม่ได้');
+    return false;
+  }
+  if (state.gold < def.cost) {
+    toast(`ต้องมี ${def.cost} ทองจึงจะจ้าง${def.name}ได้`);
+    return false;
+  }
+
+  state.gold -= def.cost;
+  spawnCompanion(id);
+  updateHud();
+  return true;
+}
+
+function dismissCompanion(announce = true) {
+  const def = COMPANION_DEFS[state.companion];
+  if (!def) return false;
+
+  removeCompanionMesh();
+  state.companion = null;
+  refreshCompanionHud();
+  if (announce) toast(`${def.name}แยกทางแล้ว`);
+  return true;
+}
+
+function syncCompanionFromState() {
+  if (state.companion && COMPANION_DEFS[state.companion]) {
+    spawnCompanion(state.companion, { silent: true });
+  } else {
+    state.companion = null;
+    removeCompanionMesh();
+  }
+  refreshCompanionHud();
+}
+
+function spawnCompanionSpark(position, color) {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    color, transparent: true, opacity: .9,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  sprite.scale.setScalar(.9);
+  sprite.position.copy(position);
+  scene.add(sprite);
+  companionFx.push({ sprite, life: .22, max: .22, baseScale: .9 });
+}
+
+function updateCompanion(dt, yaw) {
+  for (let i = companionShots.length - 1; i >= 0; i--) {
+    const shot = companionShots[i];
+    shot.t += dt;
+    const k = Math.min(1, shot.t / shot.duration);
+    shot.mesh.position.lerpVectors(shot.from, shot.to, k);
+    shot.mesh.position.y += Math.sin(k * Math.PI) * .18;
+
+    if (k >= 1) {
+      damageEnemy(shot.target, shot.damage, { companion: true, slow: shot.slow });
+      spawnCompanionSpark(shot.to, shot.color);
+      scene.remove(shot.mesh);
+      shot.mesh.geometry.dispose();
+      shot.mesh.material.dispose();
+      companionShots.splice(i, 1);
+    }
+  }
+
+  for (let i = companionFx.length - 1; i >= 0; i--) {
+    const fx = companionFx[i];
+    fx.life -= dt;
+    const ratio = Math.max(0, fx.life / fx.max);
+    fx.sprite.material.opacity = ratio;
+    fx.sprite.scale.setScalar(fx.baseScale * (1 + (1 - ratio) * .9));
+    if (fx.life <= 0) {
+      scene.remove(fx.sprite);
+      fx.sprite.material.dispose();
+      companionFx.splice(i, 1);
+    }
+  }
+
+  if (!companionMesh || !state.companion) return;
+  const def = COMPANION_DEFS[state.companion];
+  const data = companionMesh.userData;
+
+  // Stand just behind the player's shoulder, mirrored to the left side.
+  const forwardX = Math.sin(player.rotation.y);
+  const forwardZ = Math.cos(player.rotation.y);
+  const goalX = player.position.x - forwardX * 1.5 + forwardZ * 1.5;
+  const goalZ = player.position.z - forwardZ * 1.5 - forwardX * 1.5;
+  const dx = goalX - companionMesh.position.x;
+  const dz = goalZ - companionMesh.position.z;
+  const distance = Math.hypot(dx, dz);
+
+  if (distance > 26) {
+    const ground = getTerrainHeight(goalX, goalZ, player.position.y);
+    companionMesh.position.set(
+      goalX,
+      Number.isFinite(ground) ? ground : player.position.y,
+      goalZ
+    );
+    data.moving = false;
+  } else if (distance > .8) {
+    const step = Math.min(distance, dt * 4.4);
+    companionMesh.position.x += dx / distance * step;
+    companionMesh.position.z += dz / distance * step;
+    companionMesh.rotation.y = Math.atan2(dx, dz);
+    data.moving = true;
+  } else {
+    companionMesh.rotation.y = player.rotation.y;
+    data.moving = false;
+  }
+
+  const terrainY = getTerrainHeight(
+    companionMesh.position.x,
+    companionMesh.position.z,
+    companionMesh.position.y
+  );
+  if (terrainY !== null) companionMesh.position.y = terrainY;
+
+  updateCharacterAnimation(data, dt, yaw, companionMesh.rotation.y);
+
+  companionCooldown = Math.max(0, companionCooldown - dt);
+  if (companionCooldown > 0) return;
+
+  let target = null;
+  let bestDistance = Infinity;
+  for (const enemy of enemies) {
+    if (!enemy.userData.alive) continue;
+    const ex = enemy.position.x - companionMesh.position.x;
+    const ez = enemy.position.z - companionMesh.position.z;
+    const enemyDistance = Math.hypot(ex, ez);
+    if (enemyDistance > 14) continue;
+    if (Math.hypot(
+      enemy.position.x - player.position.x,
+      enemy.position.z - player.position.z
+    ) > 26) continue;
+    if (enemyDistance < bestDistance) {
+      bestDistance = enemyDistance;
+      target = enemy;
+    }
+  }
+
+  if (!target || bestDistance > def.range) return;
+
+  companionMesh.rotation.y = Math.atan2(
+    target.position.x - companionMesh.position.x,
+    target.position.z - companionMesh.position.z
+  );
+  companionCooldown = def.cooldown;
+
+  if (def.bolt) {
+    const from = companionMesh.position.clone();
+    from.y += 1.25;
+    const to = target.position.clone();
+    to.y += 1.1;
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(.11, 6, 5),
+      new THREE.MeshBasicMaterial({ color: def.bolt })
+    );
+    mesh.position.copy(from);
+    scene.add(mesh);
+    companionShots.push({
+      mesh, from, to, target,
+      damage: def.damage, slow: def.slow || 0,
+      color: def.bolt, t: 0, duration: .16
+    });
+    audio.play('attack');
+  } else {
+    damageEnemy(target, def.damage, { companion: true });
+    spawnCompanionSpark(
+      target.position.clone().setY(target.position.y + 1.1),
+      def.color
+    );
+    audio.play('hit');
+  }
+}
+
+if (companionUI.dismiss) {
+  companionUI.dismiss.addEventListener('click', () => dismissCompanion());
+}
+
 function gainXp(amount) {
   state.xp += amount;
 
@@ -2219,15 +2640,17 @@ function damageEnemy(enemy, amount, options = {}) {
     data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
   }
 
-  registerComboHit();
-  const tier = comboStats();
-  if (tier.leech > 0) healFromBloodPact(tier.leech);
+  // Only the player's own weapon feeds the Blood Pact; companion hits do not.
+  if (!options.companion) {
+    registerComboHit();
+    const tier = comboStats();
+    if (tier.leech > 0) healFromBloodPact(tier.leech);
+  }
 
   if (data.hp <= 0) defeatEnemy(enemy);
 
   return dealt;
 }
-
 function spawnProjectile(weapon, damage) {
   const forwardX = Math.sin(player.rotation.y);
   const forwardZ = Math.cos(player.rotation.y);
@@ -2857,11 +3280,13 @@ function updateWorld(dt, yaw) {
     data.healthFill.scale.x = hpRatio;
     data.healthFill.position.x = -(1 - hpRatio) * 0.46;
 
-    const barWorldRotation = camera.quaternion.clone();
-    barWorldRotation.premultiply(enemy.quaternion.clone().invert());
-    data.healthBar.quaternion.copy(barWorldRotation);
-    data.healthBar.visible = distance < stats.aggro + 2;
-
+    const showBar = distance < stats.aggro + 2;
+    data.healthBar.visible = showBar;
+    if (showBar) {
+      const barWorldRotation = camera.quaternion.clone();
+      barWorldRotation.premultiply(enemy.quaternion.clone().invert());
+      data.healthBar.quaternion.copy(barWorldRotation);
+    }
     data.cooldown = Math.max(0, data.cooldown - dt);
 
     data.moving = false;
@@ -2913,7 +3338,7 @@ function updateWorld(dt, yaw) {
     );
     enemy.position.y = terrainY === null ? data.baseY : terrainY;
 
-    if (!isBoss) {
+    if (!isBoss && distance < 42) {
       for (const other of enemies) {
         if (other === enemy || !other.userData.alive) continue;
         const odx = enemy.position.x - other.position.x;
@@ -2927,7 +3352,9 @@ function updateWorld(dt, yaw) {
       }
     }
 
-    updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
+    if (distance < 70) {
+      updateCharacterAnimation(data, dt, yaw, enemy.rotation.y);
+    }
   }
 }
 
@@ -3362,6 +3789,7 @@ body.rotation.x = -attackGlow * .22;
   }
 
   updateWorld(dt, yaw);
+  updateCompanion(dt, yaw);
   systems.update(dt, yaw);
 
   const portalHintDistance = Math.hypot(
