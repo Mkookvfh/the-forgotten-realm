@@ -2874,6 +2874,28 @@ function completeDungeonIfReady() {
   updateHud();
 }
 
+function respawnEnemy(enemy) {
+  const data = enemy.userData;
+  const terrainY = getTerrainHeight(data.homeX, data.homeZ, data.baseY) ?? data.baseY;
+
+  data.hp = data.maxHp;
+  data.alive = true;
+  data.respawnTimer = 0;
+  data.deathTimer = 0;
+  data.cooldown = 1 + Math.random() * 2;
+  data.phase = 1;
+  data.phaseMultiplier = 1;
+  data.slowTimer = 0;
+  data.position = undefined;
+  enemy.position.set(data.homeX, terrainY, data.homeZ);
+  enemy.rotation.set(0, 0, 0);
+  enemy.scale.setScalar(data.baseScale);
+  data.healthFill.scale.x = 1;
+  data.healthFill.position.x = 0;
+  resetEnemySprite(enemy);
+  scene.add(enemy);
+}
+
 function defeatEnemy(enemy) {
   if (!enemy.userData.alive) return;
 
@@ -2885,6 +2907,17 @@ function defeatEnemy(enemy) {
   data.hurtTimer = 0;
   data.attackTimer = 0;
   data.moving = false;
+
+  // Random respawn is for open-world enemies only; dungeon progress stays cleared.
+  if (!data.dungeon && type !== 'dungeonBoss') {
+    const isBoss = type === 'boss' || type === 'warlord';
+    const minDelay = isBoss ? 90 : 25;
+    const maxDelay = isBoss ? 180 : 65;
+    data.respawnTimer = minDelay + Math.random() * (maxDelay - minDelay);
+  } else {
+    data.respawnTimer = 0;
+  }
+
   data.healthBar.visible = false;
   setSpriteFrame(data.sprite, data.directionRow || 0, 0, 'death');
 
@@ -3603,7 +3636,13 @@ function updateWorld(dt, yaw) {
       continue;
     }
 
-    if (!data.alive) continue;
+    if (!data.alive) {
+      if (data.respawnTimer > 0) {
+        data.respawnTimer = Math.max(0, data.respawnTimer - dt);
+        if (data.respawnTimer <= 0) respawnEnemy(enemy);
+      }
+      continue;
+    }
 
     const stats = data.stats;
     const dx = player.position.x - enemy.position.x;
