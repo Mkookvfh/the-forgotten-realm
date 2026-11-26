@@ -20,6 +20,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
   const colliderGrid = new Map();
   const colliderCellSize = 12;
   const residents = [];
+  const cityRoots = [];
   const dummy = new THREE.Object3D();
   const wood = new THREE.MeshStandardMaterial({ color:0x493326, roughness:.92 });
   const plaster = new THREE.MeshStandardMaterial({ color:0xb49a75, roughness:.95 });
@@ -70,7 +71,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     const y=groundY(x,z);
     const w=(variant===0?6.8:5.5)*scale, d=(variant===0?5.8:5.2)*scale;
     const h=(variant===0?5.2:4.5)*scale;
-    const group=new THREE.Group(); group.position.set(x,y,z); root.add(group);
+    const group=new THREE.Group(); group.position.set(x,y,z); (city.root || root).add(group);
     const bodyMat=variant===0?plaster:stone;
     addBox(group,bodyMat,0,h/2,0,w,h,d);
     // Timber frame strips, door and warm windows are low-cost meshes.
@@ -111,12 +112,12 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     const homeX=city.x+Math.cos(angle)*radius;
     const homeZ=city.z+Math.sin(angle)*radius;
     group.position.set(homeX,groundY(homeX,homeZ),homeZ);
-    root.add(group);
+    (city.root || root).add(group);
     residents.push({mesh:group,city,homeX,homeZ,phase:index*1.7,speed:.45+(index%3)*.12,body,goalX:homeX,goalZ:homeZ,wait:1+index%4});
   }
   function makeLamp(city, lx,lz) {
     const x=city.x+lx*city.size,z=city.z+lz*city.size,y=groundY(x,z);
-    const group=new THREE.Group(); group.position.set(x,y,z); root.add(group);
+    const group=new THREE.Group(); group.position.set(x,y,z); (city.root || root).add(group);
     addBox(group,wood,0,1.4,0,.22,2.8,.22);
     addBox(group,wood,0,2.65,0,.8,.16,.16);
     const lightBox=addBox(group,lampMat,0,2.35,0,.38,.42,.38,false);
@@ -124,7 +125,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     addCollider(x,z,.22,.22);
   }
   for (const city of CITY_DEFS) {
-    const cityGroup=new THREE.Group(); cityGroup.name='Town_'+city.id; root.add(cityGroup);
+    const cityGroup=new THREE.Group(); cityGroup.name='Town_'+city.id; root.add(cityGroup); city.root=cityGroup; cityRoots.push({group:cityGroup,city});
     const size=city.size;
     // Main road and square intentionally remain open for navigation.
     const roadY=groundY(city.x,city.z)+.035;
@@ -142,7 +143,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     // Town hall/inn at the back of the plaza.
     const hallX=city.x, hallZ=city.z-27*size;
     const hallY=groundY(hallX,hallZ);
-    const hall=new THREE.Group(); hall.position.set(hallX,hallY,hallZ); root.add(hall);
+    const hall=new THREE.Group(); hall.position.set(hallX,hallY,hallZ); cityGroup.add(hall);
     addBox(hall,stone,0,4.2*size,0,12*size,8.4*size,8*size);
     addBox(hall,wood,0,2.2*size,4.08*size,2.2*size,4.4*size,.18*size);
     const hallRoof=new THREE.Mesh(new THREE.ConeGeometry(8.8*size,4.5*size,4),roofMaterials[1]);
@@ -152,7 +153,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     for (let i=0;i<3;i++) {
       const sx=city.x+(i-1)*5.2*size, sz=city.z+12*size;
       const sy=groundY(sx,sz);
-      const stall=new THREE.Group(); stall.position.set(sx,sy,sz); root.add(stall);
+      const stall=new THREE.Group(); stall.position.set(sx,sy,sz); cityGroup.add(stall);
       addBox(stall,wood,0,1.25*size,0,3.8*size,2.5*size,2.6*size);
       addBox(stall,roofMaterials[i%3],0,2.75*size,0,4.5*size,.28*size,3.3*size);
       addCollider(sx,sz,2.1*size,1.5*size);
@@ -179,8 +180,14 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
       }
       return false;
     },
-    update(dt) {
+    update(dt, playerX=0, playerZ=0) {
+      const activeRange = mobile ? 155 : 220;
+      for (const entry of cityRoots) {
+        const dx=entry.city.x-playerX,dz=entry.city.z-playerZ;
+        entry.group.visible = dx*dx+dz*dz < activeRange*activeRange;
+      }
       for (const npc of residents) {
+        if (!npc.city.root.visible) continue;
         npc.wait-=dt;
         const dx=npc.goalX-npc.mesh.position.x,dz=npc.goalZ-npc.mesh.position.z;
         const dist=Math.hypot(dx,dz);
