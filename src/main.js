@@ -586,15 +586,14 @@ const worldStreamer = createWorldStreamer({
   baseUrl: `${import.meta.env.BASE_URL}assets/world/`,
   detail: isTouch ? 2 : 3
 });
+let frontierWorld = null;
 const vegetation = createVegetationManager({
   scene,
-  getHeight: (x, z) => worldStreamer.getHeight(x, z),
+  getHeight: (x, z) => frontierWorld?.getHeight(x, z) ?? worldStreamer.getHeight(x, z),
   getRegion: (x, z) => worldStreamer.getRegion(x, z),
   mobile: isTouch
 });
 let fallbackHidden = false;
-
-let frontierWorld = null;
 worldStreamer.init().then((ok) => {
   if (!ok) {
     toast('ไม่พบข้อมูลโลกกว้าง ใช้แผนที่ต้นแบบแทน');
