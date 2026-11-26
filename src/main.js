@@ -49,6 +49,7 @@ const companionUI = {
   chip: $('#companion-chip'),
   name: $('#companion-name'),
   role: $('#companion-role'),
+  order: $('#companion-order'),
   dismiss: $('#companion-dismiss'),
   info: $('#companion-info')
 };
@@ -142,7 +143,8 @@ const state = {
   dungeonCleared: false,
   respawnPoint: null,
   comboBest: 0,
-  companion: null
+  companion: null,
+  companionOrder: 'follow'
 };
 
 let toastTimer = 0;
@@ -2085,6 +2087,8 @@ function loadGame(slot = currentSlot) {
     state.companion = COMPANION_DEFS[data.state.companion]
       ? data.state.companion
       : null;
+    // Older saves have no command field, so default them to follow mode.
+    state.companionOrder = data.state.companionOrder === 'hold' ? 'hold' : 'follow';
     breakCombo();
     if (comboUI.best) comboUI.best.textContent = String(state.comboBest);
     state.potions = Math.max(0, state.potions);
@@ -2467,6 +2471,15 @@ function refreshCompanionHud() {
   );
   if (companionUI.name) companionUI.name.textContent = def.name;
   if (companionUI.role) companionUI.role.textContent = def.role;
+
+  const holding = state.companionOrder === 'hold';
+  if (companionUI.order) {
+    companionUI.order.textContent = holding ? '↶ ตาม' : '⛺ เฝ้า';
+    companionUI.order.title = holding
+      ? 'สั่งให้สหายกลับมาติดตาม'
+      : 'สั่งให้สหายยืนเฝ้าตำแหน่ง';
+    companionUI.order.setAttribute('aria-label', companionUI.order.title);
+  }
 }
 
 function removeCompanionMesh() {
@@ -2563,6 +2576,7 @@ function dismissCompanion(announce = true) {
 
   removeCompanionMesh();
   state.companion = null;
+  state.companionOrder = 'follow';
   refreshCompanionHud();
   if (announce) toast(`${def.name}แยกทางแล้ว`);
   return true;
@@ -2624,31 +2638,36 @@ function updateCompanion(dt, yaw) {
   const def = COMPANION_DEFS[state.companion];
   const data = companionMesh.userData;
 
-  // Stand just behind the player's shoulder, mirrored to the left side.
-  const forwardX = Math.sin(player.rotation.y);
-  const forwardZ = Math.cos(player.rotation.y);
-  const goalX = player.position.x - forwardX * 1.5 + forwardZ * 1.5;
-  const goalZ = player.position.z - forwardZ * 1.5 - forwardX * 1.5;
-  const dx = goalX - companionMesh.position.x;
-  const dz = goalZ - companionMesh.position.z;
-  const distance = Math.hypot(dx, dz);
+  if (state.companionOrder !== 'hold') {
+    // Follow mode: stay just behind the player's shoulder.
+    const forwardX = Math.sin(player.rotation.y);
+    const forwardZ = Math.cos(player.rotation.y);
+    const goalX = player.position.x - forwardX * 1.5 + forwardZ * 1.5;
+    const goalZ = player.position.z - forwardZ * 1.5 - forwardX * 1.5;
+    const dx = goalX - companionMesh.position.x;
+    const dz = goalZ - companionMesh.position.z;
+    const distance = Math.hypot(dx, dz);
 
-  if (distance > 26) {
-    const ground = getTerrainHeight(goalX, goalZ, player.position.y);
-    companionMesh.position.set(
-      goalX,
-      Number.isFinite(ground) ? ground : player.position.y,
-      goalZ
-    );
-    data.moving = false;
-  } else if (distance > .8) {
-    const step = Math.min(distance, dt * 4.4);
-    companionMesh.position.x += dx / distance * step;
-    companionMesh.position.z += dz / distance * step;
-    companionMesh.rotation.y = Math.atan2(dx, dz);
-    data.moving = true;
+    if (distance > 26) {
+      const ground = getTerrainHeight(goalX, goalZ, player.position.y);
+      companionMesh.position.set(
+        goalX,
+        Number.isFinite(ground) ? ground : player.position.y,
+        goalZ
+      );
+      data.moving = false;
+    } else if (distance > .8) {
+      const step = Math.min(distance, dt * 4.4);
+      companionMesh.position.x += dx / distance * step;
+      companionMesh.position.z += dz / distance * step;
+      companionMesh.rotation.y = Math.atan2(dx, dz);
+      data.moving = true;
+    } else {
+      companionMesh.rotation.y = player.rotation.y;
+      data.moving = false;
+    }
   } else {
-    companionMesh.rotation.y = player.rotation.y;
+    // Hold mode: stay at the current spot and guard nearby; terrain still updates.
     data.moving = false;
   }
 
@@ -2715,6 +2734,19 @@ function updateCompanion(dt, yaw) {
     );
     audio.play('hit');
   }
+}
+
+if (companionUI.order) {
+  companionUI.order.addEventListener('click', () => {
+    if (!state.companion) return;
+    state.companionOrder = state.companionOrder === 'hold' ? 'follow' : 'hold';
+    refreshCompanionHud();
+    saveGame(false);
+    const def = COMPANION_DEFS[state.companion];
+    toast(state.companionOrder === 'hold'
+      ? `${def.name}จะยืนเฝ้าบริเวณนี้`
+      : `${def.name}กลับมาติดตามแล้ว`);
+  });
 }
 
 if (companionUI.dismiss) {
