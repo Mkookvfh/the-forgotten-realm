@@ -1485,6 +1485,7 @@ function spawnEnemy(type, x, z) {
     animTime: 0,
     hurtTimer: 0,
     attackTimer: 0,
+    telegraphTimer: 0,
     deathTimer: 0,
     respawnTimer: 0,
     deathDuration: .55,
@@ -2905,6 +2906,8 @@ function respawnEnemy(enemy) {
   data.respawnTimer = 0;
   data.deathTimer = 0;
   data.cooldown = 1 + Math.random() * 2;
+  data.telegraphTimer = 0;
+  data.attackTimer = 0;
   data.phase = 1;
   data.phaseMultiplier = 1;
   data.slowTimer = 0;
@@ -3723,6 +3726,37 @@ function updateWorld(dt, yaw) {
       if (distance > stats.reach) {
         moveEnemySafely(enemy, direction.x * dt * speed, direction.z * dt * speed);
         data.moving = true;
+      } else if (isBoss) {
+        // Boss attacks have a short, readable wind-up so players can dodge.
+        if (distance > stats.reach + 1) {
+          data.telegraphTimer = 0;
+        } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
+          data.telegraphTimer = data.phase === 3 ? .58 : .82;
+          data.attackTimer = data.telegraphTimer;
+          toast(`${data.name} เตรียมโจมตี! หลบออกจากระยะ!`);
+        } else if (data.telegraphTimer > 0) {
+          data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
+          data.attackTimer = data.telegraphTimer;
+          if (data.telegraphTimer <= 0) {
+            data.cooldown = stats.cooldown;
+            // Check position and dodge invulnerability again at impact.
+            if (distance <= stats.reach + .35 && invulnerabilityTimer <= 0) {
+              const cls = classDefs[state.classId] || {};
+              const incomingDamage = attackDamage *
+                (1 - armorReduction()) *
+                (1 - (cls.damageReduction || 0));
+              state.hp = Math.max(0, state.hp - incomingDamage);
+              hurtAnimTimer = .3;
+              cameraShake.trigger(.14);
+              audio.play('hit');
+              toast(`${data.name} โจมตีโดนคุณ -${Math.round(incomingDamage)}`);
+              if (state.hp <= 0) handlePlayerDeath();
+              updateHud();
+            } else {
+              toast('หลบการโจมตีสำเร็จ!');
+            }
+          }
+        }
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         const cls = classDefs[state.classId] || {};
         const incomingDamage = attackDamage *
@@ -3732,12 +3766,10 @@ function updateWorld(dt, yaw) {
         data.cooldown = stats.cooldown;
         data.attackTimer = .4;
         hurtAnimTimer = .3;
-        cameraShake.trigger(isBoss ? .14 : .075);
+        cameraShake.trigger(.075);
         audio.play('hit');
         toast(`${data.name}โจมตีคุณ -${Math.round(incomingDamage)}`);
-
         if (state.hp <= 0) handlePlayerDeath();
-
         updateHud();
       }
     } else {
