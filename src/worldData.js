@@ -53,7 +53,7 @@ export const REGIONS = [
     radius: 112,
     color: '#7fd4e8',
     description: 'ทะเลสาบต้องสาป หมู่บ้านหนองน้ำ และถ้ำใต้รากหิน'
-  }
+  },
   {
     id: 'frostwatch',
     name: 'ป้อมฟรอสต์วอตช์',
