@@ -53,17 +53,31 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     mesh.castShadow = cast; mesh.receiveShadow = true;
     parent.add(mesh); return mesh;
   }
-  function addCollider(x,z,halfX,halfZ) {
-    const collider={x,z,halfX,halfZ};
+  function addBoundsCollider(minX,maxX,minZ,maxZ) {
+    const collider={minX,maxX,minZ,maxZ};
     colliders.push(collider);
-    const minX=Math.floor((x-halfX)/colliderCellSize), maxX=Math.floor((x+halfX)/colliderCellSize);
-    const minZ=Math.floor((z-halfZ)/colliderCellSize), maxZ=Math.floor((z+halfZ)/colliderCellSize);
-    for(let gx=minX;gx<=maxX;gx++) for(let gz=minZ;gz<=maxZ;gz++) {
+    const gx0=Math.floor(minX/colliderCellSize), gx1=Math.floor(maxX/colliderCellSize);
+    const gz0=Math.floor(minZ/colliderCellSize), gz1=Math.floor(maxZ/colliderCellSize);
+    for(let gx=gx0;gx<=gx1;gx++) for(let gz=gz0;gz<=gz1;gz++) {
       const key=gx+':'+gz;
       let cell=colliderGrid.get(key);
       if(!cell) colliderGrid.set(key,cell=new Set());
       cell.add(collider);
     }
+  }
+  // Build one collider from each individual render mesh rather than one large
+  // rectangle for an entire building. This preserves doorways and open lanes.
+  function registerMeshColliders(group) {
+    group.updateMatrixWorld(true);
+    const bounds=new THREE.Box3();
+    group.traverse(object=>{
+      if(!object.isMesh || object.userData.noCollision || !object.geometry) return;
+      if(!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+      if(!object.geometry.boundingBox) return;
+      bounds.copy(object.geometry.boundingBox).applyMatrix4(object.matrixWorld);
+      if(!Number.isFinite(bounds.min.x) || !Number.isFinite(bounds.max.z)) return;
+      addBoundsCollider(bounds.min.x,bounds.max.x,bounds.min.z,bounds.max.z);
+    });
   }
   function makeHouse(city, localX, localZ, variant) {
     const scale=city.size;
@@ -91,7 +105,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     roof.position.y=h+roofH*.42; roof.rotation.y=Math.PI/4;
     roof.castShadow=true; roof.receiveShadow=true; group.add(roof);
     addBox(group,wood,0,h+roofH*.62,0,w*.9,.18,.18);
-    addCollider(x,z,w*.5+.18,d*.5+.18);
+    registerMeshColliders(group);
     return group;
   }
   function makeNpc(city,index) {
@@ -122,7 +136,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     addBox(group,wood,0,2.65,0,.8,.16,.16);
     const lightBox=addBox(group,lampMat,0,2.35,0,.38,.42,.38,false);
     lightBox.material=lampMat;
-    addCollider(x,z,.22,.22);
+    registerMeshColliders(group);
   }
   for (const city of CITY_DEFS) {
     const cityGroup=new THREE.Group(); cityGroup.name='Town_'+city.id; root.add(cityGroup); city.root=cityGroup; cityRoots.push({group:cityGroup,city});
@@ -148,7 +162,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     addBox(hall,wood,0,2.2*size,4.08*size,2.2*size,4.4*size,.18*size);
     const hallRoof=new THREE.Mesh(new THREE.ConeGeometry(8.8*size,4.5*size,4),roofMaterials[1]);
     hallRoof.position.y=9.4*size; hallRoof.rotation.y=Math.PI/4; hallRoof.castShadow=true; hall.add(hallRoof);
-    addCollider(hallX,hallZ,6.3*size,4.3*size);
+    registerMeshColliders(hall);
     // Market stalls at the plaza edges, no collision in the central walking lane.
     for (let i=0;i<3;i++) {
       const sx=city.x+(i-1)*5.2*size, sz=city.z+12*size;
@@ -156,7 +170,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
       const stall=new THREE.Group(); stall.position.set(sx,sy,sz); cityGroup.add(stall);
       addBox(stall,wood,0,1.25*size,0,3.8*size,2.5*size,2.6*size);
       addBox(stall,roofMaterials[i%3],0,2.75*size,0,4.5*size,.28*size,3.3*size);
-      addCollider(sx,sz,2.1*size,1.5*size);
+      registerMeshColliders(stall);
     }
     for (const [lx,lz] of [[-22,-22],[22,-22],[-22,22],[22,22]]) makeLamp(city,lx,lz);
     for (let i=0;i<(mobile?2:3);i++) makeNpc(city,i+residents.length);
@@ -174,7 +188,10 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
         const cell=colliderGrid.get(gx+':'+gz);
         if(!cell) continue;
         for(const c of cell) {
-          if(Math.abs(x-c.x) > c.halfX+radius || Math.abs(z-c.z) > c.halfZ+radius) continue;
+          const closestX=THREE.MathUtils.clamp(x,c.minX,c.maxX);
+          const closestZ=THREE.MathUtils.clamp(z,c.minZ,c.maxZ);
+          const dx=x-closestX,dz=z-closestZ;
+          if(dx*dx+dz*dz > radius*radius) continue;
           return true;
         }
       }
