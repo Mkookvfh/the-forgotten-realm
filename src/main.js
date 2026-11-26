@@ -16,6 +16,7 @@ import { createWorldStreamer } from './worldStreamer.js';
 import { createFrontierWorld } from './frontierWorld.js';
 import { createCityWorld } from './cities.js';
 import { createCinematic } from './cinematic.js';
+import { createAdaptiveResolution } from './adaptive-resolution.js';
 import { createPrologue } from './prologue.js';
 import { createCutsceneDirector } from './cutscene-director.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
@@ -427,6 +428,7 @@ renderer.domElement.setAttribute('aria-label', 'Game view');
 mount.appendChild(renderer.domElement);
 
 const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
+const adaptiveResolution = createAdaptiveResolution({ enabled: isTouch });
 
 // ---------- Sky ----------
 const SKY_SUN_DIR = new THREE.Vector3(-24, 40, 30).normalize();
@@ -3703,6 +3705,7 @@ function applySettings() {
       : Math.min(devicePixelRatio || 1, 1.5);
 
   renderer.setPixelRatio(ratio);
+  adaptiveResolution.reset(renderer, settings.quality);
   renderer.shadowMap.enabled = settings.quality !== 'low';
   const shadowResolution = settings.quality === 'high'
     ? (isTouch ? 1536 : 2048)
@@ -4502,6 +4505,7 @@ function animate(now = performance.now()) {
   } else if (!isPanelOpen()) {
     update(dt);
   }
+  adaptiveResolution.update(now, settings.quality, settings.fpsLimit, renderer, cinematic);
   cinematic.render();
 }
 
