@@ -3789,14 +3789,16 @@ function updateWorld(dt, yaw) {
         } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
           data.telegraphTimer = data.phase === 3 ? .58 : .82;
           data.attackTimer = data.telegraphTimer;
-          const phaseMove = data.phase === 3 ? 'คลื่นอเวจี!' : data.phase === 2 ? 'ฟาดวงกว้าง!' : 'โจมตี!';\n          toast(`${data.name} เตรียม ${phaseMove} หลบออกจากวงเตือน!`);
+          const phaseMove = data.phase === 3 ? 'คลื่นอเวจี!' : data.phase === 2 ? 'ฟาดวงกว้าง!' : 'โจมตี!';
+          toast(`${data.name} เตรียม ${phaseMove} หลบออกจากวงเตือน!`);
         } else if (data.telegraphTimer > 0) {
           data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
           data.attackTimer = data.telegraphTimer;
           if (data.telegraphTimer <= 0) {
             data.cooldown = stats.cooldown;
             // Check position and dodge invulnerability again at impact.
-            const attackRadius = stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .35);\n            if (distance <= attackRadius && invulnerabilityTimer <= 0) {
+            const attackRadius = stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .35);
+            if (distance <= attackRadius && invulnerabilityTimer <= 0) {
               const cls = classDefs[state.classId] || {};
               const incomingDamage = attackDamage *
                 (1 - armorReduction()) *
