@@ -17,6 +17,7 @@ import { createFrontierWorld } from './frontierWorld.js';
 import { createCityWorld } from './cities.js';
 import { createCinematic } from './cinematic.js';
 import { createPrologue } from './prologue.js';
+import { createCutsceneDirector } from './cutscene-director.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
@@ -1054,6 +1055,7 @@ scene.add(dungeonPortal);
 
 // ---------- Pixel Art Player ----------
 const player = new THREE.Group();
+const cutsceneDirector = createCutsceneDirector({ camera, player, mount });
 const body = new THREE.Group();
 player.add(body);
 
@@ -3292,6 +3294,12 @@ function enterDungeon() {
 
   const arenaY = getTerrainHeight(-28, -90, 0) ?? 0;
   player.position.set(-28, arenaY, -90);
+  const bossEnemy = enemies.find(e => e.userData.type === 'dungeonBoss' && e.userData.alive);
+  cutsceneDirector.play({
+    title: 'ถ้ำต้องสาป · ผู้คุมแห่งซากโบราณ',
+    target: bossEnemy ? bossEnemy.position : dungeonPortal.position,
+    duration: 6.2
+  });
   audio.play('boss');
   toast('คุณเข้าสู่ถ้ำต้องสาป · กำจัดผู้คุมถ้ำให้หมด');
 }
@@ -3316,6 +3324,7 @@ function interact() {
   if (player.position.distanceTo(shrine.position) < 5) {
     if (state.questStage === 0) {
       state.questStage = 1;
+      cutsceneDirector.play({ title: 'ภารกิจใหม่ · ผู้พิทักษ์แห่งซากโบราณ', target: shrine.position, duration: 4.8 });
       toast('ภารกิจใหม่: กำจัดผู้พิทักษ์');
     } else if (
       state.questStage === 1 &&
@@ -3734,6 +3743,10 @@ function applySettings() {
 
 // ---------- Main Update ----------
 function update(dt) {
+  if (cutsceneDirector.active) {
+    cutsceneDirector.update(dt);
+    return;
+  }
   cityWorld?.update(dt, player.position.x, player.position.z);
     autoSaveTimer += dt;
 
