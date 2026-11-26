@@ -1438,6 +1438,39 @@ function spawnEnemy(type, x, z) {
   enemyShadow.position.y = 0.025;
   enemy.add(enemyShadow);
 
+  // Ground warning marker for boss attack wind-ups.
+  let bossWarning = null;
+  if (type === 'boss' || type === 'dungeonBoss') {
+    bossWarning = new THREE.Group();
+    const warningFill = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0xff4b32,
+        transparent: true,
+        opacity: .18,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    );
+    warningFill.rotation.x = -Math.PI / 2;
+    warningFill.position.y = .035;
+    const warningRing = new THREE.Mesh(
+      new THREE.RingGeometry(.88, 1, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0xff5a32,
+        transparent: true,
+        opacity: .9,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    );
+    warningRing.rotation.x = -Math.PI / 2;
+    warningRing.position.y = .06;
+    bossWarning.add(warningFill, warningRing);
+    bossWarning.visible = false;
+    scene.add(bossWarning);
+  }
+
   const healthBar = new THREE.Group();
   const healthBack = new THREE.Mesh(
     new THREE.PlaneGeometry(1, .12),
@@ -1482,6 +1515,7 @@ function spawnEnemy(type, x, z) {
     healthBar,
     healthFill,
     sprite,
+    bossWarning,
     animTime: 0,
     hurtTimer: 0,
     attackTimer: 0,
@@ -2908,6 +2942,7 @@ function respawnEnemy(enemy) {
   data.cooldown = 1 + Math.random() * 2;
   data.telegraphTimer = 0;
   data.attackTimer = 0;
+  if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
   data.slowTimer = 0;
@@ -2930,6 +2965,8 @@ function defeatEnemy(enemy) {
   data.deathTimer = data.deathDuration;
   data.hurtTimer = 0;
   data.attackTimer = 0;
+  data.telegraphTimer = 0;
+  if (data.bossWarning) data.bossWarning.visible = false;
   data.moving = false;
 
   // Random respawn is for open-world enemies only; dungeon progress stays cleared.
@@ -3684,6 +3721,25 @@ function updateWorld(dt, yaw) {
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
     const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
+
+    if (data.bossWarning) {
+      const warning = data.bossWarning;
+      const warningRadius = Math.max(1.6, stats.reach + .45);
+      warning.visible = data.telegraphTimer > 0 && data.alive;
+      warning.position.set(
+        enemy.position.x,
+        (getTerrainHeight(enemy.position.x, enemy.position.z, data.baseY) ?? data.baseY) + .01,
+        enemy.position.z
+      );
+      warning.scale.setScalar(warningRadius * (1 + Math.sin(clock.elapsedTime * 12) * .035));
+      const warningColor = data.phase === 3 ? 0xff2020 : 0xff8738;
+      warning.children.forEach((part, index) => {
+        part.material.color.setHex(warningColor);
+        part.material.opacity = index === 0
+          ? .14 + Math.sin(clock.elapsedTime * 10) * .045
+          : .72 + Math.sin(clock.elapsedTime * 12) * .18;
+      });
+    }
 
     if (isBoss) updateBossPhase(enemy);
 
