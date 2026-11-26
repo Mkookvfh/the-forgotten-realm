@@ -1486,6 +1486,7 @@ function spawnEnemy(type, x, z) {
     hurtTimer: 0,
     attackTimer: 0,
     deathTimer: 0,
+    respawnTimer: 0,
     deathDuration: .55,
     directionRow: 0,
     moving: false,
@@ -2886,7 +2887,6 @@ function respawnEnemy(enemy) {
   data.phase = 1;
   data.phaseMultiplier = 1;
   data.slowTimer = 0;
-  data.position = undefined;
   enemy.position.set(data.homeX, terrainY, data.homeZ);
   enemy.rotation.set(0, 0, 0);
   enemy.scale.setScalar(data.baseScale);
