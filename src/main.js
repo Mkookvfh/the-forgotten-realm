@@ -588,6 +588,17 @@ const worldStreamer = createWorldStreamer({
   detail: isTouch ? 2 : 3
 });
 let frontierWorld = null;
+let cityWorld = null;
+function moveEnemySafely(enemy, dx, dz) {
+  const radius = enemy.userData.kind === 'animal' ? .42 : .5;
+  const blocked = (x,z) => worldStreamer.blocked(x,z,radius) ||
+    frontierWorld?.blocked(x,z,radius) || cityWorld?.blocked(x,z,radius);
+  const stuck = blocked(enemy.position.x,enemy.position.z);
+  const can = (x,z) => stuck || !blocked(x,z);
+  const nx=enemy.position.x+dx, nz=enemy.position.z+dz;
+  if(can(nx,enemy.position.z)) enemy.position.x=nx;
+  if(can(enemy.position.x,nz)) enemy.position.z=nz;
+}
 const vegetation = createVegetationManager({
   scene,
   getHeight: (x, z) => frontierWorld?.getHeight(x, z) ?? worldStreamer.getHeight(x, z),
@@ -3601,20 +3612,21 @@ function updateWorld(dt, yaw) {
     if (data.kind === 'animal' && data.type === 'deer') {
       if (distance < stats.aggro) {
         const away = new THREE.Vector3(-dx, 0, -dz).normalize();
-        enemy.position.addScaledVector(away, dt * speed);
+        moveEnemySafely(enemy, away.x * dt * speed, away.z * dt * speed);
         enemy.rotation.y = Math.atan2(away.x, away.z);
         data.moving = true;
       } else {
         const t = performance.now() * 0.0004 + data.homeZ;
-        enemy.position.x = data.homeX + Math.sin(t) * 1.6;
-        enemy.position.z = data.homeZ + Math.cos(t * .7) * 1.2;
+        const wanderX = data.homeX + Math.sin(t) * 1.6;
+        const wanderZ = data.homeZ + Math.cos(t * .7) * 1.2;
+        if (!worldStreamer.blocked(wanderX,wanderZ,.42) && !frontierWorld?.blocked(wanderX,wanderZ,.42) && !cityWorld?.blocked(wanderX,wanderZ,.42)) { enemy.position.x=wanderX; enemy.position.z=wanderZ; }
       }
     } else if (distance < stats.aggro) {
       const direction = new THREE.Vector3(dx, 0, dz).normalize();
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
 
       if (distance > stats.reach) {
-        enemy.position.addScaledVector(direction, dt * speed);
+        moveEnemySafely(enemy, direction.x * dt * speed, direction.z * dt * speed);
         data.moving = true;
       } else if (data.cooldown <= 0 && invulnerabilityTimer <= 0) {
         const cls = classDefs[state.classId] || {};
@@ -3634,8 +3646,9 @@ function updateWorld(dt, yaw) {
       }
     } else {
       const t = performance.now() * 0.0005 + data.homeZ;
-      enemy.position.x = data.homeX + Math.sin(t) * 1.2;
-      enemy.position.z = data.homeZ + Math.cos(t * 0.7) * 0.8;
+      const wanderX = data.homeX + Math.sin(t) * 1.2;
+      const wanderZ = data.homeZ + Math.cos(t * 0.7) * 0.8;
+      if (!worldStreamer.blocked(wanderX,wanderZ,.5) && !frontierWorld?.blocked(wanderX,wanderZ,.5) && !cityWorld?.blocked(wanderX,wanderZ,.5)) { enemy.position.x=wanderX; enemy.position.z=wanderZ; }
     }
 
     const terrainY = getTerrainHeight(
