@@ -560,6 +560,8 @@ const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
 moonGlow.position.set(-16, 12, -18);
 scene.add(moonGlow);
 
+const CAVE_FOG_COLOR = new THREE.Color(0x100c12);
+
 // ---------- Ground and world streaming ----------
 const fallbackWorld = new THREE.Group();
 fallbackWorld.name = 'FallbackWorld';
@@ -867,6 +869,113 @@ for (let i = 0; i < 8; i++) {
 }
 dungeonArena.position.set(-28, 0, -87);
 scene.add(dungeonArena);
+
+const dungeonCave = new THREE.Group();
+dungeonCave.name = 'DungeonCaveAtmosphere';
+dungeonCave.position.copy(dungeonArena.position);
+
+const caveShellGeometry = new THREE.SphereGeometry(19, 32, 22);
+const caveShellPositions = caveShellGeometry.attributes.position;
+for (let i = 0; i < caveShellPositions.count; i++) {
+  const x = caveShellPositions.getX(i);
+  const y = caveShellPositions.getY(i);
+  const z = caveShellPositions.getZ(i);
+  const roughness =
+    1 +
+    Math.sin(x * .34 + z * .21) * .035 +
+    Math.cos(y * .43 - x * .19) * .025;
+  caveShellPositions.setXYZ(i, x * roughness, y * roughness, z * roughness);
+}
+caveShellGeometry.computeVertexNormals();
+
+const caveShell = new THREE.Mesh(
+  caveShellGeometry,
+  new THREE.MeshStandardMaterial({
+    color: 0x28252a,
+    roughness: 1,
+    metalness: 0,
+    flatShading: true,
+    side: THREE.BackSide
+  })
+);
+caveShell.position.y = 4.2;
+caveShell.scale.set(1.08, .86, 1.08);
+caveShell.receiveShadow = true;
+dungeonCave.add(caveShell);
+
+const dungeonTorchLights = [];
+const dungeonTorchWood = new THREE.MeshStandardMaterial({
+  color: 0x39271b,
+  roughness: 1
+});
+const dungeonTorchIron = new THREE.MeshStandardMaterial({
+  color: 0x343238,
+  roughness: .82,
+  metalness: .25
+});
+
+for (let i = 0; i < 4; i++) {
+  const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+  const torch = new THREE.Group();
+  torch.position.set(Math.cos(angle) * 14.1, 0, Math.sin(angle) * 14.1);
+  torch.rotation.y = -angle;
+
+  const bracket = new THREE.Mesh(
+    new THREE.BoxGeometry(3.6, .12, .14),
+    dungeonTorchIron
+  );
+  bracket.position.set(1.65, 2.8, 0);
+  torch.add(bracket);
+
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(.1, .15, 1.55, 6),
+    dungeonTorchWood
+  );
+  shaft.position.set(-.08, 2.25, 0);
+  shaft.castShadow = true;
+  torch.add(shaft);
+
+  const ironCup = new THREE.Mesh(
+    new THREE.CylinderGeometry(.2, .14, .22, 6, 1, true),
+    dungeonTorchIron
+  );
+  ironCup.position.set(-.08, 3.08, 0);
+  torch.add(ironCup);
+
+  const flame = new THREE.Mesh(
+    new THREE.ConeGeometry(.23, .78, 6),
+    new THREE.MeshBasicMaterial({
+      color: 0xff7a2f,
+      transparent: true,
+      opacity: .9,
+      depthWrite: false
+    })
+  );
+  flame.position.set(-.08, 3.48, 0);
+  torch.add(flame);
+
+  const core = new THREE.Mesh(
+    new THREE.ConeGeometry(.12, .48, 5),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd27a,
+      transparent: true,
+      opacity: .92,
+      depthWrite: false
+    })
+  );
+  core.position.set(-.08, 3.42, 0);
+  torch.add(core);
+
+  const light = new THREE.PointLight(0xffa154, 2.8, 22, 2);
+  light.position.set(-.08, 3.55, 0);
+  torch.add(light);
+
+  dungeonCave.add(torch);
+  dungeonTorchLights.push({ flame, core, light, seed: i * 1.73 });
+}
+
+dungeonCave.visible = false;
+scene.add(dungeonCave);
 
 const dungeonPortal = new THREE.Group();
 const portalRing = new THREE.Mesh(
@@ -1826,6 +1935,7 @@ let hurtAnimTimer = 0;
 const dodgeDirection = new THREE.Vector3();
 let autoSaveTimer = 0;
 let dungeonActive = false;
+let dungeonAtmosphere = 0;
 let campOpen = false;
 let prevYaw = yaw;
 let lastSun = 1;
@@ -3130,6 +3240,15 @@ function updateDayNight(dt) {
     state.dayTime = (state.dayTime + dt * .0035) % 1;
   }
 
+  dungeonAtmosphere = THREE.MathUtils.damp(
+    dungeonAtmosphere,
+    dungeonActive ? 1 : 0,
+    2.4,
+    dt
+  );
+  const caveBlend = dungeonAtmosphere;
+  dungeonCave.visible = caveBlend > .01;
+
   let sun;
 
   if (dayNightMode === 'day') {
@@ -3141,12 +3260,20 @@ function updateDayNight(dt) {
   }
 
   
-moon.intensity = 2.8 * (1 - sun);
-sunLight.intensity = 2.55 * sun;
-hemi.intensity = 0.98 + 0.74 * sun;
-ambient.intensity = 0.76 + 0.06 * sun + cinematic.getFlash() * 1.7;
-moonGlow.intensity = 0.85 * (1 - sun);
-renderer.toneMappingExposure = 1.38 + 0.16 * (1 - sun);
+moon.intensity = THREE.MathUtils.lerp(2.8 * (1 - sun), .04, caveBlend);
+sunLight.intensity = THREE.MathUtils.lerp(2.55 * sun, 0, caveBlend);
+hemi.intensity = THREE.MathUtils.lerp(.98 + .74 * sun, .16, caveBlend);
+ambient.intensity = THREE.MathUtils.lerp(
+  .76 + .06 * sun + cinematic.getFlash() * 1.7,
+  .11 + cinematic.getFlash() * .55,
+  caveBlend
+);
+moonGlow.intensity = .85 * (1 - sun) * (1 - caveBlend);
+renderer.toneMappingExposure = THREE.MathUtils.lerp(
+  1.38 + .16 * (1 - sun),
+  1.02,
+  caveBlend
+);
   if (sky.material.uniforms.uExposure) {
     sky.material.uniforms.uExposure.value = renderer.toneMappingExposure;
   }
@@ -3154,8 +3281,8 @@ sunLight.color.lerpColors(cWarmSun, cWhiteSun, sun);
 lastSun = sun;
   
   // Use only one directional shadow light at a time
-  moon.castShadow = sun < 0.5;
-  sunLight.castShadow = sun >= 0.5;
+  moon.castShadow = sun < 0.5 && caveBlend < .5;
+  sunLight.castShadow = sun >= 0.5 && caveBlend < .5;
 
   // Keep ground visible at night
   ground.material.color.copy(groundNightColor)
@@ -3172,20 +3299,22 @@ lastSun = sun;
 
 sky.visible = true;
 sky.material.uniforms.uSun.value = sun;
-scene.background.copy(daylight);
-scene.fog.color.copy(daylight);
-fireflies.visible = sun < 0.65;
-fireflyMaterial.opacity = 0.75 * (1 - sun);
+scene.background.copy(daylight).lerp(CAVE_FOG_COLOR, caveBlend);
+scene.fog.color.copy(daylight).lerp(CAVE_FOG_COLOR, caveBlend);
+fireflies.visible = sun < 0.65 && caveBlend < .5;
+fireflyMaterial.opacity = 0.75 * (1 - sun) * (1 - caveBlend);
 
-motes.visible = sun > 0.18;
-moteMaterial.opacity = 0.30 * THREE.MathUtils.clamp((sun - 0.18) * 2.4, 0, 1);
+motes.visible = sun > 0.18 && caveBlend < .5;
+moteMaterial.opacity =
+  0.30 * THREE.MathUtils.clamp((sun - 0.18) * 2.4, 0, 1) * (1 - caveBlend);
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
-scene.fog.density = THREE.MathUtils.lerp(
+const outdoorFogDensity = THREE.MathUtils.lerp(
   0.0026,
   0.0042,
   nightFog
 );
+scene.fog.density = THREE.MathUtils.lerp(outdoorFogDensity, .034, caveBlend);
 
 cinematic.update(dt, sun, player.position);
 
@@ -3884,6 +4013,22 @@ body.rotation.x = -attackGlow * .22;
         ep.setZ(i, ep.getZ(i) + v.vz * dt);
       }
       ep.needsUpdate = true;
+    }
+  }
+
+  if (dungeonCave.visible) {
+    const t = performance.now() * .001;
+    for (const torch of dungeonTorchLights) {
+      const flicker =
+        Math.sin(t * 8.5 + torch.seed) * .5 +
+        Math.sin(t * 13.7 + torch.seed * 1.9) * .25;
+      torch.flame.scale.set(
+        .92 + flicker * .08,
+        .92 + Math.abs(flicker) * .16,
+        .92 + flicker * .08
+      );
+      torch.core.material.opacity = .78 + Math.abs(flicker) * .2;
+      torch.light.intensity = (2.65 + flicker * .55) * dungeonAtmosphere;
     }
   }
 
