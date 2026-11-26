@@ -1555,6 +1555,7 @@ const systems = createSystems({
     grounded = true;
     cameraReady = false;
     cameraEyeY = null;
+    cameraGroundY = null;
     breakCombo();
     worldStreamer.update(player.position);
   },
@@ -1937,7 +1938,6 @@ let autoSaveTimer = 0;
 let dungeonActive = false;
 let dungeonAtmosphere = 0;
 let campOpen = false;
-let prevYaw = yaw;
 let lastSun = 1;
 
 const cWarmSun = new THREE.Color(0xff9a5c);
@@ -1952,6 +1952,7 @@ let cameraReady = false;
 // feet in 0.5-1 m steps, which used to be copied straight into the camera.
 // We keep a separate, heavily damped height for the eye so the view glides.
 let cameraEyeY = null;
+let cameraGroundY = null;
 
 
 function saveGame(showMessage = true, slot = currentSlot) {
@@ -3903,8 +3904,6 @@ body.rotation.x = -attackGlow * .22;
   }
 
   const horizontal = Math.cos(pitch) * distance;
-  const yawDelta = yaw - prevYaw;
-  prevYaw = yaw;
 
   desiredCamera.set(
     smoothTarget.x + Math.sin(yaw) * horizontal,
@@ -3942,19 +3941,33 @@ body.rotation.x = -attackGlow * .22;
     camera.position.z,
     camera.position.y
   );
-  // Safety net only: the lifted target above should keep the eye clear, so
-  // this correction is a last resort for very steep cliffs.
-  if (cameraGround !== null && camera.position.y < cameraGround + .2) {
-    camera.position.y = cameraGround + .2;
-  }
+  if (cameraGround === null) {
+    cameraGroundY = null;
+  } else {
+    // The old safety clamp teleported the eye to each new terrain sample.
+    // Filter the floor height and ease the last-resort lift to avoid jolts.
+    const groundTarget = cameraGround + .42;
+    if (cameraGroundY === null) {
+      cameraGroundY = groundTarget;
+    } else {
+      const response = groundTarget > cameraGroundY ? 18 : 7;
+      cameraGroundY = THREE.MathUtils.damp(
+        cameraGroundY,
+        groundTarget,
+        response,
+        cameraDt
+      );
+    }
 
-  const rollTarget = THREE.MathUtils.clamp(-yawDelta * 0.9, -0.02, 0.02);
-  camera.rotation.z += (rollTarget - camera.rotation.z) * Math.min(1, dt * 5);
-
-  if (hurtAnimTimer > 0) {
-    const k = hurtAnimTimer * 0.06;
-    camera.position.x += (Math.random() - 0.5) * k;
-    camera.position.y += (Math.random() - 0.5) * k;
+    const minEyeY = Math.max(cameraGroundY, cameraGround + .22);
+    if (camera.position.y < minEyeY) {
+      camera.position.y = THREE.MathUtils.damp(
+        camera.position.y,
+        minEyeY,
+        24,
+        cameraDt
+      );
+    }
   }
 
   sky.position.copy(camera.position);
