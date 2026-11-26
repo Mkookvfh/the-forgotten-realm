@@ -1196,7 +1196,7 @@ window.theForgottenRealm.multiplayer = multiplayerSession;
 
 // ---------- Terrain Height Query ----------
 function getTerrainHeight(x, z, referenceY) {
-  return worldStreamer.getHeight(x, z);
+  return frontierWorld?.getHeight(x, z) ?? worldStreamer.getHeight(x, z);
 }
 
 // ---------- Collectibles ----------
@@ -3769,9 +3769,9 @@ function update(dt) {
   if (dodgeTimer > 0) {
     const moveX = dodgeDirection.x * 8.5 * dt;
     const moveZ = dodgeDirection.z * 8.5 * dt;
-    const stuckDodge = worldStreamer.blocked(player.position.x, player.position.z, .55);
+    const stuckDodge = worldStreamer.blocked(player.position.x, player.position.z, .55) || frontierWorld?.blocked(player.position.x, player.position.z, .55);
     const canDodgeTo = (x, z) => {
-      if (!stuckDodge && worldStreamer.blocked(x, z, .55)) return false;
+      if (!stuckDodge && (worldStreamer.blocked(x, z, .55) || frontierWorld?.blocked(x, z, .55))) return false;
       return obstacles.every(obstacle => {
         const dx = x - obstacle.x;
         const dz = z - obstacle.z;
@@ -3802,11 +3802,11 @@ function update(dt) {
     const moveZ = wz * speed * dt;
     const playerRadius = 0.55;
 
-    const stuck = worldStreamer.blocked(player.position.x, player.position.z, playerRadius);
+    const stuck = worldStreamer.blocked(player.position.x, player.position.z, playerRadius) || frontierWorld?.blocked(player.position.x, player.position.z, playerRadius);
     const canMoveTo = (x, z) => {
       // Never trap a body that already overlaps an obstacle (spawn, teleport,
       // or a prop streamed in on top of it): let it walk back out.
-      if (!stuck && worldStreamer.blocked(x, z, playerRadius)) return false;
+      if (!stuck && (worldStreamer.blocked(x, z, playerRadius) || frontierWorld?.blocked(x, z, playerRadius))) return false;
       return obstacles.every(obstacle => {
         const dx = x - obstacle.x;
         const dz = z - obstacle.z;
