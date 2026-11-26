@@ -2072,8 +2072,10 @@ function saveGame(showMessage = true, slot = currentSlot) {
         enemy.position.y,
         enemy.position.z
       ],
+      home: [enemy.userData.homeX, enemy.userData.homeZ],
       hp: enemy.userData.hp,
-      alive: enemy.userData.alive
+      alive: enemy.userData.alive,
+      respawnTimer: enemy.userData.respawnTimer || 0
     }))
   };
 
@@ -2247,8 +2249,17 @@ function loadGame(slot = currentSlot) {
           enemy.position.set(...saved.position);
         }
 
-        enemy.userData.homeX = enemy.position.x;
-        enemy.userData.homeZ = enemy.position.z;
+        if (
+          Array.isArray(saved.home) &&
+          saved.home.length === 2 &&
+          saved.home.every(Number.isFinite)
+        ) {
+          enemy.userData.homeX = saved.home[0];
+          enemy.userData.homeZ = saved.home[1];
+        } else {
+          enemy.userData.homeX = enemy.position.x;
+          enemy.userData.homeZ = enemy.position.z;
+        }
 
         const maxHp = enemy.userData.maxHp;
         enemy.userData.hp = THREE.MathUtils.clamp(
@@ -2257,6 +2268,16 @@ function loadGame(slot = currentSlot) {
 
         enemy.userData.alive =
           saved.alive !== false && enemy.userData.hp > 0;
+
+        if (!enemy.userData.alive && !enemy.userData.dungeon &&
+            enemy.userData.type !== 'dungeonBoss') {
+          const savedTimer = Number(saved.respawnTimer);
+          enemy.userData.respawnTimer = Number.isFinite(savedTimer) && savedTimer > 0
+            ? Math.min(savedTimer, 180)
+            : 25 + Math.random() * 40;
+        } else {
+          enemy.userData.respawnTimer = 0;
+        }
 
         enemy.userData.healthFill.scale.x =
           enemy.userData.hp / maxHp;
