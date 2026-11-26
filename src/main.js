@@ -20,6 +20,7 @@ import { createAdaptiveResolution } from './adaptive-resolution.js';
 import { createPrologue } from './prologue.js';
 import { createCutsceneDirector } from './cutscene-director.js';
 import { createCombatFeedback } from './combat-feedback.js';
+import { createCameraShake } from './camera-shake.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
@@ -406,6 +407,7 @@ function refreshSkillUI() {
 // ---------- Three.js scene ----------
 const scene = new THREE.Scene();
 const combatFeedback = createCombatFeedback(scene, { mobile: isTouch });
+const cameraShake = createCameraShake({ mobile: isTouch });
 scene.background = new THREE.Color(0x080d18);
 scene.fog = new THREE.FogExp2(0x1b2634, 0.0032);
 
@@ -3551,6 +3553,7 @@ function updateBossPhase(data) {
   if (phase === data.phase) return;
 
   data.phase = phase;
+  cameraShake.trigger(phase === 3 ? .18 : .12);
   data.phaseMultiplier = phase === 1 ? 1 : phase === 2 ? 1.18 : 1.42;
   data.healthFill.material.color.setHex(
     phase === 3 ? 0xff3030 : phase === 2 ? 0xff9a3d : 0xff4fd8
@@ -3658,6 +3661,7 @@ function updateWorld(dt, yaw) {
         data.cooldown = stats.cooldown;
         data.attackTimer = .4;
         hurtAnimTimer = .3;
+        cameraShake.trigger(isBoss ? .14 : .075);
         audio.play('hit');
         toast(`${data.name}โจมตีคุณ -${Math.round(incomingDamage)}`);
 
@@ -4086,6 +4090,7 @@ body.rotation.x = -attackGlow * .22;
   const cameraDt = Math.min(dt, 1 / 30);
   camera.position.lerp(desiredCamera, 1 - Math.pow(.001, cameraDt));
   camera.lookAt(smoothTarget);
+  cameraShake.apply(camera, smoothTarget);
 
   // Keep the eye above the ground so walking up a slope does not clip the
   // near plane through the terrain.
