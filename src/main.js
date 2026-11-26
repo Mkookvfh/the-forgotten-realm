@@ -3601,7 +3601,8 @@ function updateRegionDiscovery() {
   toast(`ค้นพบพื้นที่ใหม่: ${region.name}`);
 }
 
-function updateBossPhase(data) {
+function updateBossPhase(enemy) {
+  const data = enemy.userData;
   const ratio = Math.max(0, data.hp / data.maxHp);
   const phase = ratio > .65 ? 1 : ratio > .3 ? 2 : 3;
   if (phase === data.phase) return;
@@ -3616,8 +3617,18 @@ function updateBossPhase(data) {
     : phase === 2 ? 0xffb37a : 0xffffff;
 
   if (phase > 1) {
+    const phaseTitle = phase === 2
+      ? `${data.name} · พลังอเวจีตื่นขึ้น`
+      : `${data.name} · เฟสคลั่ง`;
     toast(`${data.name} เข้าเฟส ${phase} · โจมตีรุนแรงขึ้น`);
     audio.play('boss');
+
+    // Pause combat briefly for a readable, skippable boss phase reveal.
+    cutsceneDirector.play({
+      title: phaseTitle,
+      target: enemy.position,
+      duration: phase === 3 ? 4.2 : 3.4
+    });
   }
 }
 
@@ -3671,7 +3682,7 @@ function updateWorld(dt, yaw) {
     const distance = Math.hypot(dx, dz);
     const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
 
-    if (isBoss) updateBossPhase(data);
+    if (isBoss) updateBossPhase(enemy);
 
     data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
     const slowFactor = data.slowTimer > 0 ? .55 : 1;
