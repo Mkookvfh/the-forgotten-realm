@@ -4511,6 +4511,7 @@ function animate(now = performance.now()) {
   lastFrameTime = now;
 
   const dt = Math.min(clock.getDelta(), .05);
+  cameraShake.update(dt);
   if (prologue.active) {
     prologueUpdate(dt);
   } else if (!isPanelOpen()) {
