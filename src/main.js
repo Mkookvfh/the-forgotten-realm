@@ -13,6 +13,7 @@ import {
   setSpriteFrame
 } from './pixelSprites.js';
 import { createWorldStreamer } from './worldStreamer.js';
+import { createFrontierWorld } from './frontierWorld.js';
 import { createCinematic } from './cinematic.js';
 import { createPrologue } from './prologue.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
@@ -593,10 +594,20 @@ const vegetation = createVegetationManager({
 });
 let fallbackHidden = false;
 
+let frontierWorld = null;
 worldStreamer.init().then((ok) => {
   if (!ok) {
     toast('ไม่พบข้อมูลโลกกว้าง ใช้แผนที่ต้นแบบแทน');
+    return;
   }
+  // Build the four new 3D frontier regions only after the heightmap is ready,
+  // so each terrain patch conforms to the real streamed-world ground.
+  frontierWorld = createFrontierWorld({
+    scene,
+    getHeight: (x, z) => worldStreamer.getHeight(x, z),
+    loadDistance: isTouch ? 245 : 300
+  });
+  toast('เปิดพื้นที่ชายแดนใหม่ 4 เขต · สร้างภูมิประเทศ 3D แล้ว');
 });
 
 const groundDayColor = new THREE.Color(0x4c5543);
@@ -3946,6 +3957,7 @@ body.rotation.x = -attackGlow * .22;
   );
 
   worldStreamer.update(player.position);
+  frontierWorld?.update(player.position);
   vegetation.update(player.position, dt);
 
   if (!fallbackHidden && worldStreamer.loadedCount > 0) {
