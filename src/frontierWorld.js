@@ -225,7 +225,7 @@ function buildRegion(region, getHeight) {
   return group;
 }
 
-export function createFrontierWorld({ scene, getHeight, loadDistance = 300 }) {
+export function createFrontierWorld({ scene, getHeight: getHeightBase, loadDistance = 300 }) {
   const root = new THREE.Group();
   root.name = 'ProceduralFrontierWorld';
   scene.add(root);
@@ -246,5 +246,68 @@ export function createFrontierWorld({ scene, getHeight, loadDistance = 300 }) {
     }
   }
   update({ x: 0, z: 0 });
-  return { root, update, regions: entries.map(({ region }) => region.id) };
+
+  function getHeight(x, z) {
+    const base = getHeightBase(x, z);
+    if (!Number.isFinite(base)) return base;
+    for (const region of FRONTIER) {
+      const [cx, cz] = region.center;
+      const half = region.size * .5;
+      const u = (x - cx) / half;
+      const v = (z - cz) / half;
+      const edge = Math.max(Math.abs(u), Math.abs(v));
+      if (edge > 1) continue;
+      const blend = 1 - THREE.MathUtils.smoothstep(edge, .72, 1);
+      const wave = Math.sin(x * .075) * Math.cos(z * .061) * 1.25
+        + Math.sin((x + z) * .12) * .55;
+      let sculpt = wave;
+      if (region.id === 'frostwatch') sculpt += Math.max(0, 1 - Math.hypot(u + .18, v - .08)) * 7;
+      else if (region.id === 'sunken-cathedral') sculpt -= Math.max(0, 1 - Math.hypot(u, v)) * 3.5;
+      else if (region.id === 'windscar') sculpt += Math.max(0, 1 - Math.abs(u * .9 + v * .45)) * 5;
+      else if (region.id === 'starfall-coast') sculpt += Math.sin(v * 7 + u * 2) * 2.2;
+      return base + sculpt * blend;
+    }
+    return base;
+  }
+
+  // Approximate solid footprints for the generated landmark pieces.
+  // The existing streamed-world collision grid remains the primary collider.
+  function blocked(x, z, radius = .55) {
+    const circle = (cx, cz, r) => Math.hypot(x - cx, z - cz) < r + radius;
+    const rect = (cx, cz, sx, sz) =>
+      Math.abs(x - cx) < sx * .5 + radius &&
+      Math.abs(z - cz) < sz * .5 + radius;
+    for (const region of FRONTIER) {
+      const [cx, cz] = region.center;
+      if (region.id === 'frostwatch') {
+        if (rect(cx, cz - 11, 28, 1.8) ||
+            rect(cx - 13.2, cz, 1.8, 24) ||
+            rect(cx + 13.2, cz, 1.8, 24) ||
+            rect(cx - 7.5, cz + 11, 11, 1.8) ||
+            rect(cx + 7.5, cz + 11, 11, 1.8) ||
+            circle(cx, cz - 2, 6)) return true;
+        for (const [tx, tz] of [[-13,-11],[13,-11],[-13,11],[13,11]]) {
+          if (circle(cx + tx, cz + tz, 2.6)) return true;
+        }
+      } else if (region.id === 'sunken-cathedral') {
+        if (rect(cx, cz - 11, 30, 1.5) ||
+            rect(cx - 14.5, cz, 1.5, 22) ||
+            rect(cx + 14.5, cz, 1.5, 22)) return true;
+        for (const px of [-10,-5,5,10]) {
+          if (circle(cx + px, cz - 5, 1.1) || circle(cx + px, cz + 5, 1.1)) return true;
+        }
+      } else if (region.id === 'windscar') {
+        if (circle(cx - 17, cz, 9) || circle(cx + 17, cz + 1, 9)) return true;
+      } else if (region.id === 'starfall-coast') {
+        if (rect(cx, cz, 22, 7) || rect(cx - 4, cz, 13, 6) ||
+            rect(cx + 7, cz, 8, 6)) return true;
+      }
+    }
+    return false;
+  }
+
+  return {
+    root, update, getHeight, blocked,
+    regions: entries.map(({ region }) => region.id)
+  };
 }
