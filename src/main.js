@@ -19,6 +19,7 @@ import { createCinematic } from './cinematic.js';
 import { createAdaptiveResolution } from './adaptive-resolution.js';
 import { createPrologue } from './prologue.js';
 import { createCutsceneDirector } from './cutscene-director.js';
+import { createCombatFeedback } from './combat-feedback.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
@@ -404,6 +405,7 @@ function refreshSkillUI() {
 
 // ---------- Three.js scene ----------
 const scene = new THREE.Scene();
+const combatFeedback = createCombatFeedback(scene, { mobile: isTouch });
 scene.background = new THREE.Color(0x080d18);
 scene.fog = new THREE.FogExp2(0x1b2634, 0.0032);
 
@@ -2915,6 +2917,9 @@ function damageEnemy(enemy, amount, options = {}) {
 
   data.hp -= dealt;
   data.hurtTimer = .3;
+  combatFeedback.impact(enemy, dealt, {
+    boss: data.type === 'boss' || data.type === 'dungeonBoss'
+  });
   if (options.slow) {
     data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
   }
@@ -4149,6 +4154,7 @@ body.rotation.x = -attackGlow * .22;
   updateWeather(dt);
   updateFireflies(dt);
   if (motes.visible) updateMotes();
+  combatFeedback.update(dt);
   updateProjectiles(dt);
 
   if (campFire.visible) {
