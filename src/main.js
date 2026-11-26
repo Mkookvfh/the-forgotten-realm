@@ -3724,7 +3724,7 @@ function updateWorld(dt, yaw) {
 
     if (data.bossWarning) {
       const warning = data.bossWarning;
-      const warningRadius = Math.max(1.6, stats.reach + .45);
+      const warningRadius = Math.max(1.6, stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .45));
       warning.visible = data.telegraphTimer > 0 && data.alive;
       warning.position.set(
         enemy.position.x,
@@ -3732,7 +3732,7 @@ function updateWorld(dt, yaw) {
         enemy.position.z
       );
       warning.scale.setScalar(warningRadius * (1 + Math.sin(clock.elapsedTime * 12) * .035));
-      const warningColor = data.phase === 3 ? 0xff2020 : 0xff8738;
+      const warningColor = data.phase === 3 ? 0xff2020 : data.phase === 2 ? 0xffb02e : 0xff8738;
       warning.children.forEach((part, index) => {
         part.material.color.setHex(warningColor);
         part.material.opacity = index === 0
@@ -3746,7 +3746,7 @@ function updateWorld(dt, yaw) {
     data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
     const slowFactor = data.slowTimer > 0 ? .55 : 1;
     const speed = stats.speed * data.phaseMultiplier * slowFactor;
-    const attackDamage = stats.damage * data.phaseMultiplier;
+    const attackDamage = stats.damage * data.phaseMultiplier * (isBoss && data.phase === 3 ? 1.28 : isBoss && data.phase === 2 ? 1.12 : 1);
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
     data.healthFill.scale.x = hpRatio;
@@ -3789,14 +3789,14 @@ function updateWorld(dt, yaw) {
         } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
           data.telegraphTimer = data.phase === 3 ? .58 : .82;
           data.attackTimer = data.telegraphTimer;
-          toast(`${data.name} เตรียมโจมตี! หลบออกจากระยะ!`);
+          const phaseMove = data.phase === 3 ? 'คลื่นอเวจี!' : data.phase === 2 ? 'ฟาดวงกว้าง!' : 'โจมตี!';\n          toast(`${data.name} เตรียม ${phaseMove} หลบออกจากวงเตือน!`);
         } else if (data.telegraphTimer > 0) {
           data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
           data.attackTimer = data.telegraphTimer;
           if (data.telegraphTimer <= 0) {
             data.cooldown = stats.cooldown;
             // Check position and dodge invulnerability again at impact.
-            if (distance <= stats.reach + .35 && invulnerabilityTimer <= 0) {
+            const attackRadius = stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .35);\n            if (distance <= attackRadius && invulnerabilityTimer <= 0) {
               const cls = classDefs[state.classId] || {};
               const incomingDamage = attackDamage *
                 (1 - armorReduction()) *
