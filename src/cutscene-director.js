@@ -11,6 +11,8 @@ export function createCutsceneDirector({ camera, player, mount }) {
   let target = new THREE.Vector3();
   let startCamera = new THREE.Vector3();
   let startTarget = new THREE.Vector3();
+  const restoreCamera = new THREE.Vector3();
+  const restoreTarget = new THREE.Vector3();
   let titleText = '';
   let onComplete = null;
   const up = new THREE.Vector3(0,1,0);
@@ -33,8 +35,8 @@ export function createCutsceneDirector({ camera, player, mount }) {
     if (!active) return;
     active=false;
     overlay.style.display='none';
-    camera.position.copy(startCamera);
-    camera.lookAt(startTarget);
+    camera.position.copy(restoreCamera);
+    camera.lookAt(restoreTarget);
     const callback=onComplete;
     onComplete=null;
     callback?.();
@@ -44,6 +46,8 @@ export function createCutsceneDirector({ camera, player, mount }) {
 
   function play({ title:caption='เหตุการณ์สำคัญ', target:focus, duration:seconds=5.2, onDone }={}) {
     if (active) finish();
+    restoreCamera.copy(camera.position);
+    camera.getWorldDirection(restoreTarget).add(camera.position);
     target.copy(focus || player.position);
     elapsed=0; duration=Math.max(2,seconds);
     titleText=caption; onComplete=onDone || null;
