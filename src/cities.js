@@ -17,6 +17,8 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
   root.name = 'ProceduralSettlements';
   scene.add(root);
   const colliders = [];
+  const colliderGrid = new Map();
+  const colliderCellSize = 12;
   const residents = [];
   const dummy = new THREE.Object3D();
   const wood = new THREE.MeshStandardMaterial({ color:0x493326, roughness:.92 });
@@ -51,7 +53,16 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     parent.add(mesh); return mesh;
   }
   function addCollider(x,z,halfX,halfZ) {
-    colliders.push({x,z,halfX,halfZ});
+    const collider={x,z,halfX,halfZ};
+    colliders.push(collider);
+    const minX=Math.floor((x-halfX)/colliderCellSize), maxX=Math.floor((x+halfX)/colliderCellSize);
+    const minZ=Math.floor((z-halfZ)/colliderCellSize), maxZ=Math.floor((z+halfZ)/colliderCellSize);
+    for(let gx=minX;gx<=maxX;gx++) for(let gz=minZ;gz<=maxZ;gz++) {
+      const key=gx+':'+gz;
+      let cell=colliderGrid.get(key);
+      if(!cell) colliderGrid.set(key,cell=new Set());
+      cell.add(collider);
+    }
   }
   function makeHouse(city, localX, localZ, variant) {
     const scale=city.size;
@@ -156,9 +167,15 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     count: CITY_DEFS.length,
     residentCount: residents.length,
     blocked(x,z,radius=.55) {
-      for (const c of colliders) {
-        if (Math.abs(x-c.x) > c.halfX+radius || Math.abs(z-c.z) > c.halfZ+radius) continue;
-        return true;
+      const minX=Math.floor((x-radius)/colliderCellSize), maxX=Math.floor((x+radius)/colliderCellSize);
+      const minZ=Math.floor((z-radius)/colliderCellSize), maxZ=Math.floor((z+radius)/colliderCellSize);
+      for(let gx=minX;gx<=maxX;gx++) for(let gz=minZ;gz<=maxZ;gz++) {
+        const cell=colliderGrid.get(gx+':'+gz);
+        if(!cell) continue;
+        for(const c of cell) {
+          if(Math.abs(x-c.x) > c.halfX+radius || Math.abs(z-c.z) > c.halfZ+radius) continue;
+          return true;
+        }
       }
       return false;
     },
@@ -189,6 +206,6 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
         npc.body.position.y=1.05+bob;
       }
     },
-    dispose() { scene.remove(root); colliders.length=0; residents.length=0; }
+    dispose() { scene.remove(root); colliders.length=0; colliderGrid.clear(); residents.length=0; }
   };
 }
