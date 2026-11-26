@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { installLandscapePrompt } from './mobile-orientation.js';
+import { createMultiplayerSession } from './multiplayer/session.js';
 import { createPlayerCharacter } from './player-character.js';
 import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
 import { createAudio } from './audio.js';
@@ -1177,6 +1178,11 @@ player.add(playerShadow);
 player.position.set(18, 0, 12);
 scene.add(player);
 
+// Two-player session contract (network transport is injected later).
+const multiplayerSession = createMultiplayerSession({ maxPlayers: 2 });
+window.theForgottenRealm = window.theForgottenRealm || {};
+window.theForgottenRealm.multiplayer = multiplayerSession;
+
 // ---------- Terrain Height Query ----------
 function getTerrainHeight(x, z, referenceY) {
   return worldStreamer.getHeight(x, z);
@@ -1881,14 +1887,33 @@ let sensitivity = .005;
 let lookId = null;
 let lastX = 0;
 let lastY = 0;
+let pinchStartDistance = 0;
+const activeLookPointers = new Map();
 
 const canvas = renderer.domElement;
+
+function touchDistance() {
+  const points = [...activeLookPointers.values()];
+  if (points.length < 2) return 0;
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+}
 
 canvas.addEventListener('pointerdown', (e) => {
   const validMouse = e.pointerType === 'mouse' && e.button === 0;
   const validTouch = e.pointerType === 'touch'
     && e.clientX > innerWidth * .38
     && e.clientY < innerHeight - 125;
+
+  if (e.pointerType === 'touch') {
+    activeLookPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeLookPointers.size >= 2) {
+      lookId = null;
+      pinchStartDistance = touchDistance();
+      canvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+  }
 
   if (!validMouse && !validTouch) return;
 
@@ -1900,6 +1925,24 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'touch' && activeLookPointers.has(e.pointerId)) {
+    activeLookPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activeLookPointers.size >= 2) {
+      const currentDistance = touchDistance();
+      if (pinchStartDistance > 0 && currentDistance > 0) {
+        distance = THREE.MathUtils.clamp(
+          distance + (pinchStartDistance - currentDistance) * .025,
+          6,
+          14
+        );
+      }
+      pinchStartDistance = currentDistance;
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (e.pointerId !== lookId) return;
 
   yaw -= (e.clientX - lastX) * sensitivity;
@@ -1914,6 +1957,8 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 function endLook(e) {
+  activeLookPointers.delete(e.pointerId);
+  if (activeLookPointers.size < 2) pinchStartDistance = 0;
   if (e.pointerId === lookId) lookId = null;
 }
 
@@ -3616,7 +3661,11 @@ function applySettings() {
 
   renderer.setPixelRatio(ratio);
   renderer.shadowMap.enabled = settings.quality !== 'low';
-  moon.shadow.mapSize.setScalar(settings.quality === 'high' ? 1536 : 1024);
+  const shadowResolution = settings.quality === 'high'
+    ? (isTouch ? 1536 : 2048)
+    : settings.quality === 'medium' ? 1024 : 512;
+  sunLight.shadow.mapSize.setScalar(shadowResolution);
+  moon.shadow.mapSize.setScalar(shadowResolution);
 
   settings.weather = Boolean(settings.weather);
   settings.sound = Boolean(settings.sound);
@@ -4095,6 +4144,15 @@ body.rotation.x = -attackGlow * .22;
   updateWorld(dt, yaw);
   updateCompanion(dt, yaw);
   systems.update(dt, yaw);
+
+  // Publish a sanitized local snapshot only when a transport is connected.
+  multiplayerSession.updateLocalSnapshot({
+    position: player.position,
+    yaw: player.rotation.y,
+    hp: state.hp,
+    level: state.level,
+    animation: dodgeTimer > 0 ? 'dodge' : attackAnimTimer > 0 ? 'attack' : moving ? (isRunning ? 'run' : 'walk') : 'idle'
+  });
 
   const portalHintDistance = Math.hypot(
     player.position.x - dungeonPortal.position.x,
