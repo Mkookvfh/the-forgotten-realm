@@ -54,6 +54,38 @@ export const REGIONS = [
     color: '#7fd4e8',
     description: 'ทะเลสาบต้องสาป หมู่บ้านหนองน้ำ และถ้ำใต้รากหิน'
   }
+  {
+    id: 'frostwatch',
+    name: 'ป้อมฟรอสต์วอตช์',
+    center: { x: 245, z: -65 },
+    radius: 58,
+    color: '#a9d7e8',
+    description: 'ป้อมชายแดนบนเนินลมหนาว เฝ้าทางผ่านสู่ดินแดนหิมะ'
+  },
+  {
+    id: 'sunken-cathedral',
+    name: 'มหาวิหารจมธาร',
+    center: { x: -245, z: 58 },
+    radius: 54,
+    color: '#b8a7d9',
+    description: 'วิหารหินเก่าที่ถูกน้ำท่วมและเฝ้าความลับใต้ซากเมือง'
+  },
+  {
+    id: 'windscar',
+    name: 'หุบผาวินด์สการ์',
+    center: { x: 245, z: 225 },
+    radius: 58,
+    color: '#c7b59b',
+    description: 'หุบเขาหินสูงที่มีสะพานเชือกและเส้นทางนักเดินทาง'
+  },
+  {
+    id: 'starfall-coast',
+    name: 'ชายฝั่งสตาร์ฟอลล์',
+    center: { x: -245, z: -235 },
+    radius: 58,
+    color: '#7fc5d5',
+    description: 'ชายฝั่งหมอกและซากเรือที่ถูกแสงดาวนำทาง'
+  },
 ];
 
 export const LANDMARKS = [
@@ -78,7 +110,11 @@ export const LANDMARKS = [
   { id: 'cave-shadow', name: 'ถ้ำเงาลืมเลือน', position: { x: 95, z: -120 }, region: 'emberpeak', color: '#c992f0', size: 4 },
   { id: 'cave-root', name: 'ถ้ำรากหิน', position: { x: -110, z: -190 }, region: 'deadwood', color: '#c992f0', size: 4 },
   { id: 'cave-mire', name: 'ถ้ำใต้ก้นบึง', position: { x: -205, z: 195 }, region: 'mirefall', color: '#c992f0', size: 4 },
-  { id: 'cave-ember', name: 'ถ้ำถ่านไฟ', position: { x: 205, z: -205 }, region: 'emberpeak', color: '#ff8a4d', size: 4 }
+  { id: 'cave-ember', name: 'ถ้ำถ่านไฟ', position: { x: 205, z: -205 }, region: 'emberpeak', color: '#ff8a4d', size: 4 },
+  { id: 'frostwatch-fort', name: 'ป้อมฟรอสต์วอตช์', position: { x: 245, z: -65 }, region: 'frostwatch', color: '#a9d7e8', size: 5 },
+  { id: 'sunken-cathedral', name: 'มหาวิหารจมธาร', position: { x: -245, z: 58 }, region: 'sunken-cathedral', color: '#b8a7d9', size: 5 },
+  { id: 'windscar-bridge', name: 'สะพานหุบผาวินด์สการ์', position: { x: 245, z: 225 }, region: 'windscar', color: '#c7b59b', size: 4 },
+  { id: 'starfall-shipwreck', name: 'ซากเรือชายฝั่งสตาร์ฟอลล์', position: { x: -245, z: -235 }, region: 'starfall-coast', color: '#7fc5d5', size: 4 }
 ];
 
 export const SECRETS = [
