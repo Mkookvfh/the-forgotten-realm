@@ -16,7 +16,8 @@ const GradeShader = {
     uVignette: { value: 1.0 },
     uGrain: { value: 1.0 },
     uAberration: { value: 1.0 },
-    uSharpen: { value: 1.0 }
+    uSharpen: { value: 1.0 },
+    uResolution: { value: new THREE.Vector2(1280, 720) }
   },
   vertexShader: `
     varying vec2 vUv;
@@ -32,6 +33,7 @@ const GradeShader = {
     uniform float uGrain;
     uniform float uAberration;
     uniform float uSharpen;
+    uniform vec2 uResolution;
     varying vec2 vUv;
 
     float hash(vec2 p) {
@@ -54,7 +56,7 @@ const GradeShader = {
       c.b = sampleAt(vUv - shift).b;
 
       /* Unsharp mask keeps the pixel-art subjects crisp after bloom */
-      vec2 texel = vec2(1.0 / 1280.0, 1.0 / 720.0) * uSharpen;
+      vec2 texel = (1.0 / max(uResolution, vec2(1.0))) * uSharpen;
       vec3 blur = (
         sampleAt(vUv + vec2(texel.x, 0.0)) +
         sampleAt(vUv - vec2(texel.x, 0.0)) +
@@ -130,7 +132,7 @@ export function createCinematic({ renderer, scene, camera, touch = false }) {
   const renderTarget = new THREE.WebGLRenderTarget(
     Math.max(1, innerWidth), Math.max(1, innerHeight),
     {
-      type: THREE.HalfFloatType,
+      type: touch ? THREE.UnsignedByteType : THREE.HalfFloatType,
       samples: touch ? 0 : 4,
       colorSpace: THREE.LinearSRGBColorSpace
     }
@@ -255,6 +257,10 @@ export function createCinematic({ renderer, scene, camera, touch = false }) {
       composer.setPixelRatio(ratio);
       composer.setSize(width, height);
       bloom.setSize(width, height);
+      grade.uniforms.uResolution.value.set(
+        Math.max(1, width * ratio),
+        Math.max(1, height * ratio)
+      );
     },
     update
   };
