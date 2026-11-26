@@ -36,6 +36,7 @@ export const RECIPES = [
   { id: 'ranger', name: 'เกราะพราน', cost: { wood: 2, bone: 2 }, give: { item: 'ranger' } },
   { id: 'shadow', name: 'เกราะเงา', cost: { darkShard: 3, wood: 2 }, give: { item: 'shadow' } },
   { id: 'runerobe', name: 'ผ้าคลุมรูน', cost: { essence: 3, darkShard: 2 }, give: { item: 'runerobe' }, rarity: 'rare' },
+  { id: 'plate', name: 'เกราะจาน', cost: { ore: 4, bone: 3 }, give: { item: 'plate' }, rarity: 'rare' },
   { id: 'spellFire', name: 'เวทลูกไฟ', cost: { darkShard: 2, bone: 1 }, give: { spell: 'firebolt' } },
   { id: 'spellHeal', name: 'เวทรักษา', cost: { herb: 4, bone: 1 }, give: { spell: 'heal' } },
   { id: 'voidblade', name: 'ดาบเงาว่าง', cost: { bossRelic: 1, stoneHeart: 2, darkShard: 4 }, give: { item: 'voidblade' }, rarity: 'epic' },
@@ -65,6 +66,7 @@ export const SHOP_ITEMS = [
   { id: 'ranger', name: 'เกราะพราน', price: 210, rarity: 'uncommon' },
   { id: 'shadow', name: 'เกราะเงา', price: 320, rarity: 'rare' },
   { id: 'runerobe', name: 'ผ้าคลุมรูน', price: 360, rarity: 'rare' },
+  { id: 'plate', name: 'เกราะจาน', price: 380, rarity: 'rare' },
   { id: 'voidblade', name: 'ดาบเงาว่าง', price: 900, rarity: 'epic' },
   { id: 'dragonplate', name: 'เกราะมังกรร้าง', price: 1000, rarity: 'epic' }
 ];

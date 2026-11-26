@@ -139,7 +139,7 @@ export function createCinematic({ renderer, scene, camera, touch = false }) {
   const renderPass = new RenderPass(scene, camera);
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(innerWidth, innerHeight),
-    0.46, 0.62, 0.82
+    0.55, 0.60, 0.80
   );
   const grade = new ShaderPass(GradeShader);
   const output = new OutputPass();
@@ -241,7 +241,7 @@ export function createCinematic({ renderer, scene, camera, touch = false }) {
     strike() { flash = 1; },
     setEnabled(on) { enabled = Boolean(on); },
     setQuality(q) {
-      bloom.strength = q === 'high' ? 0.46 : q === 'medium' ? 0.30 : 0.0;
+      bloom.strength = q === 'high' ? 0.55 : q === 'medium' ? 0.34 : 0.0;
       grade.uniforms.uGrain.value = q === 'low' ? 0.0 : 0.85;
       grade.uniforms.uVignette.value = q === 'low' ? 0.0 : 1.0;
       grade.uniforms.uAberration.value = q === 'high' ? 1.0 : q === 'medium' ? 0.5 : 0.0;

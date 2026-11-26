@@ -11,6 +11,7 @@ import {
 } from './pixelSprites.js';
 import { createWorldStreamer } from './worldStreamer.js';
 import { createCinematic } from './cinematic.js';
+import { createPrologue } from './prologue.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
@@ -84,6 +85,7 @@ const armorStats = {
   ranger: { name: 'เกราะพราน', reduction: .32, rarity: 'uncommon' },
   shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
   runerobe: { name: 'ผ้าคลุมรูน', reduction: .45, rarity: 'rare' },
+  plate: { name: 'เกราะจาน', reduction: .55, rarity: 'rare' },
   dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
 };
 
@@ -105,6 +107,13 @@ const classDefs = {
     desc: 'พลังเวท +25% · ฟื้นมนตราเร็วขึ้น 50%',
     spell: 1.25,
     manaRegen: 1.5
+  },
+  knight: {
+    name: 'อัศวิน',
+    desc: 'โจมตีระยะประชิด +25% · ลดความเสียหาย 15% · HP สูงสุด +20',
+    melee: 1.25,
+    damageReduction: .15,
+    hpBonus: 20
   }
 };
 
@@ -272,6 +281,8 @@ function refreshEquipmentUI() {
       button.disabled = !systems.owns(id);
     }
   }
+
+  rebuildPlayerAtlas();
 }
 
 function selectWeapon(id) {
@@ -300,7 +311,19 @@ function refreshClassUI() {
 function selectClass(id) {
   const def = classDefs[id];
   if (!def) return;
+
+  const previous = classDefs[state.classId];
+  if (previous && previous.hpBonus) {
+    state.maxHp = Math.max(100, state.maxHp - previous.hpBonus);
+  }
+
   state.classId = state.classId === id ? null : id;
+
+  if (state.classId && def.hpBonus) {
+    state.maxHp += def.hpBonus;
+    state.hp = Math.min(state.maxHp, state.hp + def.hpBonus);
+  }
+
   refreshClassUI();
   refreshEquipmentUI();
   updateHud();
@@ -386,7 +409,7 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.32;
+renderer.toneMappingExposure = 1.38;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.35 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -895,7 +918,7 @@ spriteCanvas.height = 128;
 
 const spriteCtx = spriteCanvas.getContext('2d');
 
-function drawPixelHero(ctx, ox, oy, direction, frame) {
+function drawPixelHero(ctx, ox, oy, direction, frame, knight = false) {
   const px = (x, y, w, h, color) => {
     ctx.fillStyle = color;
     ctx.fillRect(ox + x, oy + y, w, h);
@@ -903,8 +926,6 @@ function drawPixelHero(ctx, ox, oy, direction, frame) {
 
   const step = frame === 1 ? -1 : frame === 3 ? 1 : 0;
   const side = direction === 1 || direction === 3;
-
-  
 
   // ผ้าคลุม
   px(7, 14, 5, 12, '#70283d');
@@ -917,60 +938,88 @@ function drawPixelHero(ctx, ox, oy, direction, frame) {
   px(10 + step, 29, 6, 2, '#171923');
   px(18 - step, 29, 6, 2, '#171923');
 
-  // ลำตัวและเกราะ
-  px(10, 14, 13, 12, '#343b50');
-  px(12, 15, 9, 8, '#596078');
-  px(14, 17, 5, 7, '#252b3c');
-  px(15, 21, 3, 3, '#c19a55');
+  if (knight) {
+    // ลำตัวเกราะเหล็ก
+    px(10, 14, 13, 12, '#8f98a8');
+    px(12, 15, 9, 8, '#c4cad4');
+    px(14, 17, 5, 7, '#6d7686');
+    px(15, 21, 3, 3, '#e0b45c');
 
-  // แขน
-  px(7, 16, 4, 8, '#343b50');
-  px(22, 16, 4, 8, '#343b50');
-  px(7, 22, 4, 3, '#d5a47e');
-  px(22, 22, 4, 3, '#d5a47e');
+    // แขนเกราะ
+    px(7, 16, 4, 8, '#8f98a8');
+    px(22, 16, 4, 8, '#8f98a8');
+    px(7, 22, 4, 3, '#d5a47e');
+    px(22, 22, 4, 3, '#d5a47e');
 
-  // ศีรษะและฮู้ด
-  px(9, 3, 14, 4, '#171722');
-  px(6, 7, 20, 9, '#282638');
-  px(8, 5, 16, 3, '#3c354b');
-  px(8, 9, 16, 8, '#e4b18b');
+    // หมวกเหล็ก
+    px(9, 3, 14, 4, '#7c8594');
+    px(6, 7, 20, 6, '#aab2bf');
+    px(8, 5, 16, 3, '#c4cad4');
+    px(7, 12, 18, 3, '#6d7686');
 
-  // ผม
-  px(7, 7, 5, 5, '#211e2c');
-  px(11, 5, 5, 4, '#211e2c');
-  px(17, 6, 6, 4, '#211e2c');
-  px(22, 8, 4, 5, '#211e2c');
-
-  if (direction === 0) {
-    // ใบหน้าด้านหน้า
-    px(11, 11, 3, 2, '#20202b');
-    px(19, 11, 3, 2, '#20202b');
-    px(15, 14, 3, 1, '#a96e65');
-  } else if (side) {
-    // ใบหน้าด้านข้าง
-    px(19, 11, 3, 2, '#20202b');
-    px(23, 13, 2, 2, '#d99b79');
+    if (direction === 0) {
+      // ช่องมองด้านหน้า
+      px(11, 9, 3, 2, '#20202b');
+      px(19, 9, 3, 2, '#20202b');
+      px(15, 12, 3, 1, '#a96e65');
+    } else if (side) {
+      px(19, 9, 3, 2, '#20202b');
+      px(23, 11, 2, 2, '#d99b79');
+    } else {
+      px(8, 9, 16, 5, '#7c8594');
+    }
   } else {
-    // ด้านหลัง
-    px(8, 10, 16, 6, '#292638');
+    // ลำตัวและเกราะ
+    px(10, 14, 13, 12, '#343b50');
+    px(12, 15, 9, 8, '#596078');
+    px(14, 17, 5, 7, '#252b3c');
+    px(15, 21, 3, 3, '#c19a55');
+
+    // แขน
+    px(7, 16, 4, 8, '#343b50');
+    px(22, 16, 4, 8, '#343b50');
+    px(7, 22, 4, 3, '#d5a47e');
+    px(22, 22, 4, 3, '#d5a47e');
+
+    // ศีรษะและฮู้ด
+    px(9, 3, 14, 4, '#171722');
+    px(6, 7, 20, 9, '#282638');
+    px(8, 5, 16, 3, '#3c354b');
+    px(8, 9, 16, 8, '#e4b18b');
+
+    // ผม
+    px(7, 7, 5, 5, '#211e2c');
+    px(11, 5, 5, 4, '#211e2c');
+    px(17, 6, 6, 4, '#211e2c');
+    px(22, 8, 4, 5, '#211e2c');
+
+    if (direction === 0) {
+      // ใบหน้าด้านหน้า
+      px(11, 11, 3, 2, '#20202b');
+      px(19, 11, 3, 2, '#20202b');
+      px(15, 14, 3, 1, '#a96e65');
+    } else if (side) {
+      // ใบหน้าด้านข้าง
+      px(19, 11, 3, 2, '#20202b');
+      px(23, 13, 2, 2, '#d99b79');
+    } else {
+      // ด้านหลัง
+      px(8, 10, 16, 6, '#292638');
+    }
   }
 
   // ขอบผ้าคลุมสีแดง
   px(8, 25, 3, 4, '#a63d50');
-
-  
 }
 
-for (let direction = 0; direction < 4; direction++) {
-  for (let frame = 0; frame < 4; frame++) {
-    drawPixelHero(
-      spriteCtx,
-      frame * 32,
-      direction * 32,
-      direction,
-      frame
-    );
+function rebuildPlayerAtlas() {
+  const knight = state.armor === 'plate' || state.armor === 'dragonplate';
+  for (let direction = 0; direction < 4; direction++) {
+    for (let frame = 0; frame < 4; frame++) {
+      drawPixelHero(spriteCtx, frame * 32, direction * 32, direction, frame, knight);
+    }
   }
+  playerTexture.needsUpdate = true;
 }
 
 const playerTexture = new THREE.CanvasTexture(spriteCanvas);
@@ -980,6 +1029,7 @@ playerTexture.generateMipmaps = false;
 playerTexture.colorSpace = THREE.SRGBColorSpace;
 playerTexture.repeat.set(0.25, 0.25);
 playerTexture.offset.set(0, 0.75);
+rebuildPlayerAtlas();
 
 const playerSprite = new THREE.Sprite(
   new THREE.SpriteMaterial({
@@ -2759,6 +2809,9 @@ function handlePlayerDeath() {
 // ---------- Camp ----------
 const campPanel = $('#camp-panel');
 const dialoguePanel = $('#dialogue-panel');
+let emberGeometry = null;
+let emberVelocities = [];
+
 const campFire = new THREE.Group();
 {
   const logMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 1 });
@@ -2779,6 +2832,32 @@ const campFire = new THREE.Group();
   const fireLight = new THREE.PointLight(0xff9a4a, 2.2, 14);
   fireLight.position.y = .9;
   campFire.add(fireLight);
+
+  const emberCount = 24;
+  const emberPositions = new Float32Array(emberCount * 3);
+  emberVelocities = [];
+  for (let i = 0; i < emberCount; i++) {
+    emberPositions[i * 3] = (Math.random() - .5) * .4;
+    emberPositions[i * 3 + 1] = Math.random() * .8;
+    emberPositions[i * 3 + 2] = (Math.random() - .5) * .4;
+    emberVelocities.push({
+      vx: (Math.random() - .5) * .3,
+      vy: .6 + Math.random() * 1.2,
+      vz: (Math.random() - .5) * .3
+    });
+  }
+  emberGeometry = new THREE.BufferGeometry();
+  emberGeometry.setAttribute('position', new THREE.BufferAttribute(emberPositions, 3));
+  const embers = new THREE.Points(emberGeometry, new THREE.PointsMaterial({
+    color: 0xffb45c,
+    size: .12,
+    transparent: true,
+    opacity: .85,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  }));
+  campFire.add(embers);
+
   campFire.visible = false;
   scene.add(campFire);
 }
@@ -3067,7 +3146,7 @@ sunLight.intensity = 2.55 * sun;
 hemi.intensity = 0.98 + 0.74 * sun;
 ambient.intensity = 0.76 + 0.06 * sun + cinematic.getFlash() * 1.7;
 moonGlow.intensity = 0.85 * (1 - sun);
-renderer.toneMappingExposure = 1.32 + 0.16 * (1 - sun);
+renderer.toneMappingExposure = 1.38 + 0.16 * (1 - sun);
   if (sky.material.uniforms.uExposure) {
     sky.material.uniforms.uExposure.value = renderer.toneMappingExposure;
   }
@@ -3687,8 +3766,8 @@ body.rotation.x = -attackGlow * .22;
     // from easing the feet over cell edges.
     const eyeTarget = cameraTarget.y;
     const eyeDelta = eyeTarget - cameraEyeY;
-    if (Math.abs(eyeDelta) > 0.06) {
-      const k = 1 - Math.pow(1e-3, Math.min(dt, 1 / 20));
+    if (Math.abs(eyeDelta) > 0.12) {
+      const k = 1 - Math.pow(1e-4, Math.min(dt, 1 / 20));
       cameraEyeY += eyeDelta * k;
     }
     smoothTarget.y = cameraEyeY;
@@ -3714,7 +3793,10 @@ body.rotation.x = -attackGlow * .22;
     desiredCamera.y
   );
   if (desiredGround !== null) {
-    desiredCamera.y = Math.max(desiredCamera.y, desiredGround + .7);
+    const minY = desiredGround + .7;
+    if (desiredCamera.y < minY) {
+      desiredCamera.y = THREE.MathUtils.lerp(desiredCamera.y, minY, Math.min(1, dt * 6));
+    }
   }
 
   // Cap the smoothing step: chunk streaming and GC cause occasional long
@@ -3786,6 +3868,23 @@ body.rotation.x = -attackGlow * .22;
     flame.scale.setScalar(.92 + Math.sin(t * 9) * .08);
     flame.material.opacity = .72 + Math.sin(t * 13) * .14;
     fireLight.intensity = 2.1 + Math.sin(t * 7.3) * .5;
+
+    if (emberGeometry) {
+      const ep = emberGeometry.attributes.position;
+      for (let i = 0; i < emberVelocities.length; i++) {
+        const v = emberVelocities[i];
+        let y = ep.getY(i) + v.vy * dt;
+        if (y > 2.2) {
+          y = 0;
+          ep.setX(i, (Math.random() - .5) * .4);
+          ep.setZ(i, (Math.random() - .5) * .4);
+        }
+        ep.setY(i, y);
+        ep.setX(i, ep.getX(i) + v.vx * dt);
+        ep.setZ(i, ep.getZ(i) + v.vz * dt);
+      }
+      ep.needsUpdate = true;
+    }
   }
 
   updateWorld(dt, yaw);
@@ -4057,6 +4156,24 @@ resizeGame();
 
 let lastFrameTime = 0;
 
+const prologue = createPrologue({
+  onDone() {
+    toast('ยินดีต้อนรับสู่อาณาจักรที่ถูกลืม');
+  }
+});
+
+function prologueUpdate(dt) {
+  updateDayNight(dt);
+  updateShadowFocus();
+  updateWeather(dt);
+  updateFireflies(dt);
+  if (motes.visible) updateMotes();
+  updateWorld(dt, 0);
+  sky.position.copy(camera.position);
+  prologue.applyCamera(camera, player.position);
+  prologue.update(dt);
+}
+
 function animate(now = performance.now()) {
   requestAnimationFrame(animate);
 
@@ -4065,8 +4182,13 @@ function animate(now = performance.now()) {
   lastFrameTime = now;
 
   const dt = Math.min(clock.getDelta(), .05);
-  if (!isPanelOpen()) update(dt);
+  if (prologue.active) {
+    prologueUpdate(dt);
+  } else if (!isPanelOpen()) {
+    update(dt);
+  }
   cinematic.render();
 }
 
+prologue.start();
 animate();

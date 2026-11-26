@@ -1222,3 +1222,89 @@ body.layout-left #mobile-controls {
   color: #e6d3a4;
   margin: 6px 0 12px;
 }
+
+/* ---------- Cinematic Prologue ---------- */
+.prologue {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.prologue.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.prologue.prologue-fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+.prologue-letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12vh;
+  background: #000;
+  transition: height 1.2s cubic-bezier(.4, 0, .2, 1);
+}
+.prologue-letterbox.top {
+  top: 0;
+}
+.prologue-letterbox.bottom {
+  bottom: 0;
+}
+.prologue.visible .prologue-letterbox {
+  height: 14vh;
+}
+.prologue-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+}
+.prologue-card {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 1.1s ease, transform 1.1s ease;
+  max-width: 720px;
+}
+.prologue-card.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+.prologue-card h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(28px, 6vw, 64px);
+  letter-spacing: .18em;
+  color: #f2e8d2;
+  text-shadow: 0 0 30px rgba(200, 170, 110, .35), 0 2px 8px #000;
+  margin: 0 0 14px;
+}
+.prologue-sub {
+  font-family: Georgia, serif;
+  font-size: clamp(14px, 2.4vw, 22px);
+  letter-spacing: .42em;
+  color: #c8b98a;
+  text-transform: uppercase;
+}
+.prologue-narration {
+  font-size: clamp(16px, 2.6vw, 24px);
+  line-height: 1.8;
+  color: #e8dcc4;
+  text-shadow: 0 2px 12px #000;
+}
+.prologue-skip {
+  position: absolute;
+  bottom: 18vh;
+  left: 0;
+  right: 0;
+  font-size: 12px;
+  letter-spacing: .2em;
+  color: #a89f88;
+  opacity: .7;
+}
