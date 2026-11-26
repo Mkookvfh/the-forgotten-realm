@@ -608,7 +608,12 @@ const vegetation = createVegetationManager({
 let fallbackHidden = false;
 worldStreamer.init().then((ok) => {
   if (!ok) {
-    toast('ไม่พบข้อมูลโลกกว้าง ใช้แผนที่ต้นแบบแทน');
+    cityWorld = createCityWorld({
+      scene,
+      getHeight: (x, z) => worldStreamer.getHeight(x, z) ?? 0,
+      mobile: isTouch
+    });
+    toast('ใช้แผนที่ต้นแบบ · เมืองและชาวเมืองยังเปิดใช้งาน');
     return;
   }
   // Build the four new 3D frontier regions only after the heightmap is ready,
