@@ -129,7 +129,7 @@ function buildRelief(parent, region, getHeight) {
 }
 
 function buildFrostwatch(group, getHeight, x, z) {
-  const y = baseAt(getHeight, x, z);
+  const y = baseAt(getHeight, x, z) + 5.4;
   // Fort courtyard, thick perimeter walls, corner watch towers and keep.
   box(group, darkStone, x, y + .35, z, 28, .7, 24);
   box(group, stone, x, y + 3.2, z - 11, 28, 5.8, 1.6);
@@ -150,7 +150,7 @@ function buildFrostwatch(group, getHeight, x, z) {
 }
 
 function buildCathedral(group, getHeight, x, z) {
-  const y = baseAt(getHeight, x, z);
+  const y = baseAt(getHeight, x, z) - 3.4;
   // Flooded nave: raised stone ring, broken walls, pillars and luminous altar.
   box(group, darkStone, x, y + .2, z, 32, .45, 24);
   box(group, stone, x, y + 2.5, z - 11, 30, 4.5, 1.2);
@@ -169,7 +169,7 @@ function buildCathedral(group, getHeight, x, z) {
 }
 
 function buildWindscar(group, getHeight, x, z) {
-  const y = baseAt(getHeight, x, z);
+  const y = baseAt(getHeight, x, z) + 4.8;
   // Canyon cliffs and a suspended timber bridge crossing the ravine.
   cylinder(group, darkStone, x - 17, y + 8, z, 9, 12, 18, 6);
   cylinder(group, stone, x + 17, y + 8, z + 1, 9, 12, 18, 6);
