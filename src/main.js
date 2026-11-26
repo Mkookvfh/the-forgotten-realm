@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { createPlayerCharacter } from './player-character.js';
 import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
 import { createAudio } from './audio.js';
 import {
@@ -1154,6 +1155,9 @@ const playerSprite = new THREE.Sprite(
 playerSprite.scale.set(1.55, 2.05, 1);
 playerSprite.position.y = 1.03;
 body.add(playerSprite);
+
+// 3D procedural rig now renders by default; an optional rigged GLB can replace it.
+const playerCharacter = createPlayerCharacter(body, playerSprite);
 
 // เงาใต้เท้า
 const playerShadow = new THREE.Mesh(
@@ -3800,6 +3804,16 @@ playerSprite.position.y = 1.03 +
 
 const attackGlow = attackAnimTimer / .24;
 const hurtGlow = hurtAnimTimer / .3;
+playerCharacter.update(dt, {
+  moving,
+  running: isRunning,
+  attacking: attackAnimTimer > 0,
+  dodging: isDodging,
+  hurt: hurtAnimTimer > 0,
+  jumping: !grounded,
+  time: playerAnimTime,
+  armor: state.armor
+});
 playerSprite.material.color.setRGB(
   1 + hurtGlow * .5,
   1 - hurtGlow * .4,
