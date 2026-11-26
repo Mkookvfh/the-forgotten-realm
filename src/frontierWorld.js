@@ -207,7 +207,7 @@ function buildStarfall(group, getHeight, x, z) {
   box(group, water, x + 26, y + .05, z, 32, .08, 42);
 }
 
-function buildRegion(region, getHeight) {
+function buildRegion(region, getHeightBase) {
   const group = new THREE.Group();
   group.name = 'Frontier_' + region.id;
   const [x, z] = region.center;
