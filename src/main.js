@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { installLandscapePrompt } from './mobile-orientation.js';
 import { createPlayerCharacter } from './player-character.js';
 import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
 import { createAudio } from './audio.js';
@@ -4346,6 +4347,9 @@ addEventListener('orientationchange', () => {
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', resizeGame);
 }
+
+// ---------- Mobile Orientation ----------
+installLandscapePrompt();
 
 // ---------- Start ----------
 dayNightMode = settings.dayNightMode || 'auto';
