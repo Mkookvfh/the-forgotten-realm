@@ -3734,7 +3734,7 @@ function applySettings() {
 
 // ---------- Main Update ----------
 function update(dt) {
-  cityWorld?.update(dt);
+  cityWorld?.update(dt, player.position.x, player.position.z);
     autoSaveTimer += dt;
 
   if (autoSaveTimer >= 30) {
