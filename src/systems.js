@@ -1325,7 +1325,7 @@ export function createSystems(ctx) {
     scene, player, state, toast, gainXp, updateHud,
     refreshEquipmentUI, defeatEnemy, applyEnemyDamage, enemies, staticLandmarks, regions,
     getTerrainHeight, audio, worldBounds = WORLD_BOUNDS,
-    hireCompanion, getCompanionId, companionInfo
+    hireCompanion, getCompanionId, companionInfo, onQuestCutscene
   } = ctx;
 
   function surfaceY(x, z, baseY = 0) {
