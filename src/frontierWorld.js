@@ -6,24 +6,24 @@ import * as THREE from 'three';
  * and modular landmarks. No external asset download is required.
  */
 const FRONTIER = [
-  { id: 'frostwatch', center: [245, -65], size: 116, color: 0x788d98, accent: 0xc7e4ef },
-  { id: 'sunken-cathedral', center: [-245, 58], size: 108, color: 0x686d7c, accent: 0x9a8bd0 },
-  { id: 'windscar', center: [245, 225], size: 116, color: 0x817866, accent: 0xc5b69a },
-  { id: 'starfall-coast', center: [-245, -235], size: 116, color: 0x536e78, accent: 0x8bd5e2 }
+  { id: 'frostwatch', center: [245, -65], size: 116, color: 0x9fcde2, accent: 0xf0fbff },
+  { id: 'sunken-cathedral', center: [-245, 58], size: 108, color: 0x70b7bd, accent: 0xb5f4e9 },
+  { id: 'windscar', center: [245, 225], size: 116, color: 0xd8b86e, accent: 0xffe6a0 },
+  { id: 'starfall-coast', center: [-245, -235], size: 116, color: 0x65b9d5, accent: 0xb0f1ff }
 ];
 
 const mat = (color, roughness = .92, metalness = 0) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness });
-const stone = mat(0x6a6866);
-const darkStone = mat(0x41434b);
-const paleStone = mat(0x96918a);
-const timber = mat(0x59402b);
-const timberLight = mat(0x805b37);
-const roof = mat(0x343743);
+const stone = mat(0xaab8c0);
+const darkStone = mat(0x667f91);
+const paleStone = mat(0xe0e8e8);
+const timber = mat(0x95643b);
+const timberLight = mat(0xc18a4f);
+const roof = mat(0x5b82b5);
 const snow = mat(0xd4e3e9, .78);
-const moss = mat(0x35483d);
+const moss = mat(0x5aab68);
 const water = new THREE.MeshStandardMaterial({
-  color: 0x284b5b, roughness: .2, metalness: .18,
+  color: 0x54b9d7, roughness: .16, metalness: .12,
   transparent: true, opacity: .72, depthWrite: false
 });
 const lantern = new THREE.MeshStandardMaterial({
