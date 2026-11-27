@@ -4601,6 +4601,12 @@ body.rotation.x = -attackGlow * .22;
     state.stamina = Math.min(100, state.stamina + staminaRegen * dt);
   }
 
+  // Keep the stamina HUD synced every frame; updateHud() is event-driven
+  // and otherwise the bar can appear frozen while stamina changes in state.
+  const staminaPercent = THREE.MathUtils.clamp(state.stamina, 0, 100);
+  ui.stamina.style.width = `${staminaPercent}%`;
+  ui.staminaText.textContent = `${Math.ceil(staminaPercent)} / 100`;
+
   // Jump is triggered once per press, not continuously while held.
   if (input.jumpPressed && grounded && dodgeTimer <= 0) {
     verticalVelocity = 7;
