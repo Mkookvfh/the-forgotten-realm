@@ -1473,3 +1473,39 @@ body.layout-left #mobile-controls {
   outline: 2px solid #e3c17e;
   outline-offset: 2px;
 }
+
+
+/* Dynamic quest compass: points toward the current objective */
+.quest-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 7px 9px;
+  border: 1px solid #e3c17e55;
+  border-radius: 8px;
+  background: linear-gradient(110deg, #171b24e8, #272014d9);
+  color: #f1dfb6;
+}
+.quest-guide.hidden { display: none; }
+.quest-guide-arrow {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  color: #ffd36b;
+  font-size: 24px;
+  line-height: 1;
+  transform-origin: center;
+  filter: drop-shadow(0 0 5px #e6a83b88);
+}
+.quest-guide-copy { min-width: 0; display: grid; gap: 2px; }
+.quest-guide-name { overflow: hidden; color: #f2d89e; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.quest-guide-distance { color: #d1c7b5; font-size: 9px; line-height: 1.35; }
+@media (max-width: 600px) {
+  .quest-guide { gap: 5px; margin-top: 5px; padding: 5px 6px; }
+  .quest-guide-arrow { flex-basis: 22px; width: 22px; height: 22px; font-size: 20px; }
+  .quest-guide-name { font-size: 9px; }
+  .quest-guide-distance { font-size: 8px; }
+}
