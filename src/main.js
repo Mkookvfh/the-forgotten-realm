@@ -1757,7 +1757,7 @@ scene.add(targetLockRing);
 
 function cycleTargetLock() {
   const candidates = enemies
-    .filter(enemy => enemy.userData.alive && !enemy.userData.dungeon)
+    .filter(enemy => enemy.userData.alive)
     .map(enemy => ({
       enemy,
       distance: Math.hypot(enemy.position.x - player.position.x, enemy.position.z - player.position.z)
@@ -1775,7 +1775,7 @@ function cycleTargetLock() {
   const currentIndex = candidates.findIndex(entry => entry.enemy === lockedTarget);
   lockedTarget = candidates[(currentIndex + 1) % candidates.length].enemy;
   const button = $('#target-lock');
-  if (button) button.textContent = '🎯 ปลดล็อก';
+  if (button) button.textContent = '🎯 เปลี่ยนเป้า';
   toast(`ล็อกเป้าหมาย: ${lockedTarget.userData.name}`);
 }
 
