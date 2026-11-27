@@ -1,37 +1,28 @@
 /*
  * THE FORGOTTEN REALM — PS2 Edition
- * Early PS2SDK scaffold. No graphics/gameplay yet.
+ * Input-ready native prototype. Rendering and world are future milestones.
  */
 
 #include <tamtypes.h>
 #include <kernel.h>
-#include <libpad.h>
-
-static unsigned char pad_buffer[256] __attribute__((aligned(64)));
+#include "tfr_input.h"
 
 int main(void)
 {
-    padButtonStatus buttons;
+    TFRInput input;
 
-    padInit(0);
-
-    if (padPortOpen(0, 0, pad_buffer) == 0) {
+    if (!tfr_input_init()) {
         return 1;
     }
 
-    /* Starter loop: read DualShock 2 input.
-       Rendering and player movement will be added in later milestones. */
+    /* Temporary 60 Hz input loop. A renderer/game loop will replace this. */
     while (1) {
-        int state = padGetState(0, 0);
+        tfr_input_read(&input);
 
-        if (state == PAD_STATE_STABLE && padGetReqState(0, 0) == PAD_REQ_COMPLETE) {
-            padRead(0, 0, &buttons);
+        /* Placeholder: consume normalized input in future gameplay code. */
+        (void)input;
 
-            /* Buttons are intentionally not mapped to gameplay yet. */
-            (void)buttons;
-        }
-
-        SleepThread();
+        DelayThread(16667);
     }
 
     return 0;
