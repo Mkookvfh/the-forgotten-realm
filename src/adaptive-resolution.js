@@ -15,8 +15,8 @@ export function createAdaptiveResolution({ enabled = true } = {}) {
 
   function capForQuality(quality) {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    if (quality === 'high') return Math.min(dpr, 1.65);
-    if (quality === 'medium') return Math.min(dpr, 1.35);
+    if (quality === 'high') return Math.min(dpr, 1.25);
+    if (quality === 'medium') return 1;
     return 1;
   }
 
@@ -57,10 +57,10 @@ export function createAdaptiveResolution({ enabled = true } = {}) {
 
     let next = ratio;
     if (slowWindows >= 2) {
-      next = Math.max(0.78, ratio - 0.08);
+      next = Math.max(0.65, ratio - 0.10);
       slowWindows = 0;
     } else if (fastWindows >= 3) {
-      next = Math.min(cap, ratio + 0.05);
+      next = Math.min(cap, ratio + 0.04);
       fastWindows = 0;
     }
 
