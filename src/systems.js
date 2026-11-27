@@ -11,7 +11,8 @@ export const RARITY = {
   common: { name: 'ธรรมดา', color: '#c9c9c9' },
   uncommon: { name: 'หายาก', color: '#7fd47f' },
   rare: { name: 'หายากมาก', color: '#7aa6f0' },
-  epic: { name: 'ตำนาน', color: '#c992f0' }
+  epic: { name: 'ตำนาน', color: '#c992f0' },
+  legendary: { name: 'เลเจนดารี', color: '#ffcf5a' }
 };
 
 export const MATERIAL_INFO = {
@@ -23,7 +24,9 @@ export const MATERIAL_INFO = {
   darkShard: { name: 'เศษเงามืด', color: 0x9c72d4 },
   essence: { name: 'แก่นวิญญาณ', color: 0x74c9d6 },
   stoneHeart: { name: 'หัวใจศิลา', color: 0xd28b5c },
-  bossRelic: { name: 'เศษชิ้นส่วนโบราณ', color: 0xe2b45c }
+  bossRelic: { name: 'เศษชิ้นส่วนโบราณ', color: 0xe2b45c },
+  ruinCore: { name: 'แกนแห่งเจ้าแห่งซาก (Legendary)', color: 0xffcf5a },
+  ashHeart: { name: 'หัวใจขุนศึกเถ้า (Legendary)', color: 0xff7548 }
 };
 
 export const RECIPES = [
@@ -166,6 +169,8 @@ const ITEM_RARITY = {
   essence: 'uncommon',
   stoneHeart: 'rare',
   bossRelic: 'epic',
+  ruinCore: 'legendary',
+  ashHeart: 'legendary',
   voidblade: 'epic',
   dragonplate: 'epic',
   staff: 'uncommon',
@@ -1824,7 +1829,9 @@ export function createSystems(ctx) {
     }
     if (data.lid) data.lid.rotation.x = -.72;
     if (audio) audio.play('pickup');
-    toast(`เปิดหีบ ${data.reward.title} · ทอง +${data.reward.gold} · ผลึก +${data.reward.crystals} · รับไอเทมพิเศษแล้ว`);
+    const legendary = Object.keys(data.reward.items || {}).some((id) => ITEM_RARITY[id] === 'legendary');
+    if (legendary) makeBurst(chest.position, 0xffcf5a);
+    toast(`เปิดหีบ ${data.reward.title} · ทอง +${data.reward.gold} · ผลึก +${data.reward.crystals} · ${legendary ? 'ได้รับไอเทม Legendary!' : 'รับไอเทมพิเศษแล้ว'}`);
     updateHud();
     return true;
   }
