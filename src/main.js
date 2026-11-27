@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
+import { createMultiplayerUI } from './multiplayer/ui.js';
 import { createPlayerCharacter } from './player-character.js';
 import { createSystems, RARITY, SIDE_QUESTS } from './systems.js';
 import { createAudio } from './audio.js';
@@ -1228,6 +1229,17 @@ scene.add(player);
 const multiplayerSession = createMultiplayerSession({ maxPlayers: 2 });
 window.theForgottenRealm = window.theForgottenRealm || {};
 window.theForgottenRealm.multiplayer = multiplayerSession;
+const multiplayerUI = createMultiplayerUI({
+  session: multiplayerSession,
+  scene,
+  getLocalSnapshot: () => ({
+    position: player.position,
+    yaw: player.rotation.y,
+    hp: state.hp,
+    level: state.level,
+    animation: dodgeTimer > 0 ? 'dodge' : attackAnimTimer > 0 ? 'attack' : moving ? (isRunning ? 'run' : 'walk') : 'idle'
+  })
+});
 
 // ---------- Terrain Height Query ----------
 function getTerrainHeight(x, z, referenceY) {
@@ -4434,6 +4446,7 @@ body.rotation.x = -attackGlow * .22;
     level: state.level,
     animation: dodgeTimer > 0 ? 'dodge' : attackAnimTimer > 0 ? 'attack' : moving ? (isRunning ? 'run' : 'walk') : 'idle'
   });
+  multiplayerUI.update(performance.now());
 
   const portalHintDistance = Math.hypot(
     player.position.x - dungeonPortal.position.x,
