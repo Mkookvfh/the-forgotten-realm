@@ -23,7 +23,7 @@ export function getWeaknessHint(enemyType) {
   const hints = {
     guardian: 'สายฟ้า', wraith: 'ไฟ', brute: 'น้ำแข็ง',
     boss: 'น้ำแข็ง', dungeonBoss: 'ไฟ', wolf: 'ไฟ',
-    raider: 'พิษ', revenant: 'ไฟ', warlord: 'สายฟา'
+    raider: 'พิษ', revenant: 'ไฟ', warlord: 'สายฟ้า'
   };
   return hints[enemyType] || 'ธาตุที่เหมาะสม';
 }
