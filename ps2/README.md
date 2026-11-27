@@ -9,7 +9,7 @@ This folder is the **PlayStation 2 native project**, separate from the existing 
 - PS2 controller support (D-pad left/right)
 
 ## Current milestone
-The first C prototype draws placeholder scenery with gsKit and moves a placeholder traveler using libpad. This is a technical foundation, not final art. Next milestones: custom sprite frames, animated scenery, a proper region layout, sound, and save/checkpoint support.
+The first C prototype draws placeholder scenery with gsKit and moves a placeholder traveler using libpad. It now estimates footstep distance and maps provisional world zones to subtle, brief DualShock 2 large-motor pulses (grass, wood, shallow water, forest, snow). SELECT toggles rumble. If the controller does not expose a supported motor, movement continues without vibration. This is a technical foundation, not final art. Next milestones: custom sprite frames, animated scenery, a proper region layout, sound, and save/checkpoint support.
 
 ## Build requirements
 A PC or remote Linux build environment with the PS2DEV toolchain, PS2SDK, and gsKit is required. Android can edit this repository, but is not a practical native PS2 compile/test environment.
@@ -25,6 +25,7 @@ Expected output: `forgotten_path.elf`. Test in PCSX2 or on compatible PS2 hardwa
 
 ## Controls
 - D-pad left/right: walk
+- SELECT: toggle optional gentle DualShock 2 rumble
 - No combat, enemies, or timed challenges
 
 ## Notes
