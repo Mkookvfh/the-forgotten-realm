@@ -97,7 +97,8 @@ const weaponStats = {
   staff: { name: 'คทาเวท', damage: 1.5, range: 4.8, cooldown: 0.8, rarity: 'uncommon', kind: 'melee' },
   bow: { name: 'ธนูพรานป่า', damage: 1.4, range: 18, cooldown: 0.62, rarity: 'uncommon', kind: 'ranged', projectile: 'arrow', stamina: 4 },
   froststaff: { name: 'คทาเหมันต์', damage: 2.1, range: 15, cooldown: 1.0, rarity: 'rare', kind: 'ranged', projectile: 'frost', stamina: 7, slow: 2.5 },
-  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic', kind: 'melee' }
+  voidblade: { name: 'ดาบเงาว่าง', damage: 3.5, range: 3.8, cooldown: .7, rarity: 'epic', kind: 'melee' },
+  starforged: { name: 'ดาบดาวหลอม', damage: 5.2, range: 4.0, cooldown: .68, rarity: 'legendary', kind: 'melee', element: 'arcane' }
 };
 
 const armorStats = {
@@ -107,7 +108,8 @@ const armorStats = {
   shadow: { name: 'เกราะเงา', reduction: .5, rarity: 'rare' },
   runerobe: { name: 'ผ้าคลุมรูน', reduction: .45, rarity: 'rare' },
   plate: { name: 'เกราะจาน', reduction: .55, rarity: 'rare' },
-  dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' }
+  dragonplate: { name: 'เกราะมังกรร้าง', reduction: .65, rarity: 'epic' },
+  voidwarden: { name: 'เกราะผู้พิทักษ์ว่างเปล่า', reduction: .72, rarity: 'legendary' }
 };
 
 const classDefs = {
