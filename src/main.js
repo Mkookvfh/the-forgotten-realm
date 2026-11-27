@@ -1558,6 +1558,7 @@ function spawnEnemy(type, x, z) {
     recoveryTimer: 0,
     bossAttackIndex: 0,
     activeBossAttack: null,
+    bossChargeTarget: null,
     deathTimer: 0,
     respawnTimer: 0,
     deathDuration: .55,
@@ -3039,6 +3040,7 @@ function respawnEnemy(enemy) {
   data.attackTimer = 0;
   data.recoveryTimer = 0;
   data.activeBossAttack = null;
+  data.bossChargeTarget = null;
   data.bossAttackIndex = 0;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
@@ -3893,18 +3895,44 @@ function updateWorld(dt, yaw) {
           data.activeBossAttack = getBossAttackPattern(data.phase, data.bossAttackIndex++);
           data.telegraphTimer = data.activeBossAttack.windup;
           data.attackTimer = data.telegraphTimer;
+          // Lock the charge direction when the warning starts; players can dodge
+          // by moving laterally while the boss rushes toward this position.
+          data.bossChargeTarget = data.activeBossAttack.behavior === 'charge'
+            ? { x: player.position.x, z: player.position.z }
+            : null;
           toast(`${data.name} เตรียม ${data.activeBossAttack.attackName}! หลบออกจากวงเตือน!`);
         } else if (data.telegraphTimer > 0) {
+          const activeAttack = data.activeBossAttack || bossProfile;
           data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
           data.attackTimer = data.telegraphTimer;
+
+          // Charge attacks move during their readable wind-up. Collision-aware
+          // movement keeps the boss from passing through streamed buildings.
+          if (activeAttack.behavior === 'charge' && data.bossChargeTarget) {
+            const chargeX = data.bossChargeTarget.x - enemy.position.x;
+            const chargeZ = data.bossChargeTarget.z - enemy.position.z;
+            const chargeDistance = Math.hypot(chargeX, chargeZ);
+            if (chargeDistance > .12) {
+              const chargeDirection = new THREE.Vector3(chargeX, 0, chargeZ).normalize();
+              enemy.rotation.y = Math.atan2(chargeDirection.x, chargeDirection.z);
+              const chargeStep = Math.min(chargeDistance, (activeAttack.chargeSpeed || 7) * dt);
+              moveEnemySafely(enemy, chargeDirection.x * chargeStep, chargeDirection.z * chargeStep);
+              data.moving = true;
+            }
+          }
+
           if (data.telegraphTimer <= 0) {
-            const activeAttack = data.activeBossAttack || bossProfile;
             data.cooldown = stats.cooldown * activeAttack.cooldownMultiplier;
             data.recoveryTimer = activeAttack.recovery;
-            // Check position and dodge invulnerability again at impact.
+            data.bossChargeTarget = null;
+            // Recheck the live positions and dodge invulnerability at impact.
+            const impactDistance = Math.hypot(
+              player.position.x - enemy.position.x,
+              player.position.z - enemy.position.z
+            );
             const attackRadius = stats.reach + activeAttack.radiusBonus;
             const finalAttackDamage = attackDamage * activeAttack.damageMultiplier;
-            if (distance <= attackRadius && invulnerabilityTimer <= 0) {
+            if (impactDistance <= attackRadius && invulnerabilityTimer <= 0) {
               const cls = classDefs[state.classId] || {};
               const incomingDamage = finalAttackDamage *
                 (1 - armorReduction()) *
