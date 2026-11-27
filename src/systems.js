@@ -1800,7 +1800,7 @@ export function createSystems(ctx) {
     group.userData = {
       kind: 'bossChest', chestId,
       reward: { title: reward.title, gold: Math.max(0, Number(reward.gold) || 0), crystals: Math.max(0, Number(reward.crystals) || 0), items: { ...reward.items } },
-      opened: false, glow, phase: Math.random() * Math.PI * 2
+      opened: false, glow, lid, phase: Math.random() * Math.PI * 2
     };
     scene.add(group);
     bossChests.push(group);
@@ -1822,7 +1822,7 @@ export function createSystems(ctx) {
     for (const [id, amount] of Object.entries(data.reward.items || {})) {
       if (MATERIAL_INFO[id]) addItem(id, Math.max(0, Math.floor(Number(amount) || 0)));
     }
-    chest.rotation.x = -.16;
+    if (data.lid) data.lid.rotation.x = -.72;
     if (audio) audio.play('pickup');
     toast(`เปิดหีบ ${data.reward.title} · ทอง +${data.reward.gold} · ผลึก +${data.reward.crystals} · รับไอเทมพิเศษแล้ว`);
     updateHud();
