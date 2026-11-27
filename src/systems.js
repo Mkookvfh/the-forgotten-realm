@@ -2338,8 +2338,8 @@ export function createSystems(ctx) {
     addReputation(choice.faction, choice.rep, 'การตัดสินใจที่ศาลเจ้า');
     dialogue.mode = 'reply';
     dialogue.text = choice.text + (choiceId === 'free-spirits'
-      ? '\\n\\nเมื่อภารกิจสำเร็จ วิญญาณจะมอบผลึกเพิ่มเติมให้เจ้า'
-      : '\\n\\nเมื่อภารกิจสำเร็จ ศาสนจักรจะมอบยาฟื้นฟูเพิ่มเติมให้เจ้า');
+      ? '\n\nเมื่อภารกิจสำเร็จ วิญญาณจะมอบผลึกเพิ่มเติมให้เจ้า'
+      : '\n\nเมื่อภารกิจสำเร็จ ศาสนจักรจะมอบยาฟื้นฟูเพิ่มเติมให้เจ้า');
     if (typeof onQuestCutscene === 'function') {
       onQuestCutscene({ title: choiceId === 'free-spirits' ? 'คำสัตย์ · ปลดปล่อยวิญญาณ' : 'คำสัตย์ · ผนึกวิญญาณ' });
     }
