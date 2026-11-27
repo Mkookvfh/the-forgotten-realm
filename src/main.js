@@ -32,6 +32,7 @@ import { createCutsceneDirector } from './cutscene-director.js';
 import { createCombatFeedback } from './combat-feedback.js';
 import { createCameraShake } from './camera-shake.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
+import { createAmbientBirds } from './ambient-birds.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
 import './hud-theme.css';
@@ -701,6 +702,11 @@ const vegetation = createVegetationManager({
   scene,
   getHeight: (x, z) => frontierWorld?.getHeight(x, z) ?? worldStreamer.getHeight(x, z),
   getRegion: (x, z) => worldStreamer.getRegion(x, z),
+  mobile: isTouch
+});
+const ambientBirds = createAmbientBirds({
+  scene,
+  getHeight: (x, z) => getTerrainHeight(x, z, 0) ?? 0,
   mobile: isTouch
 });
 let fallbackHidden = false;
@@ -4824,6 +4830,7 @@ body.rotation.x = -attackGlow * .22;
   worldStreamer.update(player.position);
   frontierWorld?.update(player.position);
   vegetation.update(player.position, dt);
+  ambientBirds.update(dt, player.position);
 
   if (!fallbackHidden && worldStreamer.loadedCount > 0) {
     fallbackHidden = true;
