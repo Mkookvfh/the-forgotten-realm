@@ -35,3 +35,11 @@ test('rejects unsupported future save versions', () => {
 test('throws when both save copies are invalid', () => {
   assert.throws(() => parseSaveWithBackup('{broken', '{"bad":true}'));
 });
+
+test('does not treat malformed or structurally invalid saves as backup candidates', async () => {
+  const { isValidSaveRaw } = await import('./single-player-save.js');
+  assert.equal(isValidSaveRaw(valid()), true);
+  assert.equal(isValidSaveRaw('{broken json'), false);
+  assert.equal(isValidSaveRaw(JSON.stringify({ player: [1, 2, 3] })), false);
+  assert.equal(isValidSaveRaw(null), false);
+});
