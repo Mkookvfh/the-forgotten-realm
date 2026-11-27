@@ -80,7 +80,7 @@ const settings = {
   weather: true,
   sound: true,
   music: true,
-  postfx: true,
+  postfx: !isTouch,
   dayNightMode: 'auto',
   fpsLimit: 'auto',
   mobileLayout: 'right',
@@ -4330,18 +4330,22 @@ function updateWorld(dt, yaw) {
 function applySettings() {
   sensitivity = Number(settings.sensitivity) * .001;
 
-  const ratio = settings.quality === 'high'
-    ? Math.min(devicePixelRatio || 1, 2)
-    : settings.quality === 'low'
-      ? 1
-      : Math.min(devicePixelRatio || 1, 1.5);
+  const ratio = isTouch
+    ? (settings.quality === 'high'
+      ? Math.min(devicePixelRatio || 1, 1.25)
+      : 1)
+    : (settings.quality === 'high'
+      ? Math.min(devicePixelRatio || 1, 2)
+      : settings.quality === 'low'
+        ? 1
+        : Math.min(devicePixelRatio || 1, 1.5));
 
   renderer.setPixelRatio(ratio);
   adaptiveResolution.reset(renderer, settings.quality);
   renderer.shadowMap.enabled = settings.quality !== 'low';
-  const shadowResolution = settings.quality === 'high'
-    ? (isTouch ? 1536 : 2048)
-    : settings.quality === 'medium' ? 1024 : 512;
+  const shadowResolution = isTouch
+    ? (settings.quality === 'high' ? 1024 : settings.quality === 'medium' ? 768 : 512)
+    : (settings.quality === 'high' ? 2048 : settings.quality === 'medium' ? 1024 : 512);
   sunLight.shadow.mapSize.setScalar(shadowResolution);
   moon.shadow.mapSize.setScalar(shadowResolution);
 
@@ -5207,11 +5211,15 @@ function resizeGame() {
 
   renderer.setSize(width, height);
 
-  const ratio = settings.quality === 'high'
-    ? Math.min(devicePixelRatio || 1, 2)
-    : settings.quality === 'low'
-      ? 1
-      : Math.min(devicePixelRatio || 1, 1.5);
+  const ratio = isTouch
+    ? (settings.quality === 'high'
+      ? Math.min(devicePixelRatio || 1, 1.25)
+      : 1)
+    : (settings.quality === 'high'
+      ? Math.min(devicePixelRatio || 1, 2)
+      : settings.quality === 'low'
+        ? 1
+        : Math.min(devicePixelRatio || 1, 1.5));
 
   renderer.setPixelRatio(ratio);
   cinematic.resize(width, height, ratio);
@@ -5242,6 +5250,8 @@ systems.refreshQuestUI();
 resizeGame();
 
 let lastFrameTime = 0;
+let updateErrorReported = false;
+let renderErrorReported = false;
 
 const prologue = createPrologue({
   onDone() {
@@ -5269,15 +5279,38 @@ function animate(now = performance.now()) {
   lastFrameTime = now;
 
   const dt = Math.min(clock.getDelta(), .05);
-  cameraShake.update(dt);
-  if (prologue.active) {
-    prologueUpdate(dt);
-  } else if (!isPanelOpen()) {
-    update(dt);
+  try {
+    cameraShake.update(dt);
+    if (prologue.active) {
+      prologueUpdate(dt);
+    } else if (!isPanelOpen()) {
+      update(dt);
+    }
+  } catch (error) {
+    if (!updateErrorReported) {
+      updateErrorReported = true;
+      console.error('GAME UPDATE ERROR (animation continues):', error);
+      toast('ระบบเกมเกิดข้อผิดพลาด · กำลังพยายามแสดงภาพต่อ');
+    }
   }
-  adaptiveResolution.update(now, settings.quality, settings.fpsLimit, renderer, cinematic);
-  performanceMonitor.update(now, settings.quality, settings.fpsLimit, adaptiveResolution.ratio);
-  cinematic.render();
+
+  try {
+    adaptiveResolution.update(now, settings.quality, settings.fpsLimit, renderer, cinematic);
+    performanceMonitor.update(now, settings.quality, settings.fpsLimit, adaptiveResolution.ratio);
+    cinematic.render();
+  } catch (error) {
+    if (!renderErrorReported) {
+      renderErrorReported = true;
+      console.error('POSTFX/RENDER ERROR (fallback enabled):', error);
+      toast('ปิดเอฟเฟกต์ภาพชั่วคราวเพื่อกู้คืนการแสดงผล');
+    }
+    cinematic.setEnabled(false);
+    try {
+      renderer.render(scene, camera);
+    } catch (fallbackError) {
+      console.error('DIRECT RENDER ERROR:', fallbackError);
+    }
+  }
 }
 
 prologue.start();
