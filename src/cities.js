@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 
 const CITY_DEFS = [
-  { id:'ravenhold', name:'ราเวนโฮลด์', x:-45, z:-45, size:1.0, tint:0x6b4b35 },
-  { id:'varnhal', name:'วาร์นฮัล', x:160, z:50, size:1.35, tint:0x76634b },
-  { id:'ashford', name:'แอชฟอร์ด', x:45, z:-50, size:.9, tint:0x72503b },
-  { id:'grimmoor', name:'กริมมัวร์', x:55, z:0, size:.88, tint:0x514b49 },
-  { id:'duskvale', name:'ดัสก์เวล', x:42, z:50, size:.9, tint:0x624d3d },
-  { id:'blackmere', name:'แบล็กเมียร์', x:-48, z:42, size:.9, tint:0x4d5b5b },
-  { id:'thornwick', name:'ธอร์นวิก', x:-150, z:-40, size:.82, tint:0x5d4b39 },
-  { id:'wolfden', name:'วูล์ฟเดน', x:50, z:-200, size:.82, tint:0x574638 },
-  { id:'mirefall', name:'หมู่บ้านมิเรฟอลล์', x:-50, z:205, size:.82, tint:0x4c5a50 }
+  { id:'ravenhold', name:'ราเวนโฮลด์', x:-45, z:-45, size:1.0, tint:0xc89a55 },
+  { id:'varnhal', name:'วาร์นฮัล', x:160, z:50, size:1.35, tint:0x8bbd63 },
+  { id:'ashford', name:'แอชฟอร์ด', x:45, z:-50, size:.9, tint:0xd47a52 },
+  { id:'grimmoor', name:'กริมมัวร์', x:55, z:0, size:.88, tint:0x83a6b5 },
+  { id:'duskvale', name:'ดัสก์เวล', x:42, z:50, size:.9, tint:0xd2ad67 },
+  { id:'blackmere', name:'แบล็กเมียร์', x:-48, z:42, size:.9, tint:0x62b5bd },
+  { id:'thornwick', name:'ธอร์นวิก', x:-150, z:-40, size:.82, tint:0x9abf70 },
+  { id:'wolfden', name:'วูล์ฟเดน', x:50, z:-200, size:.82, tint:0xe1a45d },
+  { id:'mirefall', name:'หมู่บ้านมิเรฟอลล์', x:-50, z:205, size:.82, tint:0x65b78b }
 ];
 
 export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) {
@@ -22,22 +22,22 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
   const residents = [];
   const cityRoots = [];
   const dummy = new THREE.Object3D();
-  const wood = new THREE.MeshStandardMaterial({ color:0x493326, roughness:.92 });
-  const plaster = new THREE.MeshStandardMaterial({ color:0xb49a75, roughness:.95 });
-  const stone = new THREE.MeshStandardMaterial({ color:0x625e58, roughness:1 });
+  const wood = new THREE.MeshStandardMaterial({ color:0x8a5a36, roughness:.92 });
+  const plaster = new THREE.MeshStandardMaterial({ color:0xe8d6a8, roughness:.95 });
+  const stone = new THREE.MeshStandardMaterial({ color:0xa6b5bc, roughness:1 });
   const roofMaterials = [
-    new THREE.MeshStandardMaterial({ color:0x4b3030, roughness:.9 }),
-    new THREE.MeshStandardMaterial({ color:0x343b43, roughness:.9 }),
-    new THREE.MeshStandardMaterial({ color:0x594737, roughness:.9 })
+    new THREE.MeshStandardMaterial({ color:0xb65342, roughness:.9 }),
+    new THREE.MeshStandardMaterial({ color:0x557fae, roughness:.9 }),
+    new THREE.MeshStandardMaterial({ color:0x9c7444, roughness:.9 })
   ];
-  const roadMat = new THREE.MeshStandardMaterial({ color:0x39352f, roughness:1 });
+  const roadMat = new THREE.MeshStandardMaterial({ color:0xb89a6b, roughness:1 });
   const windowMat = new THREE.MeshStandardMaterial({ color:0xffc76b, emissive:0x7b3e10, emissiveIntensity:.55 });
   const lampMat = new THREE.MeshStandardMaterial({ color:0xffb64d, emissive:0xff6b19, emissiveIntensity:1.4 });
   const npcMats = [
-    new THREE.MeshStandardMaterial({color:0x6c8a68,roughness:1}),
-    new THREE.MeshStandardMaterial({color:0x8a5945,roughness:1}),
-    new THREE.MeshStandardMaterial({color:0x777b9a,roughness:1}),
-    new THREE.MeshStandardMaterial({color:0x9b8051,roughness:1})
+    new THREE.MeshStandardMaterial({color:0x5cae69,roughness:1}),
+    new THREE.MeshStandardMaterial({color:0xd67a50,roughness:1}),
+    new THREE.MeshStandardMaterial({color:0x7d9ed0,roughness:1}),
+    new THREE.MeshStandardMaterial({color:0xe1bb62,roughness:1})
   ];
   const npcSkin = new THREE.MeshStandardMaterial({color:0xc89b78,roughness:1});
   const npcHair = new THREE.MeshStandardMaterial({color:0x30251f,roughness:1});
