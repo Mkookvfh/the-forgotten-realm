@@ -4294,6 +4294,19 @@ function updateWorld(dt, yaw) {
         const wanderZ = data.homeZ + Math.cos(t * .7) * 1.2;
         if (!worldStreamer.blocked(wanderX,wanderZ,.42) && !frontierWorld?.blocked(wanderX,wanderZ,.42) && !cityWorld?.blocked(wanderX,wanderZ,.42)) { enemy.position.x=wanderX; enemy.position.z=wanderZ; }
       }
+    } else if (!isBoss && distance > stats.aggro + 8 && Math.hypot(enemy.position.x - data.homeX, enemy.position.z - data.homeZ) > 5) {
+      // Enemies stop chasing after a long pursuit and return to their own camp.
+      // This prevents patrols from dragging across the whole open world.
+      const homeX = data.homeX - enemy.position.x;
+      const homeZ = data.homeZ - enemy.position.z;
+      const homeDistance = Math.hypot(homeX, homeZ);
+      if (homeDistance > .35) {
+        const homeDirection = new THREE.Vector3(homeX, 0, homeZ).normalize();
+        enemy.rotation.y = Math.atan2(homeDirection.x, homeDirection.z);
+        const homeStep = Math.min(homeDistance, dt * speed * .8);
+        moveEnemySafely(enemy, homeDirection.x * homeStep, homeDirection.z * homeStep);
+        data.moving = true;
+      }
     } else if (distance < stats.aggro) {
       const direction = new THREE.Vector3(dx, 0, dz).normalize();
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
