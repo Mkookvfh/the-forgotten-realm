@@ -3755,6 +3755,14 @@ export function createSystems(ctx) {
         x: drop.position.x,
         z: drop.position.z
       })),
+      // Preserve villagers' current locations so a save/load does not
+      // teleport every NPC back to their original spawn point.
+      npcs: npcs.map((npc) => ({
+        id: npc.userData.npcId,
+        x: npc.position.x,
+        z: npc.position.z,
+        rotation: npc.rotation.y
+      })),
       secrets: state.discoveredSecrets.slice()
     };
   }
@@ -3796,6 +3804,24 @@ export function createSystems(ctx) {
         if (!Number.isFinite(saved.x) || !Number.isFinite(saved.z)) continue;
         const rarity = RARITY[saved.rarity] ? saved.rarity : rarityOf(saved.type);
         spawnDrop(saved.type, new THREE.Vector3(saved.x, 0, saved.z), 0, rarity);
+      }
+    }
+
+    if (Array.isArray(data.npcs)) {
+      const savedById = new Map(
+        data.npcs.filter((saved) => saved && typeof saved.id === 'string')
+          .map((saved) => [saved.id, saved])
+      );
+      for (const npc of npcs) {
+        const saved = savedById.get(npc.userData.npcId);
+        if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.z)) continue;
+        const x = THREE.MathUtils.clamp(saved.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+        const z = THREE.MathUtils.clamp(saved.z, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
+        const groundY = surfaceY(x, z, npc.position.y);
+        npc.position.set(x, groundY, z);
+        if (Number.isFinite(saved.rotation)) npc.rotation.y = saved.rotation;
+        npc.userData.target.set(x, groundY, z);
+        npc.userData.moving = false;
       }
     }
   }
