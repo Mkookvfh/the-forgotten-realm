@@ -2358,6 +2358,7 @@ function loadGame(slot = currentSlot) {
     if (data.state.quests && typeof data.state.quests === 'object') {
       state.quests = { ...data.state.quests };
     }
+    state.trackedQuestId = typeof data.state.trackedQuestId === 'string' ? data.state.trackedQuestId : 'main';
     if (data.state.upgrades && typeof data.state.upgrades === 'object') {
       const upgrades = {};
       for (const [id, tier] of Object.entries(data.state.upgrades)) {
@@ -4989,6 +4990,12 @@ questOpenButton.addEventListener('click', () => {
 
 $('#quest-close').addEventListener('click', () => {
   closePanels();
+});
+
+$('#quest-list').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-track-quest]');
+  if (!button) return;
+  if (systems.setTrackedQuest(button.dataset.trackQuest)) systems.drawWorldMap(yaw);
 });
 
 function toggleMapPanel() {
