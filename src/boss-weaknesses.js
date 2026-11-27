@@ -19,6 +19,15 @@ export function getElementMultiplier(enemyType, element = 'physical') {
   return WEAKNESSES[enemyType]?.[safeElement] || 1;
 }
 
+export function getWeaknessHint(enemyType) {
+  const hints = {
+    guardian: 'สายฟ้า', wraith: 'ไฟ', brute: 'น้ำแข็ง',
+    boss: 'น้ำแข็ง', dungeonBoss: 'ไฟ', wolf: 'ไฟ',
+    raider: 'พิษ', revenant: 'ไฟ', warlord: 'สายฟา'
+  };
+  return hints[enemyType] || 'ธาตุที่เหมาะสม';
+}
+
 export function getStaggerThreshold(enemyType) {
   if (enemyType === 'boss' || enemyType === 'dungeonBoss' || enemyType === 'warlord') return 7;
   if (enemyType === 'brute' || enemyType === 'revenant') return 4.5;
