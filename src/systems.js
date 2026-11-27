@@ -99,6 +99,20 @@ export const SIDE_QUESTS = {
     reward: { crystals: 4, xp: 150 },
     acceptedLine: 'วิญญาณที่หลงเหลือกำลังวนเวียนใกล้ศาลเจ้า จงปลดปล่อยพวกเขา แล้วนำความสงบกลับคืนมา',
     completedLine: 'เสียงกระซิบเงียบลงในที่สุด เจ้าช่วยปลดปล่อยวิญญาณเหล่านั้นแล้ว'
+  },
+  release: {
+    title: 'บทเพลงแห่งอิสรภาพ',
+    desc: 'เก็บสมุนไพรศักดิ์สิทธิ์ 4 ชิ้นให้วิญญาณที่ถูกปลดปล่อย',
+    target: 4,
+    reward: { crystals: 3, xp: 180 },
+    acceptedLine: 'วิญญาณที่เป็นอิสระขอให้เจ้ารวบรวมสมุนไพรศักดิ์สิทธิ์ เพื่อเยียวยาศาลเจ้าและผืนป่า'
+  },
+  seal: {
+    title: 'ตราผนึกศาสนจักร',
+    desc: 'กำจัดผีร้าย 3 ตัวเพื่อรวบรวมพลังสำหรับตราผนึก',
+    target: 3,
+    reward: { potions: 2, xp: 180 },
+    acceptedLine: 'จงกำจัดผีร้ายที่เหลืออีก 3 ตัว พลังที่รวบรวมได้จะช่วยเสริมตราผนึกให้มั่นคง'
   }
 };
 
@@ -2034,6 +2048,8 @@ export function createSystems(ctx) {
           addReputation('church', 5, 'ผนึกวิญญาณ');
         }
       }
+      if (id === 'release') addReputation('outcasts', 4, 'บทเพลงแห่งอิสรภาพ');
+      if (id === 'seal') addReputation('church', 4, 'ตราผนึกศาสนจักร');
       if (reward.xp) gainXp(reward.xp);
 
       if (audio) audio.play('quest');
@@ -2067,7 +2083,10 @@ export function createSystems(ctx) {
     }
 
     if (type === 'guardian') advanceQuest('hunt', 1);
-    if (type === 'wraith') advanceQuest('wraith', 1);
+    if (type === 'wraith') {
+      advanceQuest('wraith', 1);
+      if (state.flags['sage-story-choice'] === 'seal-spirits') advanceQuest('seal', 1);
+    }
     advanceBounties(type);
   }
 
@@ -2365,8 +2384,14 @@ export function createSystems(ctx) {
 
   function npcQuestId(npc) {
     const chain = Array.isArray(npc.questChain)
-      ? npc.questChain
+      ? npc.questChain.slice()
       : (npc.quest ? [npc.quest] : []);
+    if (npc.id === 'sage' && state.quests.wraith?.status === 'done') {
+      const branch = state.flags['sage-story-choice'] === 'free-spirits'
+        ? 'release'
+        : state.flags['sage-story-choice'] === 'seal-spirits' ? 'seal' : null;
+      if (branch) chain.push(branch);
+    }
 
     for (const id of chain) {
       const progress = state.quests[id];
@@ -2382,6 +2407,41 @@ export function createSystems(ctx) {
     if (!id) return false;
     const progress = state.quests[id];
     return !progress || progress.status === 'locked';
+  }
+
+  function questGuideTarget() {
+    const active = Object.entries(state.quests || {}).find(([id, progress]) =>
+      SIDE_QUESTS[id] && progress && progress.status === 'active'
+    );
+    if (active) {
+      const [id, progress] = active;
+      const targetType = ['herb', 'release'].includes(id) ? 'herb' : 'wraith';
+      const pool = targetType === 'herb'
+        ? nodes.filter((node) => node.userData.type === 'herb' && node.userData.amount > 0)
+        : enemies.filter((enemy) => enemy.userData.type === 'wraith' && enemy.userData.alive);
+      let target = null, distance = Infinity;
+      for (const item of pool) {
+        const d = Math.hypot(item.position.x - player.position.x, item.position.z - player.position.z);
+        if (d < distance) { target = item; distance = d; }
+      }
+      if (target) return {
+        x: target.position.x, z: target.position.z,
+        label: SIDE_QUESTS[id].title,
+        progress: `${Math.min(progress.count || 0, SIDE_QUESTS[id].target)}/${SIDE_QUESTS[id].target}`
+      };
+      return { x: 5.5, z: 1, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' };
+    }
+
+    const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
+    const sageData = NPC_DATA.find((npc) => npc.id === 'sage');
+    if (sage && sageData && questAvailable(sageData)) {
+      return { x: sage.position.x, z: sage.position.z, label: 'รับภารกิจจากนักพรต', progress: 'คุยกับ NPC' };
+    }
+    if (state.questStage < 2) {
+      const main = mainQuestMarker();
+      if (main) return { ...main, progress: 'ภารกิจหลัก' };
+    }
+    return null;
   }
 
   function npcTier(npc) {
@@ -2722,7 +2782,10 @@ export function createSystems(ctx) {
       nearest.userData.respawn = 50;
       nearest.visible = false;
       addItem(type, amount);
-      if (type === 'herb') advanceQuest('herb', amount);
+      if (type === 'herb') {
+        advanceQuest('herb', amount);
+        if (state.flags['sage-story-choice'] === 'free-spirits') advanceQuest('release', amount);
+      }
 
       toast(`เก็บ${MATERIAL_INFO[type].name} +${amount}`);
       return true;
@@ -4207,6 +4270,7 @@ export function createSystems(ctx) {
     drawWorldMap,
     refreshInventoryUI,
     refreshQuestUI,
+    questGuideTarget,
     gearTier,
     gearUpgradeCost,
     upgradeGear,
