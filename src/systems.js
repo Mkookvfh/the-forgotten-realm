@@ -2592,6 +2592,26 @@ export function createSystems(ctx) {
         back.addEventListener('click', backToTopics);
         choicesEl.appendChild(back);
       } else {
+        if (npc.id === 'sage' && state.quests.herb?.status === 'done' && !state.flags['sage-story-choice']) {
+          const choiceTitle = document.createElement('small');
+          choiceTitle.className = 'story-choice-title';
+          choiceTitle.textContent = '✦ การตัดสินใจของเจ้า';
+          choicesEl.appendChild(choiceTitle);
+
+          const free = document.createElement('button');
+          free.type = 'button';
+          free.className = 'dialogue-topic story-choice';
+          free.textContent = 'ปลดปล่อยวิญญาณ · ผู้ถูกเนรเทศ +3';
+          free.addEventListener('click', () => chooseStoryChoice('free-spirits'));
+          choicesEl.appendChild(free);
+
+          const seal = document.createElement('button');
+          seal.type = 'button';
+          seal.className = 'dialogue-topic story-choice';
+          seal.textContent = 'ผนึกวิญญาณ · ศาสนจักร +3';
+          seal.addEventListener('click', () => chooseStoryChoice('seal-spirits'));
+          choicesEl.appendChild(seal);
+        }
         if (questAvailable(npc)) {
           const questId = npcQuestId(npc);
           const accept = document.createElement('button');
@@ -2601,7 +2621,7 @@ export function createSystems(ctx) {
           accept.addEventListener('click', () => {
             if (acceptQuest(questId)) {
               dialogue.mode = 'reply';
-              dialogue.text = SIDE_QUESTS[questId].acceptedLine || `จงทำภารกิจ ${SIDE_QUESTS[questId].title} ให้สำเร็จ แล้วกลับมาหาข้า`;
+              dialogue.text = questAcceptedLine(questId);
               renderDialogue();
             }
           });
@@ -4096,7 +4116,7 @@ export function createSystems(ctx) {
         const questId = npcQuestId(npc);
         if (acceptQuest(questId)) {
           dialogue.mode = 'reply';
-          dialogue.text = SIDE_QUESTS[questId].acceptedLine || `จงทำภารกิจ ${SIDE_QUESTS[questId].title} ให้สำเร็จ แล้วกลับมาหาข้า`;
+          dialogue.text = questAcceptedLine(questId);
           renderDialogue();
           return;
         }
