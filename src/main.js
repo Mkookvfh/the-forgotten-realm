@@ -1557,6 +1557,9 @@ function spawnEnemy(type, x, z) {
     telegraphTimer: 0,
     recoveryTimer: 0,
     bossAttackIndex: 0,
+    bossComboIndex: 0,
+    bossComboQueue: null,
+    bossComboStep: 0,
     activeBossAttack: null,
     bossChargeTarget: null,
     deathTimer: 0,
@@ -3042,6 +3045,9 @@ function respawnEnemy(enemy) {
   data.activeBossAttack = null;
   data.bossChargeTarget = null;
   data.bossAttackIndex = 0;
+  data.bossComboIndex = 0;
+  data.bossComboQueue = null;
+  data.bossComboStep = 0;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
@@ -3484,6 +3490,8 @@ function setDungeonEnemies(active) {
     enemy.userData.recoveryTimer = 0;
     enemy.userData.bossChargeTarget = null;
     enemy.userData.activeBossAttack = null;
+    enemy.userData.bossComboQueue = null;
+    enemy.userData.bossComboStep = 0;
     enemy.userData.telegraphTimer = 0;
     enemy.userData.healthFill.scale.x = active ? 1 : 0;
     enemy.userData.healthFill.position.x = 0;
@@ -3896,7 +3904,13 @@ function updateWorld(dt, yaw) {
         if (distance > stats.reach + 1) {
           data.telegraphTimer = 0;
         } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
-          data.activeBossAttack = getBossAttackPattern(data.phase, data.bossAttackIndex++);
+          if (!Array.isArray(data.bossComboQueue) || data.bossComboStep >= data.bossComboQueue.length) {
+            data.bossComboQueue = getBossCombo(data.phase, data.bossComboIndex++);
+            data.bossComboStep = 0;
+          }
+          const comboPatternIndex = data.bossComboQueue[data.bossComboStep];
+          data.activeBossAttack = getBossAttackPattern(data.phase, comboPatternIndex);
+          data.bossAttackIndex++;
           data.telegraphTimer = data.activeBossAttack.windup;
           data.attackTimer = data.telegraphTimer;
           // Lock the charge direction when the warning starts; players can dodge
@@ -3926,8 +3940,14 @@ function updateWorld(dt, yaw) {
           }
 
           if (data.telegraphTimer <= 0) {
-            data.cooldown = stats.cooldown * activeAttack.cooldownMultiplier;
-            data.recoveryTimer = activeAttack.recovery;
+            const comboHasNext = Array.isArray(data.bossComboQueue) && data.bossComboStep < data.bossComboQueue.length - 1;
+            data.bossComboStep++;
+            data.cooldown = comboHasNext ? Math.max(.16, .42 - data.phase * .07) : stats.cooldown * activeAttack.cooldownMultiplier;
+            data.recoveryTimer = comboHasNext ? .35 : activeAttack.recovery;
+            if (!comboHasNext) {
+              data.bossComboQueue = null;
+              data.bossComboStep = 0;
+            }
             data.bossChargeTarget = null;
             // Recheck the live positions and dodge invulnerability at impact.
             const impactDistance = Math.hypot(
