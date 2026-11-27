@@ -2281,10 +2281,12 @@ export function createSystems(ctx) {
         const progress = state.quests[id];
         const status = progress.status === 'done' ? '✓ สำเร็จ' : 'กำลังทำ';
         return (
-          `<div class="quest-entry">` +
+          `<div class="quest-entry${state.trackedQuestId === id ? ' tracked' : ''}">` +
           `<b>${quest.title}</b>` +
-          `<small>${quest.desc} (${progress.count}/${quest.target})</small>` +
+          `<small>${quest.desc} (${Math.min(progress.count || 0, quest.target)}/${quest.target})</small>` +
           `<small>${status}</small>` +
+          `<button type="button" class="quest-track-btn" data-track-quest="${id}" aria-pressed="${state.trackedQuestId === id}">` +
+          `${state.trackedQuestId === id ? '✓ กำลังติดตาม' : 'ติดตามภารกิจนี้'}</button>` +
           `</div>`
         );
       })
@@ -2299,8 +2301,10 @@ export function createSystems(ctx) {
       `</div>`;
 
     list.innerHTML = (
-      `<div class="quest-entry main-quest">` +
-      `<b>✦ ภารกิจหลัก</b><small>${mainText}</small></div>` +
+      `<div class="quest-entry main-quest${state.trackedQuestId === 'main' ? ' tracked' : ''}">` +
+      `<b>✦ ภารกิจหลัก</b><small>${mainText}</small>` +
+      `<button type="button" class="quest-track-btn" data-track-quest="main" aria-pressed="${state.trackedQuestId === 'main'}">` +
+      `${state.trackedQuestId === 'main' ? '✓ กำลังติดตาม' : 'ติดตามภารกิจนี้'}</button></div>` +
       sideHtml + hiddenHtml
     );
 
@@ -4318,6 +4322,7 @@ export function createSystems(ctx) {
     refreshInventoryUI,
     refreshQuestUI,
     questGuideTarget,
+    setTrackedQuest,
     gearTier,
     gearUpgradeCost,
     upgradeGear,
