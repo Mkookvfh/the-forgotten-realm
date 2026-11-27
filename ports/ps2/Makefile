@@ -1,0 +1,10 @@
+EE_BIN = tfr_ps2.elf
+EE_OBJS = main.o
+EE_LIBS = -lpad
+
+all: $(EE_BIN)
+
+clean:
+	rm -f $(EE_OBJS) $(EE_BIN)
+
+include $(PS2SDK)/samples/Makefile.eeglobal
