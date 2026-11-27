@@ -44,7 +44,9 @@ export const RECIPES = [
   { id: 'spellFire', name: 'เวทลูกไฟ', cost: { darkShard: 2, bone: 1 }, give: { spell: 'firebolt' } },
   { id: 'spellHeal', name: 'เวทรักษา', cost: { herb: 4, bone: 1 }, give: { spell: 'heal' } },
   { id: 'voidblade', name: 'ดาบเงาว่าง', cost: { bossRelic: 1, stoneHeart: 2, darkShard: 4 }, give: { item: 'voidblade' }, rarity: 'epic' },
-  { id: 'dragonplate', name: 'เกราะมังกรร้าง', cost: { bossRelic: 1, stoneHeart: 3, ore: 5 }, give: { item: 'dragonplate' }, rarity: 'epic' }
+  { id: 'dragonplate', name: 'เกราะมังกรร้าง', cost: { bossRelic: 1, stoneHeart: 3, ore: 5 }, give: { item: 'dragonplate' }, rarity: 'epic' },
+  { id: 'starforged', name: 'ดาบดาวหลอม (Legendary)', cost: { ruinCore: 1, bossRelic: 4, darkShard: 8, stoneHeart: 4 }, give: { item: 'starforged' }, rarity: 'legendary' },
+  { id: 'voidwarden', name: 'เกราะผู้พิทักษ์ว่างเปล่า (Legendary)', cost: { ashHeart: 1, bossRelic: 4, ore: 10, stoneHeart: 6 }, give: { item: 'voidwarden' }, rarity: 'legendary' }
 ];
 
 export const SPELLS = {
@@ -1497,7 +1499,8 @@ export function createSystems(ctx) {
     const equipmentIds = [
       'sword', 'greatsword', 'staff', 'voidblade',
       'axe', 'bow', 'froststaff',
-      'leather', 'iron', 'shadow', 'dragonplate', 'ranger', 'runerobe'
+      'leather', 'iron', 'shadow', 'dragonplate', 'ranger', 'runerobe',
+      'starforged', 'voidwarden'
     ];
     if (!MATERIAL_INFO[id] && !equipmentIds.includes(id)) return;
 
