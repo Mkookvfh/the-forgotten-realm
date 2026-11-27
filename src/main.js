@@ -326,6 +326,7 @@ function selectWeapon(id) {
   if (!weaponStats[id] || !systems.owns(id)) return;
   state.weapon = id;
   refreshEquipmentUI();
+  updateStarforgedSkillButton();
   toast(`เปลี่ยนอาวุธ: ${weaponStats[id].name}`);
 }
 
@@ -3489,6 +3490,37 @@ function campCook() {
   toast('ปรุงสตูว์ป่า · ได้ยาฟื้นฟู 2');
 }
 
+let lastStarforgedButtonLabel = '';
+
+function updateStarforgedSkillButton() {
+  const button = $('#starforged-skill');
+  if (!button) return;
+
+  const equipped = state.weapon === 'starforged';
+  const remaining = Math.ceil(starforgedSkillCooldown);
+  const cooling = equipped && remaining > 0;
+  const label = !equipped
+    ? '✦ ดาวพิฆาต · ใช้ดาบดาวหลอม'
+    : cooling
+      ? `✦ ดาวพิฆาต · ${remaining} วิ`
+      : '✦ ดาวพิฆาต · พร้อมใช้';
+
+  if (label !== lastStarforgedButtonLabel) {
+    button.textContent = label;
+    button.title = cooling
+      ? `สกิลพร้อมใช้ใน ${remaining} วินาที`
+      : equipped
+        ? 'สกิลดาบดาวหลอม (คีย์ T)'
+        : 'ต้องสวมดาบดาวหลอมก่อน';
+    button.setAttribute('aria-label', button.title);
+    lastStarforgedButtonLabel = label;
+  }
+
+  button.disabled = !equipped || cooling;
+  button.classList.toggle('skill-ready', equipped && !cooling);
+  button.classList.toggle('skill-cooling', cooling);
+}
+
 function castStarforgedSkill() {
   if (state.weapon !== 'starforged') {
     toast('ต้องสวมดาบดาวหลอมก่อน');
@@ -3500,6 +3532,7 @@ function castStarforgedSkill() {
   }
 
   starforgedSkillCooldown = 12;
+  updateStarforgedSkillButton();
   const radius = 5.4;
   const skillDamage = (weaponStats.starforged.damage + state.attackBonus) *
     weaponDamageMultiplier() * 1.65;
@@ -4594,6 +4627,7 @@ body.rotation.x = -attackGlow * .22;
 
   attackCooldown = Math.max(0, attackCooldown - dt);
   starforgedSkillCooldown = Math.max(0, starforgedSkillCooldown - dt);
+  updateStarforgedSkillButton();
 
   cameraTarget.set(
     player.position.x,
