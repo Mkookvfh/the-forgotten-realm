@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
 import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
-import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial } from './boss-weaknesses.js';
+import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial, getWeaknessHint } from './boss-weaknesses.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
@@ -1565,6 +1565,7 @@ function spawnEnemy(type, x, z) {
     staggerDecayTimer: 0,
     stunTimer: 0,
     lowHpSpecialUsed: false,
+    weaknessHintShown: false,
     activeBossAttack: null,
     bossChargeTarget: null,
     deathTimer: 0,
@@ -3058,6 +3059,7 @@ function respawnEnemy(enemy) {
   data.staggerDecayTimer = 0;
   data.stunTimer = 0;
   data.lowHpSpecialUsed = false;
+  data.weaknessHintShown = false;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
@@ -3533,6 +3535,7 @@ function setDungeonEnemies(active) {
     enemy.userData.staggerDecayTimer = 0;
     enemy.userData.stunTimer = 0;
     enemy.userData.lowHpSpecialUsed = false;
+    enemy.userData.weaknessHintShown = false;
     enemy.userData.telegraphTimer = 0;
     enemy.userData.healthFill.scale.x = active ? 1 : 0;
     enemy.userData.healthFill.position.x = 0;
@@ -3915,6 +3918,10 @@ function updateWorld(dt, yaw) {
 
     const showBar = distance < stats.aggro + 2;
     data.healthBar.visible = showBar;
+    if (showBar && isBoss && !data.weaknessHintShown) {
+      data.weaknessHintShown = true;
+      toast(`${data.name} · จุดอ่อน: ${getWeaknessHint(data.type)}`);
+    }
     if (showBar) {
       const barWorldRotation = camera.quaternion.clone();
       barWorldRotation.premultiply(enemy.quaternion.clone().invert());
