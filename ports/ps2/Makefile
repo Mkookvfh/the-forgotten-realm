@@ -1,5 +1,5 @@
 EE_BIN = tfr_ps2.elf
-EE_OBJS = main.o
+EE_OBJS = main.o tfr_input.o
 EE_LIBS = -lpad
 
 all: $(EE_BIN)
