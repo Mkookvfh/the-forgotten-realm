@@ -1776,6 +1776,59 @@ export function createSystems(ctx) {
     return group;
   }
 
+  const bossChests = [];
+
+  function makeBossChestMesh(position, chestId, reward) {
+    const group = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b3f25, roughness: .42, metalness: .25 });
+    const trim = new THREE.MeshStandardMaterial({ color: 0xe4b45d, emissive: 0x8a4b12, emissiveIntensity: .8, metalness: .75, roughness: .25 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.35, .72, .9), wood);
+    base.position.y = .48;
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.42, .3, .98), wood);
+    lid.position.y = .98;
+    const band = new THREE.Mesh(new THREE.BoxGeometry(1.48, .12, 1.02), trim);
+    band.position.y = .75;
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(.2, .28, .08), trim);
+    lock.position.set(0, .8, .53);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(.8, .045, 8, 32), new THREE.MeshBasicMaterial({ color: 0xffd879, transparent: true, opacity: .85 }));
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = .08;
+    group.add(base, lid, band, lock, glow);
+    const x = Number(position.x) || 0;
+    const z = Number(position.z) || 0;
+    group.position.set(x, surfaceY(x, z, Number(position.y) || 0), z);
+    group.userData = {
+      kind: 'bossChest', chestId,
+      reward: { title: reward.title, gold: Math.max(0, Number(reward.gold) || 0), crystals: Math.max(0, Number(reward.crystals) || 0), items: { ...reward.items } },
+      opened: false, glow, phase: Math.random() * Math.PI * 2
+    };
+    scene.add(group);
+    bossChests.push(group);
+    return group;
+  }
+
+  function createBossChest(chestId, position, reward) {
+    if (typeof chestId !== 'string' || !chestId || !reward || typeof reward !== 'object') return null;
+    if (bossChests.some((chest) => chest.userData.chestId === chestId)) return null;
+    return makeBossChestMesh(position, chestId, reward);
+  }
+
+  function openBossChest(chest) {
+    const data = chest.userData;
+    if (!data || data.kind !== 'bossChest' || data.opened) return false;
+    data.opened = true;
+    state.gold += data.reward.gold;
+    state.crystals += data.reward.crystals;
+    for (const [id, amount] of Object.entries(data.reward.items || {})) {
+      if (MATERIAL_INFO[id]) addItem(id, Math.max(0, Math.floor(Number(amount) || 0)));
+    }
+    chest.rotation.x = -.16;
+    if (audio) audio.play('pickup');
+    toast(`เปิดหีบ ${data.reward.title} · ทอง +${data.reward.gold} · ผลึก +${data.reward.crystals} · รับไอเทมพิเศษแล้ว`);
+    updateHud();
+    return true;
+  }
+
   function claimSecret(secret) {
     const data = secret.userData.secretData;
     if (!data || state.discoveredSecrets.includes(data.id)) return false;
