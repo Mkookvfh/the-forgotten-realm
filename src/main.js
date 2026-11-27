@@ -525,6 +525,24 @@ const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
 const adaptiveResolution = createAdaptiveResolution({ enabled: isTouch });
 const performanceMonitor = createPerformanceMonitor(renderer, { enabled: settings.perfMonitor });
 
+// Recover gracefully if Android's GPU/WebGL context is temporarily lost.
+let renderContextLost = false;
+renderer.domElement.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  renderContextLost = true;
+  toast('กราฟิกหยุดชั่วคราว · รอระบบภาพฟื้นตัว');
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  renderContextLost = false;
+  renderer.resetState();
+  // Resume with the direct renderer first; post-processing can be re-enabled
+  // manually after confirming the device is stable.
+  settings.postfx = false;
+  applySettings();
+  resizeGame();
+  toast('กู้คืนกราฟิกแล้ว · ปิดเอฟเฟกต์ภาพเพื่อความเสถียร');
+});
+
 // ---------- Sky ----------
 const SKY_SUN_DIR = new THREE.Vector3(-24, 40, 30).normalize();
 const SKY_MOON_DIR = new THREE.Vector3(-18, 28, 12).normalize();
@@ -2010,6 +2028,7 @@ addEventListener('pointerdown', () => audio.unlock(), { once: true });
 
 // ---------- Controls ----------
 const keys = Object.create(null);
+let runExhausted = false;
 
 // One-shot actions prevent repeated jumping/interacting while holding.
 const input = {
@@ -2029,6 +2048,7 @@ function clearInputs() {
   input.x = 0;
   input.y = 0;
   input.run = false;
+  runExhausted = false;
   input.jumpPressed = false;
   input.attackPressed = false;
   input.starforgedSkillPressed = false;
@@ -4661,7 +4681,10 @@ function update(dt) {
     const wz = -mx * s + my * c;
 
     const wantsRun = input.run || keys.ShiftLeft || keys.ShiftRight;
-    const canRun = wantsRun && state.stamina > 1;
+    if (!wantsRun) runExhausted = false;
+    if (state.stamina <= 1) runExhausted = true;
+    if (runExhausted && state.stamina >= 25) runExhausted = false;
+    const canRun = wantsRun && !runExhausted && state.stamina > 1;
     const speed = canRun ? 7.5 : 4.0;
     const moveX = wx * speed * dt;
     const moveZ = wz * speed * dt;
@@ -4748,7 +4771,8 @@ playerSprite.material.color.setRGB(
 playerSprite.scale.set(1.55 + attackGlow * .16, 2.05, 1);
 body.rotation.x = -attackGlow * .22;
 
-  if (!moving || !(input.run || keys.ShiftLeft || keys.ShiftRight)) {
+  const runRequested = input.run || keys.ShiftLeft || keys.ShiftRight;
+  if (!moving || !runRequested || runExhausted) {
     const staminaRegen = 15 * ((classDefs[state.classId] || {}).staminaRegen || 1);
     state.stamina = Math.min(100, state.stamina + staminaRegen * dt);
   }
@@ -5439,6 +5463,10 @@ function animate(now = performance.now()) {
   const fpsLimit = Number(settings.fpsLimit);
   if (fpsLimit > 0 && now - lastFrameTime < 1000 / fpsLimit - 1.5) return;
   lastFrameTime = now;
+  if (renderContextLost) {
+    clock.getDelta(); // discard elapsed time while the graphics context is unavailable
+    return;
+  }
 
   const dt = Math.min(clock.getDelta(), .05);
   try {
