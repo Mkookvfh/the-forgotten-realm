@@ -4598,7 +4598,7 @@ $('#map-close').addEventListener('click', () => {
 function renderExplorationJournal() {
   const journal = getExplorationJournal(state);
   const totals = explorationTotals(journal);
-  journalSummary.textContent = `ค้นพบความลับ ${totals.found} / ${totals.total} จุด · สำเร็จ ${totals.completedRegions} / ${journal.length} ภูมิภาค`;
+  journalSummary.textContent = `สำรวจพื้นที่ ${systems.exploredPercent()}% · ค้นพบความลับ ${totals.found} / ${totals.total} จุด · สำเร็จ ${totals.completedRegions} / ${journal.length} ภูมิภาค`;
   journalRegions.replaceChildren();
 
   for (const region of journal) {
