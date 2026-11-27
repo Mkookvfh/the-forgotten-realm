@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
 import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
+import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial } from './boss-weaknesses.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
@@ -1560,6 +1561,10 @@ function spawnEnemy(type, x, z) {
     bossComboIndex: 0,
     bossComboQueue: null,
     bossComboStep: 0,
+    staggerMeter: 0,
+    staggerDecayTimer: 0,
+    stunTimer: 0,
+    lowHpSpecialUsed: false,
     activeBossAttack: null,
     bossChargeTarget: null,
     deathTimer: 0,
@@ -3048,6 +3053,10 @@ function respawnEnemy(enemy) {
   data.bossComboIndex = 0;
   data.bossComboQueue = null;
   data.bossComboStep = 0;
+  data.staggerMeter = 0;
+  data.staggerDecayTimer = 0;
+  data.stunTimer = 0;
+  data.lowHpSpecialUsed = false;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
@@ -3118,7 +3127,9 @@ function damageEnemy(enemy, amount, options = {}) {
   // The blood pact amplifies every weapon hit and feeds the combo meter.
   const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
   const openingMultiplier = getBossOpeningMultiplier(isBoss, data.recoveryTimer, data.phase);
-  const dealt = amount * comboStats().mult * openingMultiplier;
+  const element = options.element || 'physical';
+  const weaknessMultiplier = getElementMultiplier(data.type, element);
+  const dealt = amount * weaknessMultiplier * comboStats().mult * openingMultiplier;
 
   data.hp -= dealt;
   data.hurtTimer = .3;
@@ -3128,6 +3139,30 @@ function damageEnemy(enemy, amount, options = {}) {
   if (options.slow) {
     data.slowTimer = Math.max(data.slowTimer || 0, options.slow);
   }
+
+  const stagger = buildStaggerState({
+    meter: data.staggerMeter,
+    decayTimer: data.staggerDecayTimer
+  }, data.type, Math.max(0, dealt) * .85);
+  data.staggerMeter = stagger.meter;
+  data.staggerDecayTimer = stagger.decayTimer;
+  if (stagger.triggered) {
+    data.stunTimer = Math.max(data.stunTimer || 0, stagger.duration);
+    data.cooldown = Math.max(data.cooldown || 0, stagger.duration);
+    data.hurtTimer = Math.max(data.hurtTimer, .55);
+    if (isBoss) {
+      data.telegraphTimer = 0;
+      data.attackTimer = 0;
+      data.activeBossAttack = null;
+      data.bossChargeTarget = null;
+      data.bossComboQueue = null;
+      data.bossComboStep = 0;
+      data.recoveryTimer = Math.max(data.recoveryTimer || 0, stagger.duration);
+      if (data.bossWarning) data.bossWarning.visible = false;
+    }
+    toast(`${data.name} ชะงัก! โจมตีสวนได้`);
+  }
+  if (weaknessMultiplier > 1) toast(`โจมตีจุดอ่อน ${element} · ความเสียหายเพิ่ม ${Math.round((weaknessMultiplier - 1) * 100)}%`);
 
   // Only the player's own weapon feeds the Blood Pact; companion hits do not.
   if (!options.companion) {
@@ -3173,7 +3208,8 @@ function spawnProjectile(weapon, damage) {
     traveled: 0,
     maxRange: weapon.range,
     damage,
-    slow: weapon.slow || 0
+    slow: weapon.slow || 0,
+    element: weapon.element || (weapon.projectile === 'frost' ? 'frost' : 'physical')
   });
 }
 
@@ -3197,7 +3233,7 @@ function updateProjectiles(dt) {
     }
 
     if (hit) {
-      const dealt = damageEnemy(hit, shot.damage, { slow: shot.slow });
+      const dealt = damageEnemy(hit, shot.damage, { slow: shot.slow, element: shot.element });
       if (hit.userData.alive) {
         toast(`โจมตีโดน ${hit.userData.name} -${Math.round(dealt * 10) / 10}`);
         audio.play('hit');
@@ -3454,7 +3490,7 @@ function attack() {
   }
 
   if (target) {
-    const dealt = damageEnemy(target, damage);
+    const dealt = damageEnemy(target, damage, { element: weapon.element || 'physical' });
     audio.play('hit');
     if (target.userData.alive) {
       toast(`โจมตี ${target.userData.name} -${Math.round(dealt * 10) / 10}`);
@@ -3492,6 +3528,10 @@ function setDungeonEnemies(active) {
     enemy.userData.activeBossAttack = null;
     enemy.userData.bossComboQueue = null;
     enemy.userData.bossComboStep = 0;
+    enemy.userData.staggerMeter = 0;
+    enemy.userData.staggerDecayTimer = 0;
+    enemy.userData.stunTimer = 0;
+    enemy.userData.lowHpSpecialUsed = false;
     enemy.userData.telegraphTimer = 0;
     enemy.userData.healthFill.scale.x = active ? 1 : 0;
     enemy.userData.healthFill.position.x = 0;
@@ -3861,6 +3901,9 @@ function updateWorld(dt, yaw) {
 
     data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
     data.recoveryTimer = Math.max(0, (data.recoveryTimer || 0) - dt);
+    data.staggerDecayTimer = Math.max(0, (data.staggerDecayTimer || 0) - dt);
+    if (data.staggerDecayTimer <= 0) data.staggerMeter = 0;
+    data.stunTimer = Math.max(0, (data.stunTimer || 0) - dt);
     const slowFactor = data.slowTimer > 0 ? .55 : 1;
     const speed = stats.speed * data.phaseMultiplier * slowFactor;
     const attackDamage = stats.damage * data.phaseMultiplier * (bossProfile?.damageMultiplier || 1);
@@ -3877,6 +3920,12 @@ function updateWorld(dt, yaw) {
       data.healthBar.quaternion.copy(barWorldRotation);
     }
     data.cooldown = Math.max(0, data.cooldown - dt);
+
+    if (data.stunTimer > 0) {
+      data.moving = false;
+      if (distance < 42) updateCharacterAnimation(data, dt, player.rotation.y, enemy.rotation.y);
+      continue;
+    }
 
     data.moving = false;
 
@@ -3908,8 +3957,18 @@ function updateWorld(dt, yaw) {
             data.bossComboQueue = getBossCombo(data.phase, data.bossComboIndex++);
             data.bossComboStep = 0;
           }
-          const comboPatternIndex = data.bossComboQueue[data.bossComboStep];
-          data.activeBossAttack = getBossAttackPattern(data.phase, comboPatternIndex);
+          const lowHpSpecial = !data.lowHpSpecialUsed
+            ? getLowHealthBossSpecial(data.type, data.hp / data.maxHp)
+            : null;
+          if (lowHpSpecial) {
+            data.activeBossAttack = lowHpSpecial;
+            data.lowHpSpecialUsed = true;
+            data.bossComboQueue = null;
+            data.bossComboStep = 0;
+          } else {
+            const comboPatternIndex = data.bossComboQueue[data.bossComboStep];
+            data.activeBossAttack = getBossAttackPattern(data.phase, comboPatternIndex);
+          }
           data.bossAttackIndex++;
           data.telegraphTimer = data.activeBossAttack.windup;
           data.attackTimer = data.telegraphTimer;
