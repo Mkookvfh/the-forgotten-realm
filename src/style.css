@@ -1452,3 +1452,24 @@ body.layout-left #mobile-controls {
 .save-slot-card:active {
   transform: scale(.97);
 }
+
+
+/* Story-choice branches in NPC dialogue */
+.story-choice-title {
+  display: block;
+  margin: 2px 0 0;
+  color: #d9c38c;
+  font-size: 10px;
+  letter-spacing: .4px;
+}
+
+.dialogue-topic.story-choice {
+  border-color: #bca36a66;
+  background: linear-gradient(135deg, #bca36a18, #17202d);
+  color: #e8dfc9;
+}
+
+.dialogue-topic.story-choice:focus-visible {
+  outline: 2px solid #e3c17e;
+  outline-offset: 2px;
+}
