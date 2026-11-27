@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial, getStaggerThreshold } from './boss-weaknesses.js';
+import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial, getStaggerThreshold, getWeaknessHint } from './boss-weaknesses.js';
 
 test('elemental weaknesses and resistances are type-specific', () => {
   assert.equal(getElementMultiplier('wraith', 'fire'), 1.4);
@@ -31,4 +31,10 @@ test('low-health special attacks are only offered to bosses at or below 20 perce
   const special = getLowHealthBossSpecial('dungeonBoss', .2);
   assert.equal(special.special, true);
   assert.ok(special.damageMultiplier > 1.5);
+});
+
+test('boss weak point hints match elemental weakness data', () => {
+  assert.equal(getWeaknessHint('boss'), 'น้ำแข็ง');
+  assert.equal(getWeaknessHint('dungeonBoss'), 'ไฟ');
+  assert.equal(getWeaknessHint('warlord'), 'สายฟ้า');
 });
