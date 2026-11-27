@@ -16,7 +16,7 @@ export const REGIONS = [
   },
   {
     id: 'ravenhold',
-    name: 'ราเวนโฮลด์',
+    name: 'หมู่บ้านหุบเขาสายลม',
     center: { x: -45, z: -45 },
     radius: 72,
     color: '#d8b878',
@@ -24,7 +24,7 @@ export const REGIONS = [
   },
   {
     id: 'deadwood',
-    name: 'ป่าแห้งตาย',
+    name: 'ป่ามรกต',
     center: { x: -165, z: -155 },
     radius: 110,
     color: '#7aa6f0',
@@ -40,7 +40,7 @@ export const REGIONS = [
   },
   {
     id: 'emberpeak',
-    name: 'ภูเขาไฟเอ็มเบอร์พีค',
+    name: 'เทือกเขาอัคนี',
     center: { x: 160, z: -177 },
     radius: 112,
     color: '#ff7a4d',
@@ -48,7 +48,7 @@ export const REGIONS = [
   },
   {
     id: 'mirefall',
-    name: 'ทะเลสาบมิเรฟอลล์',
+    name: 'ทะเลสาบมรกต',
     center: { x: -170, z: 160 },
     radius: 112,
     color: '#7fd4e8',
@@ -89,9 +89,9 @@ export const REGIONS = [
 ];
 
 export const LANDMARKS = [
-  { id: 'castle', name: 'ซากปราสาท', position: { x: 9, z: -8 }, region: 'wasteland', color: '#d8a86a', size: 5 },
-  { id: 'graveyard', name: 'สุสานเงียบ', position: { x: -12, z: 11 }, region: 'wasteland', color: '#9d9fb4', size: 3.5 },
-  { id: 'bridge', name: 'สะพานข้ามลาวา', position: { x: -5, z: 2 }, region: 'wasteland', color: '#ff8a4d', size: 3 },
+  { id: 'castle', name: 'จุดชมวิวเนินรุ่งอรุณ', position: { x: 9, z: -28 }, region: 'wasteland', color: '#a8d96b', size: 5 },
+  { id: 'graveyard', name: 'ลานดอกไม้ริมลำธาร', position: { x: -18, z: 14 }, region: 'wasteland', color: '#e6a9d0', size: 3.5 },
+  { id: 'bridge', name: 'สะพานไม้ข้ามลำธาร', position: { x: -5, z: 2 }, region: 'wasteland', color: '#c6a06b', size: 3 },
   { id: 'ravenhold', name: 'หมู่บ้านราเวนโฮลด์', position: { x: -45, z: -45 }, region: 'ravenhold', color: '#d8b878', size: 5 },
   { id: 'ashford', name: 'เมืองแอชฟอร์ด', position: { x: 45, z: -50 }, region: 'wasteland', color: '#c9a86a', size: 4.5 },
   { id: 'grimmoor', name: 'เมืองกริมมัวร์', position: { x: 55, z: 0 }, region: 'wasteland', color: '#c9a86a', size: 4.5 },
@@ -105,8 +105,8 @@ export const LANDMARKS = [
   { id: 'abbey', name: 'ซากอาราม', position: { x: -130, z: 120 }, region: 'mirefall', color: '#9d9fb4', size: 4 },
   { id: 'giant-bones', name: 'ซากกระดูกยักษ์', position: { x: 83, z: 158 }, region: 'varnhal', color: '#d9d3c2', size: 4 },
   { id: 'volcano', name: 'ปล่องภูเขาไฟ', position: { x: 159, z: -177 }, region: 'emberpeak', color: '#ff5b3d', size: 7 },
-  { id: 'cursed-lake', name: 'ทะเลสาบต้องสาป', position: { x: -170, z: 160 }, region: 'mirefall', color: '#7fd4e8', size: 6 },
-  { id: 'dead-forest', name: 'ป่าแห้งตาย', position: { x: -165, z: -155 }, region: 'deadwood', color: '#7aa6f0', size: 6 },
+  { id: 'cursed-lake', name: 'ทะเลสาบมรกต', position: { x: -170, z: 160 }, region: 'mirefall', color: '#7fd4e8', size: 6 },
+  { id: 'dead-forest', name: 'ป่ามรกต', position: { x: -165, z: -155 }, region: 'deadwood', color: '#7aa6f0', size: 6 },
   { id: 'cave-shadow', name: 'ถ้ำเงาลืมเลือน', position: { x: 95, z: -120 }, region: 'emberpeak', color: '#c992f0', size: 4 },
   { id: 'cave-root', name: 'ถ้ำรากหิน', position: { x: -110, z: -190 }, region: 'deadwood', color: '#c992f0', size: 4 },
   { id: 'cave-mire', name: 'ถ้ำใต้ก้นบึง', position: { x: -205, z: 195 }, region: 'mirefall', color: '#c992f0', size: 4 },
