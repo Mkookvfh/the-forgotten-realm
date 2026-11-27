@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
-import { getBossPhaseCombatProfile, getBossOpeningMultiplier } from './boss-combat.js';
+import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern } from './boss-combat.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
@@ -1556,6 +1556,8 @@ function spawnEnemy(type, x, z) {
     attackTimer: 0,
     telegraphTimer: 0,
     recoveryTimer: 0,
+    bossAttackIndex: 0,
+    activeBossAttack: null,
     deathTimer: 0,
     respawnTimer: 0,
     deathDuration: .55,
@@ -3036,6 +3038,8 @@ function respawnEnemy(enemy) {
   data.telegraphTimer = 0;
   data.attackTimer = 0;
   data.recoveryTimer = 0;
+  data.activeBossAttack = null;
+  data.bossAttackIndex = 0;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
@@ -3823,7 +3827,8 @@ function updateWorld(dt, yaw) {
 
     if (data.bossWarning) {
       const warning = data.bossWarning;
-      const warningRadius = Math.max(1.6, stats.reach + (bossProfile?.radiusBonus || .45));
+      const warningAttack = data.activeBossAttack || bossProfile;
+      const warningRadius = Math.max(1.6, stats.reach + (warningAttack?.radiusBonus || .45));
       warning.visible = data.telegraphTimer > 0 && data.alive;
       warning.position.set(
         enemy.position.x,
@@ -3885,20 +3890,23 @@ function updateWorld(dt, yaw) {
         if (distance > stats.reach + 1) {
           data.telegraphTimer = 0;
         } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
-          data.telegraphTimer = bossProfile.windup;
+          data.activeBossAttack = getBossAttackPattern(data.phase, data.bossAttackIndex++);
+          data.telegraphTimer = data.activeBossAttack.windup;
           data.attackTimer = data.telegraphTimer;
-          toast(`${data.name} เตรียม ${bossProfile.attackName}! หลบออกจากวงเตือน!`);
+          toast(`${data.name} เตรียม ${data.activeBossAttack.attackName}! หลบออกจากวงเตือน!`);
         } else if (data.telegraphTimer > 0) {
           data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
           data.attackTimer = data.telegraphTimer;
           if (data.telegraphTimer <= 0) {
-            data.cooldown = stats.cooldown * bossProfile.cooldownMultiplier;
-            data.recoveryTimer = bossProfile.recovery;
+            const activeAttack = data.activeBossAttack || bossProfile;
+            data.cooldown = stats.cooldown * activeAttack.cooldownMultiplier;
+            data.recoveryTimer = activeAttack.recovery;
             // Check position and dodge invulnerability again at impact.
-            const attackRadius = stats.reach + bossProfile.radiusBonus;
+            const attackRadius = stats.reach + activeAttack.radiusBonus;
+            const finalAttackDamage = attackDamage * activeAttack.damageMultiplier;
             if (distance <= attackRadius && invulnerabilityTimer <= 0) {
               const cls = classDefs[state.classId] || {};
-              const incomingDamage = attackDamage *
+              const incomingDamage = finalAttackDamage *
                 (1 - armorReduction()) *
                 (1 - (cls.damageReduction || 0));
               state.hp = Math.max(0, state.hp - incomingDamage);
