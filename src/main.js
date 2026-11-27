@@ -33,6 +33,7 @@ import { createCombatFeedback } from './combat-feedback.js';
 import { createCameraShake } from './camera-shake.js';
 import { createVegetationManager } from './vegetation/vegetation-manager.js';
 import { createAmbientBirds } from './ambient-birds.js';
+import { createStarterScenery } from './starter-scenery.js';
 import { REGIONS, LANDMARKS, WORLD_BOUNDS, regionAt } from './worldData.js';
 import './style.css';
 import './hud-theme.css';
@@ -706,6 +707,7 @@ const worldStreamer = createWorldStreamer({
 let frontierWorld = null;
 let cityWorld = null;
 let pendingCitySave = null;
+let starterScenery = null;
 function moveEnemySafely(enemy, dx, dz) {
   const radius = enemy.userData.kind === 'animal' ? .42 : .5;
   const blocked = (x,z) => worldStreamer.blocked(x,z,radius) ||
@@ -730,6 +732,7 @@ const ambientBirds = createAmbientBirds({
 let fallbackHidden = false;
 worldStreamer.init().then((ok) => {
   if (!ok) {
+    installStarterScenery();
     cityWorld = createCityWorld({
       scene,
       getHeight: (x, z) => worldStreamer.getHeight(x, z) ?? 0,
@@ -739,6 +742,7 @@ worldStreamer.init().then((ok) => {
     toast('ใช้แผนที่ต้นแบบ · เมืองและชาวเมืองยังเปิดใช้งาน');
     return;
   }
+  installStarterScenery();
   // Build the four new 3D frontier regions only after the heightmap is ready,
   // so each terrain patch conforms to the real streamed-world ground.
   frontierWorld = createFrontierWorld({
@@ -779,6 +783,17 @@ for (let i = 0; i < 24; i++) {
   fallbackWorld.add(slab);
 }
 const obstacles = [];
+
+function installStarterScenery() {
+  if (starterScenery) return;
+  starterScenery = createStarterScenery({
+    scene,
+    getHeight: (x, z) => worldStreamer.getHeight(x, z),
+    mobile: isTouch
+  });
+  obstacles.push(...starterScenery.colliders);
+}
+
 function makeTree(x, z, scale = 1) {
   const tree = new THREE.Group();
 
