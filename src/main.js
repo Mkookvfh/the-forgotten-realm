@@ -3112,7 +3112,6 @@ function defeatEnemy(enemy) {
 
   state.crystals += crystals;
   state.gold += gold;
-  gainXp(enemy.userData.stats.xp);
 
   // Open-world boss rewards are unique per save slot, even after respawn.
   const uniqueBossReward = !data.dungeon ? claimBossReward(state.flags, type) : null;
@@ -3122,14 +3121,16 @@ function defeatEnemy(enemy) {
     for (const [itemId, amount] of Object.entries(uniqueBossReward.items)) {
       systems.addItem(itemId, amount);
     }
-    toast(`${uniqueBossReward.title} · รางวัลพิเศษ: ทอง +${uniqueBossReward.gold} · ผลึก +${uniqueBossReward.crystals} · ชิ้นส่วนโบราณ +${uniqueBossReward.items.bossRelic || 0}`);
   }
 
   gainXp(enemy.userData.stats.xp);
   systems.onEnemyKilled(enemy);
   audio.play(type === 'boss' || type === 'dungeonBoss' ? 'boss' : 'hit');
+  const rewardText = uniqueBossReward
+    ? ` · โบนัสพิเศษ: ทอง +${uniqueBossReward.gold} · ผลึก +${uniqueBossReward.crystals} · เศษโบราณ +${uniqueBossReward.items.bossRelic || 0}`
+    : '';
   toast(
-    `${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} · ทอง ${gold}`
+    `${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} · ทอง ${gold}${rewardText}`
   );
   completeDungeonIfReady();
   updateHud();
