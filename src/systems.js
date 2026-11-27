@@ -2441,7 +2441,40 @@ export function createSystems(ctx) {
       const main = mainQuestMarker();
       if (main) return { ...main, progress: 'ภารกิจหลัก' };
     }
+    const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
+    const sageData = NPC_DATA.find((npc) => npc.id === 'sage');
+    if (sage && sageData && questAvailable(sageData)) {
+      return { x: sage.position.x, z: sage.position.z, label: 'รับ/ส่งภารกิจกับนักพรต', progress: 'คุยกับ NPC' };
+    }
     return null;
+  }
+
+  let questGuideTimer = 0;
+  function updateQuestGuideArrow(yaw, dt) {
+    questGuideTimer -= dt;
+    if (questGuideTimer > 0) return;
+    questGuideTimer = .16;
+    const guide = $('#quest-guide');
+    if (!guide) return;
+    const target = questGuideTarget();
+    if (!target) {
+      guide.classList.add('hidden');
+      return;
+    }
+    guide.classList.remove('hidden');
+    const dx = target.x - player.position.x;
+    const dz = target.z - player.position.z;
+    const distance = Math.hypot(dx, dz);
+    const bearing = Math.atan2(dx, dz);
+    const relative = Math.atan2(Math.sin(bearing - yaw), Math.cos(bearing - yaw));
+    const arrow = guide.querySelector('.quest-guide-arrow');
+    const name = guide.querySelector('.quest-guide-name');
+    const distanceEl = guide.querySelector('.quest-guide-distance');
+    if (arrow) arrow.style.transform = `rotate(${relative}rad)`;
+    if (name) name.textContent = target.label || 'เป้าหมายภารกิจ';
+    if (distanceEl) distanceEl.textContent = distance < 2.5
+      ? 'อยู่ใกล้เป้าหมายแล้ว'
+      : `${Math.round(distance)} ม. · ${target.progress || 'เดินตามลูกศร'}`;
   }
 
   function npcTier(npc) {
@@ -3880,6 +3913,7 @@ export function createSystems(ctx) {
   }
 
   function update(dt, yaw) {
+    updateQuestGuideArrow(yaw, dt);
     updateNpcSchedules(dt, yaw);
     updateSecrets(dt);
 
