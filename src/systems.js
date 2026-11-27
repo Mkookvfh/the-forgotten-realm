@@ -2409,44 +2409,59 @@ export function createSystems(ctx) {
     return !progress || progress.status === 'locked';
   }
 
-  function questGuideTarget() {
-    const active = Object.entries(state.quests || {}).find(([id, progress]) =>
-      SIDE_QUESTS[id] && progress && progress.status === 'active'
-    );
-    if (active) {
-      const [id, progress] = active;
-      const targetType = ['herb', 'release'].includes(id) ? 'herb' : 'wraith';
-      const pool = targetType === 'herb'
-        ? nodes.filter((node) => node.userData.type === 'herb' && node.userData.amount > 0)
-        : enemies.filter((enemy) => enemy.userData.type === 'wraith' && enemy.userData.alive);
-      let target = null, distance = Infinity;
-      for (const item of pool) {
-        const d = Math.hypot(item.position.x - player.position.x, item.position.z - player.position.z);
-        if (d < distance) { target = item; distance = d; }
-      }
-      if (target) return {
-        x: target.position.x, z: target.position.z,
-        label: SIDE_QUESTS[id].title,
-        progress: `${Math.min(progress.count || 0, SIDE_QUESTS[id].target)}/${SIDE_QUESTS[id].target}`
-      };
-      const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
-      return sage
-        ? { x: sage.position.x, z: sage.position.z, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' }
-        : { x: 5.5, z: 1, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' };
-    }
-
-    if (state.questStage < 2) {
+  function questTargetForId(id) {
+    if (id === 'main') {
       const main = mainQuestMarker();
-      if (main) return { ...main, progress: 'ภารกิจหลัก' };
+      return main ? { ...main, progress: 'ภารกิจหลัก' } : null;
     }
+    const quest = SIDE_QUESTS[id];
+    const progress = state.quests[id];
+    if (!quest || !progress || progress.status !== 'active') return null;
+    const herbs = ['herb', 'release'].includes(id);
+    const pool = herbs
+      ? nodes.filter((node) => node.userData.type === 'herb' && node.userData.amount > 0)
+      : enemies.filter((enemy) => enemy.userData.type === 'wraith' && enemy.userData.alive);
+    let target = null, distance = Infinity;
+    for (const item of pool) {
+      const d = Math.hypot(item.position.x - player.position.x, item.position.z - player.position.z);
+      if (d < distance) { target = item; distance = d; }
+    }
+    if (target) return { x: target.position.x, z: target.position.z, label: quest.title, progress: `${Math.min(progress.count || 0, quest.target)}/${quest.target}` };
+    const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
+    return sage ? { x: sage.position.x, z: sage.position.z, label: 'กลับไปหานักพรต', progress: 'ส่งภารกิจ' } : { x: 5.5, z: 1, label: 'กลับไปหานักพรต', progress: 'ส่งภารกิจ' };
+  }
+
+  function questGuideTarget() {
+    const id = typeof state.trackedQuestId === 'string' ? state.trackedQuestId : 'main';
+    const progress = state.quests[id];
+    if (id === 'main' && state.questStage < 2) {
+      const target = questTargetForId('main');
+      if (target) return target;
+    } else if (id !== 'main' && progress && progress.status === 'active') {
+      const target = questTargetForId(id);
+      if (target) return target;
+    } else if (id !== 'main' && progress && progress.status === 'done') {
+      const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
+      if (sage) return { x: sage.position.x, z: sage.position.z, label: 'ส่งภารกิจที่เลือก', progress: 'กลับไปหานักพรต' };
+    }
+    const active = Object.entries(state.quests || {}).find(([questId, entry]) => SIDE_QUESTS[questId] && entry && entry.status === 'active');
+    if (active) return questTargetForId(active[0]);
+    if (state.questStage < 2) return questTargetForId('main');
     const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
     const sageData = NPC_DATA.find((npc) => npc.id === 'sage');
-    if (sage && sageData && questAvailable(sageData)) {
-      return { x: sage.position.x, z: sage.position.z, label: 'รับ/ส่งภารกิจกับนักพรต', progress: 'คุยกับ NPC' };
-    }
+    if (sage && sageData && questAvailable(sageData)) return { x: sage.position.x, z: sage.position.z, label: 'รับ/ส่งภารกิจกับนักพรต', progress: 'คุยกับ NPC' };
     return null;
   }
 
+  function setTrackedQuest(id) {
+    if (id === 'main') { state.trackedQuestId = 'main'; refreshQuestUI(); toast('กำลังติดตามภารกิจหลัก'); return true; }
+    const progress = state.quests[id];
+    if (!SIDE_QUESTS[id] || !progress || !['active', 'done'].includes(progress.status)) return false;
+    state.trackedQuestId = id;
+    refreshQuestUI();
+    toast(`ติดตามภารกิจ: ${SIDE_QUESTS[id].title}`);
+    return true;
+  }
   let questGuideTimer = 0;
   function updateQuestGuideArrow(yaw, dt) {
     questGuideTimer -= dt;
