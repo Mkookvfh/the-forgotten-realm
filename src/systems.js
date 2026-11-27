@@ -1296,7 +1296,7 @@ const NODE_POSITIONS = {
 export function createSystems(ctx) {
   const {
     scene, player, state, toast, gainXp, updateHud,
-    refreshEquipmentUI, defeatEnemy, enemies, staticLandmarks, regions,
+    refreshEquipmentUI, defeatEnemy, applyEnemyDamage, enemies, staticLandmarks, regions,
     getTerrainHeight, audio, worldBounds = WORLD_BOUNDS,
     hireCompanion, getCompanionId, companionInfo
   } = ctx;
@@ -2078,13 +2078,14 @@ export function createSystems(ctx) {
 
       if (target) {
         makeBurst(target.position, 0xff7a3d);
-        target.userData.hurtTimer = .3;
-        target.userData.hp -= power;
-        if (target.userData.hp <= 0) {
-          defeatEnemy(target);
+        if (typeof applyEnemyDamage === 'function') {
+          applyEnemyDamage(target, power, { element: 'fire' });
         } else {
-          toast(`ลูกไฟโดนศัตรู -${power}`);
+          target.userData.hurtTimer = .3;
+          target.userData.hp -= power;
+          if (target.userData.hp <= 0) defeatEnemy(target);
         }
+        if (target.userData.alive) toast(`ลูกไฟโดนศัตรู -${power}`);
       } else {
         toast('ลูกไฟพุ่งเข้าสู่ความมืด');
       }
