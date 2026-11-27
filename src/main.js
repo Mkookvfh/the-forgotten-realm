@@ -17,6 +17,7 @@ import { createFrontierWorld } from './frontierWorld.js';
 import { createCityWorld } from './cities.js';
 import { createCinematic } from './cinematic.js';
 import { createAdaptiveResolution } from './adaptive-resolution.js';
+import { createPerformanceMonitor } from './performance-monitor.js';
 import { createPrologue } from './prologue.js';
 import { createCutsceneDirector } from './cutscene-director.js';
 import { createCombatFeedback } from './combat-feedback.js';
@@ -73,7 +74,8 @@ const settings = {
   postfx: true,
   dayNightMode: 'auto',
   fpsLimit: 'auto',
-  mobileLayout: 'right'
+  mobileLayout: 'right',
+  perfMonitor: false
 };
 const audio = createAudio();
 let currentSlot = 1;
@@ -433,6 +435,7 @@ mount.appendChild(renderer.domElement);
 
 const cinematic = createCinematic({ renderer, scene, camera, touch: isTouch });
 const adaptiveResolution = createAdaptiveResolution({ enabled: isTouch });
+const performanceMonitor = createPerformanceMonitor(renderer, { enabled: settings.perfMonitor });
 
 // ---------- Sky ----------
 const SKY_SUN_DIR = new THREE.Vector3(-24, 40, 30).normalize();
@@ -3963,6 +3966,9 @@ function applySettings() {
   if (fpsSelect) fpsSelect.value = settings.fpsLimit;
   const layoutSelect = $('#mobile-layout');
   if (layoutSelect) layoutSelect.value = settings.mobileLayout;
+  const perfToggle = $('#perf-monitor-toggle');
+  if (perfToggle) perfToggle.checked = Boolean(settings.perfMonitor);
+  performanceMonitor.setEnabled(settings.perfMonitor);
 }
 
 // ---------- Main Update ----------
@@ -4549,6 +4555,13 @@ $('#settings-close').addEventListener('click', () => {
   closePanels();
 });
 
+const perfMonitorToggle = $('#perf-monitor-toggle');
+if (perfMonitorToggle) perfMonitorToggle.addEventListener('change', (e) => {
+  settings.perfMonitor = e.target.checked;
+  performanceMonitor.setEnabled(settings.perfMonitor);
+  toast(settings.perfMonitor ? 'เปิดหน้าทดสอบประสิทธิภาพแล้ว' : 'ปิดหน้าทดสอบประสิทธิภาพแล้ว');
+});
+
 $('#quality').addEventListener('change', (e) => {
   settings.quality = e.target.value;
   applySettings();
@@ -4730,6 +4743,7 @@ function animate(now = performance.now()) {
     update(dt);
   }
   adaptiveResolution.update(now, settings.quality, settings.fpsLimit, renderer, cinematic);
+  performanceMonitor.update(now, settings.quality, settings.fpsLimit, adaptiveResolution.ratio);
   cinematic.render();
 }
 
