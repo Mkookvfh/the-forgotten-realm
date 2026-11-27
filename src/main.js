@@ -154,7 +154,7 @@ const state = {
   trackedQuestId: 'main',
   upgrades: {},
   bounties: [],
-  dayTime: 0.72, weatherTime: 0,
+  dayTime: 0.22, weatherTime: 0,
   weatherOn: true, dead: false,
   discoveredRegions: [],
   discoveredSecrets: [],
