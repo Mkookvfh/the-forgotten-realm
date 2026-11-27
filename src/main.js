@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
+import { getBossPhaseCombatProfile, getBossOpeningMultiplier } from './boss-combat.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
@@ -1554,6 +1555,7 @@ function spawnEnemy(type, x, z) {
     hurtTimer: 0,
     attackTimer: 0,
     telegraphTimer: 0,
+    recoveryTimer: 0,
     deathTimer: 0,
     respawnTimer: 0,
     deathDuration: .55,
@@ -3033,6 +3035,7 @@ function respawnEnemy(enemy) {
   data.cooldown = 1 + Math.random() * 2;
   data.telegraphTimer = 0;
   data.attackTimer = 0;
+  data.recoveryTimer = 0;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.phase = 1;
   data.phaseMultiplier = 1;
@@ -3100,7 +3103,9 @@ function damageEnemy(enemy, amount, options = {}) {
   if (!data.alive) return 0;
 
   // The blood pact amplifies every weapon hit and feeds the combo meter.
-  const dealt = amount * comboStats().mult;
+  const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
+  const openingMultiplier = getBossOpeningMultiplier(isBoss, data.recoveryTimer, data.phase);
+  const dealt = amount * comboStats().mult * openingMultiplier;
 
   data.hp -= dealt;
   data.hurtTimer = .3;
@@ -3469,6 +3474,7 @@ function setDungeonEnemies(active) {
     enemy.userData.cooldown = 0;
     enemy.userData.phase = 1;
     enemy.userData.phaseMultiplier = 1;
+    enemy.userData.recoveryTimer = 0;
     enemy.userData.healthFill.scale.x = active ? 1 : 0;
     enemy.userData.healthFill.position.x = 0;
     enemy.position.set(
@@ -3815,7 +3821,7 @@ function updateWorld(dt, yaw) {
 
     if (data.bossWarning) {
       const warning = data.bossWarning;
-      const warningRadius = Math.max(1.6, stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .45));
+      const warningRadius = Math.max(1.6, stats.reach + (bossProfile?.radiusBonus || .45));
       warning.visible = data.telegraphTimer > 0 && data.alive;
       warning.position.set(
         enemy.position.x,
@@ -3835,9 +3841,11 @@ function updateWorld(dt, yaw) {
     if (isBoss) updateBossPhase(enemy);
 
     data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
+    data.recoveryTimer = Math.max(0, (data.recoveryTimer || 0) - dt);
     const slowFactor = data.slowTimer > 0 ? .55 : 1;
     const speed = stats.speed * data.phaseMultiplier * slowFactor;
-    const attackDamage = stats.damage * data.phaseMultiplier * (isBoss && data.phase === 3 ? 1.28 : isBoss && data.phase === 2 ? 1.12 : 1);
+    const bossProfile = isBoss ? getBossPhaseCombatProfile(data.phase) : null;
+    const attackDamage = stats.damage * data.phaseMultiplier * (bossProfile?.damageMultiplier || 1);
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
     data.healthFill.scale.x = hpRatio;
@@ -3878,17 +3886,17 @@ function updateWorld(dt, yaw) {
         if (distance > stats.reach + 1) {
           data.telegraphTimer = 0;
         } else if (data.cooldown <= 0 && data.telegraphTimer <= 0) {
-          data.telegraphTimer = data.phase === 3 ? .58 : .82;
+          data.telegraphTimer = bossProfile.windup;
           data.attackTimer = data.telegraphTimer;
-          const phaseMove = data.phase === 3 ? 'คลื่นอเวจี!' : data.phase === 2 ? 'ฟาดวงกว้าง!' : 'โจมตี!';
-          toast(`${data.name} เตรียม ${phaseMove} หลบออกจากวงเตือน!`);
+          toast(`${data.name} เตรียม ${bossProfile.attackName}! หลบออกจากวงเตือน!`);
         } else if (data.telegraphTimer > 0) {
           data.telegraphTimer = Math.max(0, data.telegraphTimer - dt);
           data.attackTimer = data.telegraphTimer;
           if (data.telegraphTimer <= 0) {
-            data.cooldown = stats.cooldown;
+            data.cooldown = stats.cooldown * bossProfile.cooldownMultiplier;
+            data.recoveryTimer = bossProfile.recovery;
             // Check position and dodge invulnerability again at impact.
-            const attackRadius = stats.reach + (data.phase === 3 ? 2.1 : data.phase === 2 ? 1.25 : .35);
+            const attackRadius = stats.reach + bossProfile.radiusBonus;
             if (distance <= attackRadius && invulnerabilityTimer <= 0) {
               const cls = classDefs[state.classId] || {};
               const incomingDamage = attackDamage *
@@ -3898,11 +3906,11 @@ function updateWorld(dt, yaw) {
               hurtAnimTimer = .3;
               cameraShake.trigger(.14);
               audio.play('hit');
-              toast(`${data.name} โจมตีโดนคุณ -${Math.round(incomingDamage)}`);
+              toast(`${data.name} โจมตีโดนคุณ -${Math.round(incomingDamage)} · บอสเปิดช่องสวนกลับ!`);
               if (state.hp <= 0) handlePlayerDeath();
               updateHud();
             } else {
-              toast('หลบการโจมตีสำเร็จ!');
+              toast(`หลบสำเร็จ! บอสเปิดช่อง ${bossProfile.recovery.toFixed(1)} วินาที · โจมตีสวนได้แรงขึ้น`);
             }
           }
         }
