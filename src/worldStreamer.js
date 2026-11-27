@@ -5,43 +5,40 @@ import { regionAt } from './worldData.js';
 const LOAD_RADIUS = 190;
 const UNLOAD_RADIUS = 240;
 
-/* The exported world GLB palette was authored with near-black linear base
-   colours (0.003-0.03), which is roughly 10x too dark for lit rendering:
-   whole districts collapsed into flat silhouettes. These targets re-light
-   the same hue identity while keeping a grim, desaturated dark fantasy
-   look. Applied per material instance on chunk load. */
+/* Vibrant fantasy world palette: warm stone, sunlit earth, colorful roofs
+   and clear water. Applied per material instance on chunk load. */
 const WORLD_PALETTE = {
-  Ash_Ground: { color: 0x5c5442, roughness: 1 },
-  Dirt_Road: { color: 0x68553e, roughness: 1 },
-  Farm_Soil: { color: 0x554030, roughness: 1 },
-  Cobblestone: { color: 0x635f59, roughness: .95 },
-  Castle_Stone: { color: 0x6e6a6e, roughness: .9 },
-  Cliff_Rock: { color: 0x5e5b5c, roughness: 1 },
-  Mountain_Rock: { color: 0x53514f, roughness: 1 },
-  Dark_Rock: { color: 0x444243, roughness: 1 },
-  Grave_Stone: { color: 0x7c7a78, roughness: .88 },
-  Dead_Wood: { color: 0x4b3a2a, roughness: 1 },
-  Old_Wood: { color: 0x6b4c31, roughness: .95 },
-  Timber: { color: 0x4b3725, roughness: 1 },
+  Ash_Ground: { color: 0x88ad5c, roughness: 1 },
+  Dirt_Road: { color: 0xb58a58, roughness: 1 },
+  Farm_Soil: { color: 0x986b42, roughness: 1 },
+  Cobblestone: { color: 0xaaa79b, roughness: .95 },
+  Castle_Stone: { color: 0xa6b4c0, roughness: .9 },
+  Cliff_Rock: { color: 0x9aa6a8, roughness: 1 },
+  Mountain_Rock: { color: 0x9caeb8, roughness: 1 },
+  Dark_Rock: { color: 0x6d7f8d, roughness: 1 },
+  Grave_Stone: { color: 0xa5b2b9, roughness: .88 },
+  Dead_Wood: { color: 0x806047, roughness: 1 },
+  Old_Wood: { color: 0x9b7045, roughness: .95 },
+  Timber: { color: 0x8c613b, roughness: 1 },
   Iron: { color: 0x77767f, roughness: .42, metalness: .55 },
-  Roof_Slate: { color: 0x3d3d4a, roughness: .78 },
-  Roof_Tile: { color: 0x7e3e2d, roughness: .85 },
-  Plaster: { color: 0xafa28b, roughness: .95 },
-  Market_Cloth: { color: 0x7f3434, roughness: 1 },
+  Roof_Slate: { color: 0x607ca4, roughness: .78 },
+  Roof_Tile: { color: 0xc65d3f, roughness: .85 },
+  Plaster: { color: 0xe5d5ae, roughness: .95 },
+  Market_Cloth: { color: 0xe16b57, roughness: 1 },
   Old_Bone: { color: 0xd5c9a8, roughness: .8 },
-  Well_Water: { color: 0x16252e, roughness: .1, metalness: .4 },
-  Cursed_Lake: { color: 0x14212a, roughness: .08, metalness: .45 },
-  Dark_Window: { color: 0x0b0d15, roughness: .3 },
+  Well_Water: { color: 0x5fb6d7, roughness: .1, metalness: .25 },
+  Cursed_Lake: { color: 0x42a6bd, roughness: .08, metalness: .28 },
+  Dark_Window: { color: 0x283b54, roughness: .3 },
   Window_Glow: {
-    color: 0x241605, emissive: 0xffa63a,
+    color: 0x533316, emissive: 0xffc75a,
     emissiveIntensity: 1.9, roughness: .5
   },
   Lava: {
-    color: 0x3a1105, emissive: 0xff5a1e,
+    color: 0x8a2c10, emissive: 0xff7a36,
     emissiveIntensity: 2.8, roughness: .55
   },
   Cursed_Crystal: {
-    color: 0x2f1148, emissive: 0x8f3ce8,
+    color: 0x573da0, emissive: 0xb18cff,
     emissiveIntensity: 1.1, roughness: .28, metalness: .3
   }
 };
