@@ -62,3 +62,14 @@ export function parseSaveWithBackup(primaryRaw, backupRaw) {
 
   throw primaryError || new Error('No save data found');
 }
+
+/** Returns true only when a raw save can be parsed and passes structural validation. */
+export function isValidSaveRaw(raw) {
+  if (typeof raw !== 'string' || !raw) return false;
+  try {
+    parseSaveWithBackup(raw, null);
+    return true;
+  } catch {
+    return false;
+  }
+}
