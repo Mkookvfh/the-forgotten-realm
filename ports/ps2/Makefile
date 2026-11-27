@@ -1,6 +1,6 @@
 EE_BIN = tfr_ps2.elf
 EE_OBJS = main.o tfr_input.o
-EE_LIBS = -lpad
+EE_LIBS = -lgskit -ldmakit -lpad -lm
 
 all: $(EE_BIN)
 
