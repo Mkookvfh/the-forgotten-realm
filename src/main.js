@@ -755,15 +755,15 @@ worldStreamer.init().then((ok) => {
   toast('เมือง 9 แห่งเปิดแล้ว · ชาวเมืองเดินทางในเมือง');
 });
 
-const groundDayColor = new THREE.Color(0x79ad55);
-const groundNightColor = new THREE.Color(0x456b4b);
+const groundDayColor = new THREE.Color(0x9bdc75);
+const groundNightColor = new THREE.Color(0x5b8057);
 
 
 const mats = {
   stone: new THREE.MeshStandardMaterial({ color: 0x9aabb8, roughness: .92 }),
   bark: new THREE.MeshStandardMaterial({ color: 0x76503a, roughness: 1 }),
-  leaves: new THREE.MeshStandardMaterial({ color: 0x4f9d45, roughness: .95 }),
-  ruin: new THREE.MeshStandardMaterial({ color: 0x9a9ba8, roughness: .95 })
+  leaves: new THREE.MeshStandardMaterial({ color: 0x6fba53, roughness: .95 }),
+  ruin: new THREE.MeshStandardMaterial({ color: 0xb7c4c9, roughness: .95 })
 };
 
 // ---------- Environment ----------
@@ -826,11 +826,11 @@ for (let i = 0; i < 92; i++) {
 
 // ---------- Grass Details ----------
 const grassMaterial = new THREE.MeshStandardMaterial({
-  color: 0x496b3d,
+  color: 0x6cae4d,
   roughness: 1,
   side: THREE.DoubleSide,
-  emissive: 0x16240f,
-  emissiveIntensity: 0.35
+  emissive: 0x243d16,
+  emissiveIntensity: 0.15
 });
 
 const grassBlade = new THREE.PlaneGeometry(0.16, 0.7);
@@ -873,7 +873,7 @@ fallbackWorld.add(grass);
 
 // ---------- Mountains ----------
 const mountainMaterial = new THREE.MeshStandardMaterial({
-  color: 0x414957,
+  color: 0x8da9ba,
   roughness: 1
 });
 
@@ -912,7 +912,7 @@ const riverCurve = new THREE.CatmullRomCurve3([
 const river = new THREE.Mesh(
   new THREE.TubeGeometry(riverCurve, 80, 2.8, 8, false),
   new THREE.MeshStandardMaterial({
-    color: 0x263f59,
+    color: 0x3d9fc8,
     roughness: 0.2,
     metalness: 0.25,
     transparent: true,
@@ -977,7 +977,7 @@ tower.add(towerBase);
 
 const towerTop = new THREE.Mesh(
   new THREE.ConeGeometry(2.1, 2.8, 8),
-  new THREE.MeshStandardMaterial({ color: 0x242631 })
+  new THREE.MeshStandardMaterial({ color: 0x4d789c })
 );
 towerTop.position.y = 9.1;
 tower.add(towerTop);
