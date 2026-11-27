@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
 import { createTownEventSystem } from './town-events.js';
+import { createWorldEventSystem } from './world-events.js';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
 import { createMultiplayerUI } from './multiplayer/ui.js';
@@ -158,6 +159,7 @@ const state = {
   dungeonCleared: false,
   dungeons: {},
   townEvents: null,
+  worldEvents: null,
   respawnPoint: null,
   comboBest: 0,
   companion: null,
@@ -174,6 +176,12 @@ function toast(message) {
 }
 
 const townEventSystem = createTownEventSystem(state, toast);
+const worldEventSystem = createWorldEventSystem(state, (event) => {
+  if (event.reward.gold) state.gold += event.reward.gold;
+  if (event.reward.crystals) state.crystals += event.reward.crystals;
+  toast(`พบเหตุการณ์: ${event.title} · ${event.message}`);
+  updateHud();
+});
 
 function getSaveKey(slot = currentSlot) {
   return `forgotten-realm-save-v1-slot-${slot}`;
@@ -4007,6 +4015,7 @@ function update(dt) {
   }
   cityWorld?.update(dt, player.position.x, player.position.z);
   townEventSystem.update(dt, player.position.x, player.position.z);
+  worldEventSystem.update(player.position.x, player.position.z);
     autoSaveTimer += dt;
 
   if (autoSaveTimer >= 30) {
