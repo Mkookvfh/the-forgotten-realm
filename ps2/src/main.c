@@ -7,8 +7,19 @@
 
 #define WORLD_LENGTH 3600.0f
 #define PLAYER_SPEED 2.2f
+#define FOOTSTEP_DISTANCE 48.0f
+#define RUMBLE_FRAMES 2
+
+/* Surface zones are provisional until the full level map is authored. */
+enum Surface { SURFACE_GRASS, SURFACE_WOOD, SURFACE_WATER, SURFACE_FOREST, SURFACE_SNOW };
 
 static unsigned char pad_buffer[256] __attribute__((aligned(64)));
+static int rumble_ready = 0;
+static int rumble_enabled = 1;
+static int rumble_frames_left = 0;
+static float distance_since_step = 0.0f;
+static float previous_player_x = 120.0f;
+static int previous_select_down = 0;
 
 static u64 color(u8 r, u8 g, u8 b)
 {
@@ -34,6 +45,43 @@ static void tree(GSGLOBAL *gs, float x, float ground, float scale)
              x + 25 * scale, ground - 24 * scale, color(42, 111, 72));
     triangle(gs, x - 19 * scale, ground - 44 * scale, x, ground - 92 * scale,
              x + 19 * scale, ground - 44 * scale, color(66, 143, 89));
+}
+
+static enum Surface surface_at(float world_x)
+{
+    if (world_x < 750.0f) return SURFACE_GRASS;
+    if (world_x < 1050.0f) return SURFACE_WOOD;
+    if (world_x < 1700.0f) return SURFACE_WATER;
+    if (world_x < 2450.0f) return SURFACE_FOREST;
+    return SURFACE_SNOW;
+}
+
+static int surface_rumble_strength(enum Surface surface)
+{
+    switch (surface) {
+        case SURFACE_WOOD: return 24;
+        case SURFACE_WATER: return 12;
+        case SURFACE_FOREST: return 16;
+        case SURFACE_SNOW: return 14;
+        case SURFACE_GRASS:
+        default: return 10;
+    }
+}
+
+static void stop_rumble(void)
+{
+    char motors[6] = { 0, 0, (char)0xff, (char)0xff, (char)0xff, (char)0xff };
+    if (rumble_ready) padSetActDirect(0, 0, motors);
+    rumble_frames_left = 0;
+}
+
+static void start_footstep_rumble(enum Surface surface)
+{
+    char motors[6] = { 0, 0, (char)0xff, (char)0xff, (char)0xff, (char)0xff };
+    if (!rumble_ready || !rumble_enabled) return;
+    motors[1] = (char)surface_rumble_strength(surface);
+    padSetActDirect(0, 0, motors);
+    rumble_frames_left = RUMBLE_FRAMES;
 }
 
 static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick)
@@ -99,6 +147,7 @@ int main(void)
     struct padButtonStatus buttons;
     float player_x = 120.0f, camera = 0.0f, tick = 0.0f;
     int pad_open;
+    int pad_motors_configured = 0;
 
     SifInitRpc(0);
     padInit(0);
@@ -123,14 +172,48 @@ int main(void)
 
     for (;;) {
         u16 pressed = 0;
-        if (pad_open && padGetState(0, 0) == PAD_STATE_STABLE &&
-            padRead(0, 0, &buttons) != 0)
-            pressed = (u16)(0xFFFFu ^ buttons.btns);
+        if (pad_open && padGetState(0, 0) == PAD_STATE_STABLE) {
+            if (!pad_motors_configured && padGetReqState(0, 0) == PAD_RSTAT_COMPLETE) {
+                /* DualShock 2: enable the large motor; no motor is required for play. */
+                const char motor_alignment[6] = { 0, 1, (char)0xff, (char)0xff, (char)0xff, (char)0xff };
+                if (padInfoAct(0, 0, -1, 0) > 0 && padSetActAlign(0, 0, motor_alignment)) {
+                    rumble_ready = 1;
+                    pad_motors_configured = 1;
+                } else {
+                    pad_motors_configured = 1; /* Continue normally if unsupported. */
+                }
+            }
+            if (padRead(0, 0, &buttons) != 0)
+                pressed = (u16)(0xFFFFu ^ buttons.btns);
+        }
 
+        {
+            int select_down = (pressed & PAD_SELECT) != 0;
+            if (select_down && !previous_select_down) {
+                rumble_enabled = !rumble_enabled;
+                if (!rumble_enabled) stop_rumble();
+            }
+            previous_select_down = select_down;
+        }
+
+        previous_player_x = player_x;
         if (pressed & PAD_LEFT)  { player_x -= PLAYER_SPEED; tick += 1.0f; }
         if (pressed & PAD_RIGHT) { player_x += PLAYER_SPEED; tick += 1.0f; }
         if (player_x < 0) player_x = 0;
         if (player_x > WORLD_LENGTH) player_x = WORLD_LENGTH;
+
+        {
+            float walked = fabsf(player_x - previous_player_x);
+            distance_since_step += walked;
+            if (walked > 0.0f && distance_since_step >= FOOTSTEP_DISTANCE) {
+                distance_since_step = 0.0f;
+                start_footstep_rumble(surface_at(player_x));
+            }
+        }
+        if (rumble_frames_left > 0) {
+            --rumble_frames_left;
+            if (rumble_frames_left == 0) stop_rumble();
+        }
 
         camera = player_x - (float)gs->Width * 0.34f;
         if (camera < 0) camera = 0;
@@ -143,6 +226,7 @@ int main(void)
         gsKit_sync_flip(gs);
     }
 
+    stop_rumble();
     if (pad_open) padPortClose(0, 0);
     padEnd();
     gsKit_deinit_global(gs);
