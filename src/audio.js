@@ -8,6 +8,11 @@ export function createAudio() {
   let enabled = true;
   let weather = true;
   let music = true;
+  let biomeNoiseGain = null;
+  let biomeNoiseFilter = null;
+  let biomeNoiseSource = null;
+  let currentBiome = 'ravenhold';
+  let lastChirpAt = 0;
 
   function ensureContext() {
     if (context) return context;
@@ -70,6 +75,27 @@ export function createAudio() {
     filter.connect(rainGain);
     rainGain.connect(master);
     rain.start();
+
+    // A quiet, filtered noise bed gives each region its own atmosphere.
+    const biomeLength = context.sampleRate * 4;
+    const biomeBuffer = context.createBuffer(1, biomeLength, context.sampleRate);
+    const biomeData = biomeBuffer.getChannelData(0);
+    for (let i = 0; i < biomeLength; i++) {
+      biomeData[i] = (Math.random() * 2 - 1) * .35;
+    }
+    biomeNoiseSource = context.createBufferSource();
+    biomeNoiseSource.buffer = biomeBuffer;
+    biomeNoiseSource.loop = true;
+    biomeNoiseFilter = context.createBiquadFilter();
+    biomeNoiseFilter.type = 'lowpass';
+    biomeNoiseFilter.frequency.value = 900;
+    biomeNoiseGain = context.createGain();
+    biomeNoiseGain.gain.value = 0;
+    biomeNoiseSource.connect(biomeNoiseFilter);
+    biomeNoiseFilter.connect(biomeNoiseGain);
+    biomeNoiseGain.connect(master);
+    biomeNoiseSource.start();
+    applyBiomeAmbience();
   }
 
   function startMusic() {
@@ -109,6 +135,54 @@ export function createAudio() {
     });
 
     syncMusicGain();
+  }
+
+  function applyBiomeAmbience() {
+    if (!context || !biomeNoiseFilter || !biomeNoiseGain) return;
+    const profiles = {
+      wasteland: { cutoff: 520, gain: .012 },
+      ravenhold: { cutoff: 1450, gain: .014 },
+      deadwood: { cutoff: 1100, gain: .013 },
+      varnhal: { cutoff: 1800, gain: .012 },
+      emberpeak: { cutoff: 700, gain: .01 },
+      mirefall: { cutoff: 1250, gain: .016 }
+    };
+    const profile = profiles[currentBiome] || profiles.ravenhold;
+    biomeNoiseFilter.frequency.setTargetAtTime(profile.cutoff, context.currentTime, 1.2);
+    biomeNoiseGain.gain.setTargetAtTime(enabled ? profile.gain : 0, context.currentTime, 1.5);
+  }
+
+  function setBiomeAmbience(region) {
+    const id = typeof region === 'string' ? region : region?.id;
+    const nextBiome = ['wasteland', 'ravenhold', 'deadwood', 'varnhal', 'emberpeak', 'mirefall'].includes(id)
+      ? id : 'ravenhold';
+    if (nextBiome === currentBiome) return;
+    currentBiome = nextBiome;
+    applyBiomeAmbience();
+  }
+
+  function updateAmbience(deltaTime = 0) {
+    if (!context || !enabled || !context || context.state !== 'running') return;
+    const forest = currentBiome === 'ravenhold' || currentBiome === 'deadwood' || currentBiome === 'mirefall';
+    if (!forest) return;
+    lastChirpAt += Math.max(0, deltaTime);
+    if (lastChirpAt < 7 + Math.random() * 6) return;
+    lastChirpAt = 0;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sine';
+    const startFrequency = 1700 + Math.random() * 900;
+    oscillator.frequency.setValueAtTime(startFrequency, now);
+    oscillator.frequency.exponentialRampToValueAtTime(startFrequency * (1.15 + Math.random() * .35), now + .09);
+    oscillator.frequency.exponentialRampToValueAtTime(startFrequency * .72, now + .22);
+    gain.gain.setValueAtTime(.0001, now);
+    gain.gain.exponentialRampToValueAtTime(.018, now + .025);
+    gain.gain.exponentialRampToValueAtTime(.0001, now + .25);
+    oscillator.connect(gain);
+    gain.connect(master);
+    oscillator.start(now);
+    oscillator.stop(now + .27);
   }
 
   function syncMusicGain() {
@@ -249,6 +323,7 @@ export function createAudio() {
       master.gain.setTargetAtTime(enabled ? 0.32 : 0, context.currentTime, 0.05);
     }
     syncMusicGain();
+    applyBiomeAmbience();
   }
 
   function setWeather(value) {
@@ -258,5 +333,5 @@ export function createAudio() {
     }
   }
 
-  return { play, unlock, setEnabled, setWeather, setMusic };
+  return { play, unlock, setEnabled, setWeather, setMusic, setBiomeAmbience, updateAmbience };
 }
