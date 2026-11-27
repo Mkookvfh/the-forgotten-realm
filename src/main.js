@@ -2083,6 +2083,10 @@ let cameraEyeY = null;
 let cameraGroundY = null;
 
 
+function enemySaveKey(type, homeX, homeZ) {
+  return `${type}@${Number(homeX).toFixed(3)},${Number(homeZ).toFixed(3)}`;
+}
+
 function saveGame(showMessage = true, slot = currentSlot) {
   if (typeof showMessage !== 'boolean') showMessage = true;
   currentSlot = slot;
@@ -2101,6 +2105,12 @@ function saveGame(showMessage = true, slot = currentSlot) {
     systems: systems.serializeWorld(),
     collectibles: collectibles.map(crystal => crystal.visible),
     enemies: enemies.map(enemy => ({
+      // Stable spawn identity keeps saves aligned if the spawn list order changes.
+      id: enemySaveKey(
+        enemy.userData.type,
+        enemy.userData.homeX,
+        enemy.userData.homeZ
+      ),
       type: enemy.userData.type,
       position: [
         enemy.position.x,
@@ -2271,8 +2281,20 @@ function loadGame(slot = currentSlot) {
     }
 
     if (Array.isArray(data.enemies)) {
+      const savedEnemiesById = new Map(
+        data.enemies
+          .filter(saved => saved && typeof saved.id === 'string')
+          .map(saved => [saved.id, saved])
+      );
       enemies.forEach((enemy, index) => {
-        const saved = data.enemies[index];
+        const stableId = enemySaveKey(
+          enemy.userData.type,
+          enemy.userData.homeX,
+          enemy.userData.homeZ
+        );
+        // New saves use stable IDs; older version-11 saves remain supported
+        // through the original index-based fallback.
+        const saved = savedEnemiesById.get(stableId) || data.enemies[index];
         if (!saved) return;
         if (saved.type && saved.type !== enemy.userData.type) return;
 
