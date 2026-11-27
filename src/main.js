@@ -1789,6 +1789,9 @@ const systems = createSystems({
     worldStreamer.update(player.position);
   },
   audio,
+  onQuestCutscene: ({ title }) => {
+    cutsceneDirector.play({ title, target: player.position, duration: 3.8 });
+  },
   worldBounds: WORLD_BOUNDS,
   staticLandmarks: [
     ...LANDMARKS.map((landmark) => ({
