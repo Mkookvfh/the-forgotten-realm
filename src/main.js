@@ -4304,10 +4304,20 @@ function updateWorld(dt, yaw) {
         enemy.rotation.y = Math.atan2(away.x, away.z);
         data.moving = true;
       } else {
-        const t = performance.now() * 0.0004 + data.homeZ;
-        const wanderX = data.homeX + Math.sin(t) * 1.6;
-        const wanderZ = data.homeZ + Math.cos(t * .7) * 1.2;
-        if (!worldStreamer.blocked(wanderX,wanderZ,.42) && !frontierWorld?.blocked(wanderX,wanderZ,.42) && !cityWorld?.blocked(wanderX,wanderZ,.42)) { enemy.position.x=wanderX; enemy.position.z=wanderZ; }
+        // Spirit deer forage most actively at dawn and dusk, browse quietly
+        // during daylight, and settle near their home at night.
+        const clock = ((state.dayTime % 1) + 1) % 1;
+        const dawnOrDusk = (clock >= .18 && clock < .28) || (clock >= .68 && clock < .82);
+        const night = clock >= .82 || clock < .18;
+        const t = performance.now() * (night ? .00012 : .0004) + data.homeZ + data.homeX * .03;
+        const radiusX = night ? .35 : dawnOrDusk ? 2.8 : 1.35;
+        const radiusZ = night ? .25 : dawnOrDusk ? 2.1 : 1.05;
+        const wanderX = data.homeX + Math.sin(t) * radiusX;
+        const wanderZ = data.homeZ + Math.cos(t * .7) * radiusZ;
+        if (!worldStreamer.blocked(wanderX,wanderZ,.42) && !frontierWorld?.blocked(wanderX,wanderZ,.42) && !cityWorld?.blocked(wanderX,wanderZ,.42)) {
+          enemy.position.x = wanderX;
+          enemy.position.z = wanderZ;
+        }
       }
     } else if (!isBoss && !wolfPackAggro && distance > stats.aggro + 8 && Math.hypot(enemy.position.x - data.homeX, enemy.position.z - data.homeZ) > 5) {
       // Enemies stop chasing after a long pursuit and return to their own camp.
