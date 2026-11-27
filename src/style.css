@@ -1308,3 +1308,90 @@ body.layout-left #mobile-controls {
   color: #a89f88;
   opacity: .7;
 }
+
+
+/* ---------- Exploration Journal ---------- */
+.journal-panel {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 20px));
+  max-height: calc(100dvh - 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.journal-summary {
+  padding: 9px 11px;
+  border: 1px solid #c5ad7955;
+  border-radius: 9px;
+  background: #111824;
+  color: #f0d69a;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.journal-regions {
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.journal-region {
+  padding: 10px;
+  border: 1px solid #c5ad7938;
+  border-radius: 10px;
+  background: #101722e8;
+}
+.journal-region-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #eee3cc;
+  font-size: 11px;
+}
+.journal-region-head span {
+  color: #d8b878;
+  font-variant-numeric: tabular-nums;
+}
+.journal-progress {
+  height: 5px;
+  margin: 7px 0;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #303744;
+}
+.journal-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #927143, #f0d69a);
+}
+.journal-secret-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #a9a59c;
+  font-size: 9px;
+}
+.journal-secret-list .found {
+  color: #9bd6a6;
+}
+.journal-reward {
+  display: block;
+  margin-top: 7px;
+  color: #d8b878;
+  font-size: 9px;
+}
+@media (max-width: 420px) {
+  .journal-secret-list {
+    grid-template-columns: 1fr;
+  }
+}
