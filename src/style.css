@@ -1395,3 +1395,22 @@ body.layout-left #mobile-controls {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Starforged skill status: clear ready/cooldown feedback on touch screens */
+#starforged-skill.skill-ready {
+  border-color: #f4d47e;
+  background: linear-gradient(145deg, #72552a, #302315);
+  color: #fff2bd;
+  box-shadow: 0 0 12px #f4d47e44, 0 5px 14px #0007;
+}
+#starforged-skill.skill-cooling,
+#starforged-skill:disabled {
+  border-color: #7a8290;
+  background: linear-gradient(145deg, #303744, #151a23);
+  color: #aeb6c2;
+  opacity: .82;
+}
+#starforged-skill.skill-cooling {
+  font-variant-numeric: tabular-nums;
+}
