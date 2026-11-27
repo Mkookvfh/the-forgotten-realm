@@ -3523,7 +3523,7 @@ function attack() {
     const wave = new THREE.Mesh(
       new THREE.TorusGeometry(.82, .075, 8, 28),
       new THREE.MeshBasicMaterial({
-        color: 0x8ceaff, emissive: 0x246dff,
+        color: 0x8ceaff,
         transparent: true, opacity: .88, depthWrite: false
       })
     );
