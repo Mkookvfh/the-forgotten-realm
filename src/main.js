@@ -596,6 +596,7 @@ const worldStreamer = createWorldStreamer({
 });
 let frontierWorld = null;
 let cityWorld = null;
+let pendingCitySave = null;
 function moveEnemySafely(enemy, dx, dz) {
   const radius = enemy.userData.kind === 'animal' ? .42 : .5;
   const blocked = (x,z) => worldStreamer.blocked(x,z,radius) ||
@@ -620,6 +621,7 @@ worldStreamer.init().then((ok) => {
       getHeight: (x, z) => worldStreamer.getHeight(x, z) ?? 0,
       mobile: isTouch
     });
+    if (pendingCitySave) { cityWorld.restoreWorld?.(pendingCitySave); pendingCitySave = null; }
     toast('ใช้แผนที่ต้นแบบ · เมืองและชาวเมืองยังเปิดใช้งาน');
     return;
   }
@@ -635,6 +637,7 @@ worldStreamer.init().then((ok) => {
     getHeight: (x, z) => getTerrainHeight(x, z, 0) ?? 0,
     mobile: isTouch
   });
+  if (pendingCitySave) { cityWorld.restoreWorld?.(pendingCitySave); pendingCitySave = null; }
   toast('เมือง 9 แห่งเปิดแล้ว · ชาวเมืองเดินทางในเมือง');
 });
 
@@ -2103,6 +2106,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
     state: { ...state },
     settings: { ...settings },
     systems: systems.serializeWorld(),
+    cities: cityWorld?.serializeWorld?.() || null,
     collectibles: collectibles.map(crystal => crystal.visible),
     enemies: enemies.map(enemy => ({
       // Stable spawn identity keeps saves aligned if the spawn list order changes.
@@ -2173,6 +2177,11 @@ function loadGame(slot = currentSlot) {
     }
 
     currentSlot = slot;
+    pendingCitySave = Array.isArray(data.cities) ? data.cities : null;
+    if (cityWorld && pendingCitySave) {
+      cityWorld.restoreWorld?.(pendingCitySave);
+      pendingCitySave = null;
+    }
     player.position.set(...data.player);
     dungeonActive = Boolean(data.dungeonActive);
 
