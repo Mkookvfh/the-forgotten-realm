@@ -4,6 +4,7 @@ import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.
 import { createDungeonProgression } from './dungeon-progression.js';
 import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
 import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial, getWeaknessHint } from './boss-weaknesses.js';
+import { claimBossReward } from './boss-rewards.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
@@ -3111,6 +3112,19 @@ function defeatEnemy(enemy) {
 
   state.crystals += crystals;
   state.gold += gold;
+  gainXp(enemy.userData.stats.xp);
+
+  // Open-world boss rewards are unique per save slot, even after respawn.
+  const uniqueBossReward = !data.dungeon ? claimBossReward(state.flags, type) : null;
+  if (uniqueBossReward) {
+    state.gold += uniqueBossReward.gold;
+    state.crystals += uniqueBossReward.crystals;
+    for (const [itemId, amount] of Object.entries(uniqueBossReward.items)) {
+      systems.addItem(itemId, amount);
+    }
+    toast(`${uniqueBossReward.title} · รางวัลพิเศษ: ทอง +${uniqueBossReward.gold} · ผลึก +${uniqueBossReward.crystals} · ชิ้นส่วนโบราณ +${uniqueBossReward.items.bossRelic || 0}`);
+  }
+
   gainXp(enemy.userData.stats.xp);
   systems.onEnemyKilled(enemy);
   audio.play(type === 'boss' || type === 'dungeonBoss' ? 'boss' : 'hit');
