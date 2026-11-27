@@ -147,7 +147,7 @@ int main(void)
     struct padButtonStatus buttons;
     float player_x = 120.0f, camera = 0.0f, tick = 0.0f;
     int pad_open;
-    int pad_motors_configured = 0;
+    int pad_motor_setup_state = 0; /* 0=not started, 1=align request pending, 2=done */
 
     SifInitRpc(0);
     padInit(0);
@@ -173,15 +173,17 @@ int main(void)
     for (;;) {
         u16 pressed = 0;
         if (pad_open && padGetState(0, 0) == PAD_STATE_STABLE) {
-            if (!pad_motors_configured && padGetReqState(0, 0) == PAD_RSTAT_COMPLETE) {
+            if (pad_motor_setup_state == 0 && padGetReqState(0, 0) == PAD_RSTAT_COMPLETE) {
                 /* DualShock 2: enable the large motor; no motor is required for play. */
                 const char motor_alignment[6] = { 0, 1, (char)0xff, (char)0xff, (char)0xff, (char)0xff };
-                if (padInfoAct(0, 0, -1, 0) > 0 && padSetActAlign(0, 0, motor_alignment)) {
-                    rumble_ready = 1;
-                    pad_motors_configured = 1;
-                } else {
-                    pad_motors_configured = 1; /* Continue normally if unsupported. */
-                }
+                if (padInfoAct(0, 0, -1, 0) > 0 && padSetActAlign(0, 0, motor_alignment))
+                    pad_motor_setup_state = 1; /* Wait for libpad's request to finish. */
+                else
+                    pad_motor_setup_state = 2; /* Unsupported controller: keep playing. */
+            }
+            if (pad_motor_setup_state == 1 && padGetReqState(0, 0) == PAD_RSTAT_COMPLETE) {
+                rumble_ready = 1;
+                pad_motor_setup_state = 2;
             }
             if (padRead(0, 0, &buttons) != 0)
                 pressed = (u16)(0xFFFFu ^ buttons.btns);
