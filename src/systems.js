@@ -1795,12 +1795,11 @@ export function createSystems(ctx) {
       state.gold += regionReward.gold;
       state.crystals += regionReward.crystals;
       gainXp(regionReward.xp);
-      toast(`สำรวจความลับใน ${regionReward.region} ครบ ${regionReward.count} จุด · โบนัสทอง +${regionReward.gold} · ผลึก +${regionReward.crystals}`);
     }
 
     makeBurst(secret.position, secret.userData.color);
     secret.visible = false;
-    toast(`ค้นพบ ${data.name}${loot.gold ? ` · ทองคำ +${loot.gold}` : ''}`);
+    toast(`ค้นพบ ${data.name}${loot.gold ? ` · ทองคำ +${loot.gold}` : ''}${regionReward ? ` · สำรวจภูมิภาคครบ! โบนัสทอง +${regionReward.gold} ผลึก +${regionReward.crystals}` : ''}`);
     addReputation('ancient', 2, 'ค้นพบความลับ');
     refreshInventoryUI();
     refreshQuestUI();
