@@ -2559,6 +2559,11 @@ export function createSystems(ctx) {
       return true;
     }
 
+    const nearbyChest = bossChests.find((chest) =>
+      !chest.userData.opened && player.position.distanceTo(chest.position) < 3.2
+    );
+    if (nearbyChest) return openBossChest(nearbyChest);
+
     let nearest = null;
     let nearestDistance = Infinity;
 
@@ -3715,6 +3720,11 @@ export function createSystems(ctx) {
     }
 
     const time = performance.now() * .003;
+    for (const chest of bossChests) {
+      if (chest.userData.opened) continue;
+      chest.userData.glow.material.opacity = .55 + Math.sin(time + chest.userData.phase) * .25;
+      chest.rotation.y += dt * .18;
+    }
     for (let i = drops.length - 1; i >= 0; i--) {
       const drop = drops[i];
       drop.rotation.y += dt * 1.6;
@@ -3755,8 +3765,12 @@ export function createSystems(ctx) {
     const hint = $('#interaction-hint');
     if (hint && !dialogue) {
       let text = '';
+      const nearbyChest = bossChests.find((chest) =>
+        !chest.userData.opened && player.position.distanceTo(chest.position) < 3.2
+      );
+      if (nearbyChest) text = 'กด E / ใช้ เพื่อเปิดหีบรางวัลบอส';
 
-      for (const npc of npcs) {
+      for (const npc of text ? [] : npcs) {
         if (Math.hypot(
           player.position.x - npc.position.x,
           player.position.z - npc.position.z
@@ -3817,6 +3831,12 @@ export function createSystems(ctx) {
         x: drop.position.x,
         z: drop.position.z
       })),
+      bossChests: bossChests.filter((chest) => !chest.userData.opened).map((chest) => ({
+        chestId: chest.userData.chestId,
+        x: chest.position.x,
+        z: chest.position.z,
+        reward: chest.userData.reward
+      })),
       // Preserve villagers' current locations so a save/load does not
       // teleport every NPC back to their original spawn point.
       npcs: npcs.map((npc) => ({
@@ -3851,6 +3871,25 @@ export function createSystems(ctx) {
         node.userData.respawn = Math.max(0, Number(saved.respawn) || 0);
         node.visible = amount > 0;
       });
+    }
+
+    if (Array.isArray(data.bossChests)) {
+      for (const chest of bossChests) {
+        scene.remove(chest);
+        chest.traverse((part) => {
+          if (part.geometry) part.geometry.dispose();
+          if (part.material) {
+            if (Array.isArray(part.material)) part.material.forEach((material) => material.dispose());
+            else part.material.dispose();
+          }
+        });
+      }
+      bossChests.length = 0;
+      for (const saved of data.bossChests) {
+        if (!saved || typeof saved.chestId !== 'string' || !saved.reward ||
+            !Number.isFinite(saved.x) || !Number.isFinite(saved.z)) continue;
+        createBossChest(saved.chestId, { x: saved.x, z: saved.z }, saved.reward);
+      }
     }
 
     if (Array.isArray(data.drops)) {
@@ -4026,6 +4065,7 @@ export function createSystems(ctx) {
     owns,
     getCount,
     addItem,
+    createBossChest,
     interact,
     getNearbySecretName,
     castSpell,
