@@ -3066,6 +3066,7 @@ function defeatEnemy(enemy) {
   data.hurtTimer = 0;
   data.attackTimer = 0;
   data.telegraphTimer = 0;
+  data.bossChargeTarget = null;
   if (data.bossWarning) data.bossWarning.visible = false;
   data.moving = false;
 
@@ -3481,6 +3482,9 @@ function setDungeonEnemies(active) {
     enemy.userData.phase = 1;
     enemy.userData.phaseMultiplier = 1;
     enemy.userData.recoveryTimer = 0;
+    enemy.userData.bossChargeTarget = null;
+    enemy.userData.activeBossAttack = null;
+    enemy.userData.telegraphTimer = 0;
     enemy.userData.healthFill.scale.x = active ? 1 : 0;
     enemy.userData.healthFill.position.x = 0;
     enemy.position.set(
