@@ -1509,3 +1509,11 @@ body.layout-left #mobile-controls {
   .quest-guide-name { font-size: 9px; }
   .quest-guide-distance { font-size: 8px; }
 }
+
+
+/* Quest tracking controls */
+.quest-log-hint { margin: 0; color: #bdb5a5; font-size: 9px; line-height: 1.45; }
+.quest-entry.tracked { border-color: #e3c17e88; background: linear-gradient(120deg, #e3c17e16, #ffffff05); }
+.quest-track-btn { justify-self: start; min-height: 29px; margin-top: 4px; padding: 5px 9px; border: 1px solid #e3c17e66; border-radius: 7px; background: #332a1c; color: #f4d99d; font-size: 9px; font-weight: 700; }
+.quest-track-btn[aria-pressed="true"] { border-color: #8fc9a0; background: #1d382c; color: #b7e6c4; }
+.quest-track-btn:focus-visible { outline: 2px solid #f4d99d; outline-offset: 2px; }
