@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
-import { DUNGEON_LAYOUTS, createDungeonProgression } from './dungeon-progression.js';
+import { createDungeonProgression } from './dungeon-progression.js';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
 import { createMultiplayerUI } from './multiplayer/ui.js';
