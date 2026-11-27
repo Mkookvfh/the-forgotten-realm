@@ -128,7 +128,18 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick, i
     }
 
     rect(gs, 0, 0, w, h, sky);
-    rect(gs, w * 0.76f, h * 0.13f, 40, 40, color(255, 226, 151));
+    if (region == REGION_GLOWWOOD) {
+        /* Tiny stars and a moon establish the night-time forest mood. */
+        for (int i = 0; i < 22; ++i) {
+            float sx = fmodf(i * 73.0f + 19.0f, w);
+            float sy = 18.0f + fmodf(i * 31.0f, h * 0.30f);
+            rect(gs, sx, sy, (i % 4 == 0) ? 3.0f : 1.5f, 2.0f,
+                 color(221, 234, 207));
+        }
+        rect(gs, w * 0.76f, h * 0.13f, 28, 28, color(202, 219, 211));
+    } else {
+        rect(gs, w * 0.76f, h * 0.13f, 40, 40, color(255, 226, 151));
+    }
 
     /* Far clouds drift slowly; their screen movement is a parallax layer. */
     for (int i = 0; i < 6; ++i) {
@@ -153,6 +164,17 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick, i
     }
 
     rect(gs, 0, ground, w, h - ground, meadow);
+    if (region == REGION_GLOWWOOD) {
+        /* Glowing plants are scattered across the forest floor. */
+        for (int i = 0; i < 10; ++i) {
+            float gx = fmodf(i * 117.0f - camera * 0.82f, w + 30.0f);
+            if (gx < -15.0f) gx += w + 30.0f;
+            rect(gs, gx, ground + 10.0f + (i % 3) * 3.0f, 4.0f, 7.0f,
+                 color(123, 220, 177));
+            rect(gs, gx - 2.0f, ground + 8.0f + (i % 3) * 3.0f, 8.0f, 2.0f,
+                 color(78, 159, 143));
+        }
+    }
 
     /* Region landmarks: old valley stones, lakeside ruins, snowy summit ridges. */
     if (region == REGION_VALLEY) {
