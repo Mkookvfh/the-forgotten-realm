@@ -2429,14 +2429,12 @@ export function createSystems(ctx) {
         label: SIDE_QUESTS[id].title,
         progress: `${Math.min(progress.count || 0, SIDE_QUESTS[id].target)}/${SIDE_QUESTS[id].target}`
       };
-      return { x: 5.5, z: 1, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' };
+      const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
+      return sage
+        ? { x: sage.position.x, z: sage.position.z, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' }
+        : { x: 5.5, z: 1, label: 'กลับไปหานักพรต', progress: 'กลับไปส่งภารกิจ' };
     }
 
-    const sage = npcs.find((npc) => npc.userData.npcId === 'sage');
-    const sageData = NPC_DATA.find((npc) => npc.id === 'sage');
-    if (sage && sageData && questAvailable(sageData)) {
-      return { x: sage.position.x, z: sage.position.z, label: 'รับภารกิจจากนักพรต', progress: 'คุยกับ NPC' };
-    }
     if (state.questStage < 2) {
       const main = mainQuestMarker();
       if (main) return { ...main, progress: 'ภารกิจหลัก' };
