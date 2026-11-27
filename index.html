@@ -36,6 +36,10 @@
   aria-expanded="false" aria-controls="map-panel">
   🗺 แผนที่
         </button>
+        <button id="journal-open" class="top-btn" type="button"
+  aria-expanded="false" aria-controls="journal-panel">
+  🧭 สำรวจ
+        </button>
         <button id="inventory-open" class="top-btn" type="button"
   aria-expanded="false" aria-controls="inventory">
   🎒 กระเป๋า
@@ -359,6 +363,16 @@
       </div>
       <div id="map-coords">ตำแหน่ง: 0, 0 · สำรวจแล้ว 0%</div>
       <p class="note">ลากเพื่อเลื่อน · หมุนล้อหรือสองนิ้วเพื่อซูม · แตะจุดเดินทางเพื่อเดินทางเร็ว</p>
+    </section>
+
+    <section id="journal-panel" class="panel journal-panel hidden" aria-label="บันทึกการสำรวจ">
+      <div class="panel-head">
+        <div><small>EXPLORATION JOURNAL</small><b>🧭 บันทึกการสำรวจ</b></div>
+        <button id="journal-close" class="close-btn" type="button">✕</button>
+      </div>
+      <div id="journal-summary" class="journal-summary">ค้นพบ 0 / 0 จุดลับ</div>
+      <div id="journal-regions" class="journal-regions"></div>
+      <p class="note">ชื่อสถานที่ลับจะเปิดเผยหลังค้นพบเท่านั้น · โบนัสภูมิภาคได้รับครั้งเดียว</p>
     </section>
 
     <section id="dialogue-panel" class="panel dialogue-panel hidden" role="dialog" aria-label="บทสนทนา">
