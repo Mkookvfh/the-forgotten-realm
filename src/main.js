@@ -4831,6 +4831,8 @@ body.rotation.x = -attackGlow * .22;
   frontierWorld?.update(player.position);
   vegetation.update(player.position, dt);
   ambientBirds.update(dt, player.position);
+  audio.setBiomeAmbience(worldStreamer.getRegion(player.position.x, player.position.z));
+  audio.updateAmbience(dt);
 
   if (!fallbackHidden && worldStreamer.loadedCount > 0) {
     fallbackHidden = true;
