@@ -3818,6 +3818,8 @@ function updateWorld(dt, yaw) {
     const dz = player.position.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
     const isBoss = data.type === 'boss' || data.type === 'dungeonBoss';
+    if (isBoss) updateBossPhase(enemy);
+    const bossProfile = isBoss ? getBossPhaseCombatProfile(data.phase) : null;
 
     if (data.bossWarning) {
       const warning = data.bossWarning;
@@ -3838,13 +3840,10 @@ function updateWorld(dt, yaw) {
       });
     }
 
-    if (isBoss) updateBossPhase(enemy);
-
     data.slowTimer = Math.max(0, (data.slowTimer || 0) - dt);
     data.recoveryTimer = Math.max(0, (data.recoveryTimer || 0) - dt);
     const slowFactor = data.slowTimer > 0 ? .55 : 1;
     const speed = stats.speed * data.phaseMultiplier * slowFactor;
-    const bossProfile = isBoss ? getBossPhaseCombatProfile(data.phase) : null;
     const attackDamage = stats.damage * data.phaseMultiplier * (bossProfile?.damageMultiplier || 1);
 
     const hpRatio = Math.max(0, data.hp / data.maxHp);
