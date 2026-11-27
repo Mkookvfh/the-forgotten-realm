@@ -231,12 +231,14 @@ const GEAR_DAMAGE_PER_TIER = .10;
 const GEAR_ARMOR_PER_TIER = .04;
 
 function weaponDamageMultiplier() {
-  return 1 + GEAR_DAMAGE_PER_TIER * systems.gearTier('weapon');
+  const legendaryBonus = systems.getCount('ruinCore') > 0 ? .12 : 0;
+  return 1 + GEAR_DAMAGE_PER_TIER * systems.gearTier('weapon') + legendaryBonus;
 }
 
 function armorReduction() {
   const armor = armorStats[state.armor] || armorStats.leather;
-  return Math.min(.85, armor.reduction + GEAR_ARMOR_PER_TIER * systems.gearTier('armor'));
+  const legendaryBonus = systems.getCount('ashHeart') > 0 ? .08 : 0;
+  return Math.min(.85, armor.reduction + GEAR_ARMOR_PER_TIER * systems.gearTier('armor') + legendaryBonus);
 }
 
 function renderUpgradeUI() {
