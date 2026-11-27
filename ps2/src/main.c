@@ -84,7 +84,7 @@ static void start_footstep_rumble(enum Surface surface)
     rumble_frames_left = RUMBLE_FRAMES;
 }
 
-static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick)
+static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick, int moving)
 {
     float w = (float)gs->Width;
     float h = (float)gs->Height;
@@ -147,7 +147,6 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick)
 
     /* Animated blockout traveler. Replace with authored pixel-art sprite sheets later. */
     {
-        int moving = (tick > 0.0f);
         float phase = moving ? sinf(tick * 0.55f) : 0.0f;
         float bob = moving ? fabsf(phase) * 1.5f : 0.0f;
         float leg_a = phase * 4.0f;
@@ -252,7 +251,8 @@ int main(void)
             camera = WORLD_LENGTH - (float)gs->Width;
 
         gsKit_clear(gs, color(151, 205, 224));
-        draw_scene(gs, camera, player_x, tick);
+        draw_scene(gs, camera, player_x, tick,
+                   (pressed & (PAD_LEFT | PAD_RIGHT)) != 0);
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
     }
