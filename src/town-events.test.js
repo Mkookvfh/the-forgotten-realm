@@ -15,7 +15,9 @@ test('town event is stable for a town and day and changes after a day advances',
   events.update(1, 0, 0);
   events.update(1, -45, -45);
   assert.equal(notices.length, 1, 'same town should not repeat the notice during the same day');
-  events.update(TOWN_EVENT_DAY_SECONDS, 1000, 1000);
+  for (let second = 0; second < TOWN_EVENT_DAY_SECONDS; second += 1) {
+    events.update(1, 1000, 1000);
+  }
   const next = events.getEvent('ravenhold');
   assert.equal(next.day, 1);
   events.update(1, -45, -45);
