@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
+import { CURRENT_SAVE_VERSION, parseSaveWithBackup, isValidSaveRaw } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
 import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
 import { buildStaggerState, getElementMultiplier, getLowHealthBossSpecial, getWeaknessHint } from './boss-weaknesses.js';
@@ -2218,8 +2218,9 @@ function saveGame(showMessage = true, slot = currentSlot) {
     const saveKey = getSaveKey(slot);
     const previousSave = localStorage.getItem(saveKey);
 
-    // Keep the previous successful save as a recovery copy before replacing it.
-    if (previousSave) {
+    // Only replace the recovery copy when the current primary save is valid.
+    // If the primary is corrupted, preserve the last known-good backup.
+    if (previousSave && isValidSaveRaw(previousSave)) {
       try {
         localStorage.setItem(`${saveKey}-backup`, previousSave);
       } catch (backupError) {
