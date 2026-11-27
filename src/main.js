@@ -4,6 +4,7 @@ import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.
 import { createDungeonProgression } from './dungeon-progression.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
+import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
 import { createMultiplayerUI } from './multiplayer/ui.js';
@@ -4517,6 +4518,10 @@ const questOpenButton = $('#quest-open');
 const questPanel = $('#quest-panel');
 const mapOpenButton = $('#map-open');
 const mapPanel = $('#map-panel');
+const journalOpenButton = $('#journal-open');
+const journalPanel = $('#journal-panel');
+const journalSummary = $('#journal-summary');
+const journalRegions = $('#journal-regions');
 
 function closePanels(except = null) {
   if (except !== 'inventory') {
@@ -4531,6 +4536,10 @@ function closePanels(except = null) {
     mapPanel.classList.add('hidden');
     mapOpenButton.setAttribute('aria-expanded', 'false');
   }
+  if (except !== 'journal') {
+    journalPanel.classList.add('hidden');
+    journalOpenButton.setAttribute('aria-expanded', 'false');
+  }
   if (except !== 'settings') ui.settings.classList.add('hidden');
   if (except !== 'shop') systems.closeShop();
   if (except !== 'camp') closeCamp();
@@ -4543,6 +4552,7 @@ function isPanelOpen() {
     !ui.inventory.classList.contains('hidden') ||
     !questPanel.classList.contains('hidden') ||
     !mapPanel.classList.contains('hidden') ||
+    !journalPanel.classList.contains('hidden') ||
     !ui.shop.classList.contains('hidden') ||
     !campPanel.classList.contains('hidden') ||
     !dialoguePanel.classList.contains('hidden')
@@ -4584,6 +4594,58 @@ mapOpenButton.addEventListener('click', toggleMapPanel);
 $('#map-close').addEventListener('click', () => {
   closePanels();
 });
+
+function renderExplorationJournal() {
+  const journal = getExplorationJournal(state);
+  const totals = explorationTotals(journal);
+  journalSummary.textContent = `ค้นพบความลับ ${totals.found} / ${totals.total} จุด · สำเร็จ ${totals.completedRegions} / ${journal.length} ภูมิภาค`;
+  journalRegions.replaceChildren();
+
+  for (const region of journal) {
+    const card = document.createElement('article');
+    card.className = 'journal-region';
+    const heading = document.createElement('div');
+    heading.className = 'journal-region-head';
+    const title = document.createElement('strong');
+    title.textContent = region.name;
+    const count = document.createElement('span');
+    count.textContent = `${region.discovered}/${region.total}`;
+    heading.append(title, count);
+
+    const track = document.createElement('div');
+    track.className = 'journal-progress';
+    const fill = document.createElement('i');
+    fill.style.width = `${region.total ? region.discovered / region.total * 100 : 0}%`;
+    track.append(fill);
+
+    const list = document.createElement('ul');
+    list.className = 'journal-secret-list';
+    for (const secret of region.secrets) {
+      const item = document.createElement('li');
+      item.textContent = secret.discovered ? `✓ ${secret.name}` : '◇ ความลับที่ยังไม่ค้นพบ';
+      item.className = secret.discovered ? 'found' : 'unknown';
+      list.append(item);
+    }
+
+    const status = document.createElement('small');
+    status.className = 'journal-reward';
+    status.textContent = region.rewardClaimed ? 'รางวัลภูมิภาค: รับแล้ว'
+      : region.complete ? 'รางวัลภูมิภาค: พร้อมรับ' : 'รางวัลภูมิภาค: ยังไม่ครบ';
+    card.append(heading, track, list, status);
+    journalRegions.append(card);
+  }
+}
+
+function toggleJournalPanel() {
+  const willOpen = journalPanel.classList.contains('hidden');
+  closePanels(willOpen ? 'journal' : null);
+  journalPanel.classList.toggle('hidden', !willOpen);
+  journalOpenButton.setAttribute('aria-expanded', String(willOpen));
+  if (willOpen) renderExplorationJournal();
+}
+
+journalOpenButton.addEventListener('click', toggleJournalPanel);
+$('#journal-close').addEventListener('click', () => closePanels());
 
 $('#settings-open').addEventListener('click', () => {
   closePanels('settings');
