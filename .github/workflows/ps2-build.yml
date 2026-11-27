@@ -26,7 +26,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/src" \
             -w /src/ports/ps2 \
             ghcr.io/ps2dev/ps2dev:latest \
-            sh -lc 'set -e; apk add --no-cache make; . /etc/profile; echo "PS2SDK=$PS2SDK"; echo "EE_TOOL_PREFIX=$EE_TOOL_PREFIX"; command -v ee-gcc; make clean; make; test -s tfr_ps2.elf'
+            sh -lc 'set -e; apk add --no-cache make; export PS2DEV=/usr/local/ps2dev; export PS2SDK=$PS2DEV/ps2sdk; export GSKIT=$PS2DEV/gsKit; export PATH=$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin; echo "PS2SDK=$PS2SDK"; command -v mips64r5900el-ps2-elf-gcc; make clean; make; test -s tfr_ps2.elf'
 
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
