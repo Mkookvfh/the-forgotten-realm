@@ -193,6 +193,67 @@ function getSaveKey(slot = currentSlot) {
   return `forgotten-realm-save-v1-slot-${slot}`;
 }
 
+function readSaveSlotInfo(slot) {
+  try {
+    let primary = localStorage.getItem(getSaveKey(slot));
+    if (!primary && slot === 1) {
+      primary = localStorage.getItem('forgotten-realm-save-v1');
+    }
+    const backup = localStorage.getItem(`${getSaveKey(slot)}-backup`);
+    if (!primary && !backup) return { empty: true };
+
+    const parsed = parseSaveWithBackup(primary, backup);
+    return { data: parsed.data, recovered: parsed.recovered };
+  } catch {
+    return { invalid: true };
+  }
+}
+
+function refreshSaveSlotSummary() {
+  const container = $('#save-slot-summary');
+  if (!container) return;
+
+  container.replaceChildren();
+  for (let slot = 1; slot <= 3; slot++) {
+    const info = readSaveSlotInfo(slot);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'save-slot-card';
+    if (slot === currentSlot) button.classList.add('selected');
+    button.dataset.saveSlot = String(slot);
+    button.setAttribute('aria-pressed', String(slot === currentSlot));
+
+    const title = document.createElement('strong');
+    title.textContent = `ช่อง ${slot}`;
+    const detail = document.createElement('small');
+
+    if (info.empty) {
+      detail.textContent = 'ยังไม่มีเซฟ';
+    } else if (info.invalid) {
+      detail.textContent = 'เซฟอ่านไม่ได้';
+    } else {
+      const data = info.data;
+      const level = Number.isFinite(Number(data.state?.level))
+        ? Number(data.state.level)
+        : 1;
+      let dateText = 'เวลาไม่ทราบ';
+      if (data.savedAt) {
+        const date = new Date(data.savedAt);
+        if (!Number.isNaN(date.getTime())) {
+          dateText = date.toLocaleString('th-TH', {
+            day: '2-digit', month: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+          });
+        }
+      }
+      detail.textContent = `Lv.${level} · ${dateText}${info.recovered ? ' · สำรอง' : ''}`;
+    }
+
+    button.append(title, detail);
+    container.append(button);
+  }
+}
+
 function updateHud() {
   const hpPercent = state.maxHp > 0
     ? THREE.MathUtils.clamp(state.hp / state.maxHp * 100, 0, 100)
@@ -2230,6 +2291,7 @@ function saveGame(showMessage = true, slot = currentSlot) {
 
     localStorage.setItem(saveKey, serialized);
     if (slot === 1) localStorage.setItem('forgotten-realm-save-v1', serialized);
+    refreshSaveSlotSummary();
     if (showMessage) toast(`บันทึกความคืบหน้าช่อง ${slot} แล้ว`);
   } catch (error) {
     console.error(error);
@@ -5039,6 +5101,21 @@ if (saveSlotSelect) {
     currentSlot = THREE.MathUtils.clamp(
       Math.round(Number(e.target.value)) || 1, 1, 3
     );
+    refreshSaveSlotSummary();
+    toast(`เลือกช่องบันทึก ${currentSlot}`);
+  });
+}
+
+const saveSlotSummary = $('#save-slot-summary');
+if (saveSlotSummary) {
+  saveSlotSummary.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-save-slot]');
+    if (!button) return;
+    currentSlot = THREE.MathUtils.clamp(
+      Math.round(Number(button.dataset.saveSlot)) || 1, 1, 3
+    );
+    if (saveSlotSelect) saveSlotSelect.value = String(currentSlot);
+    refreshSaveSlotSummary();
     toast(`เลือกช่องบันทึก ${currentSlot}`);
   });
 }
@@ -5144,6 +5221,7 @@ installLandscapePrompt();
 // ---------- Start ----------
 dayNightMode = settings.dayNightMode || 'auto';
 if (saveSlotSelect) saveSlotSelect.value = String(currentSlot);
+refreshSaveSlotSummary();
 applySettings();
 updateHud();
 refreshEquipmentUI();
