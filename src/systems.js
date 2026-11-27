@@ -3623,6 +3623,23 @@ export function createSystems(ctx) {
     }
 
     drawQuestMarkers(g);
+    const trackedTarget = questGuideTarget();
+    if (trackedTarget && discoveredRegion(regionOf(trackedTarget.x, trackedTarget.z))) {
+      const tx = mapX(trackedTarget.x), ty = mapY(trackedTarget.z);
+      g.save();
+      g.strokeStyle = '#ffe17b';
+      g.lineWidth = 3;
+      g.setLineDash([6, 4]);
+      g.beginPath();
+      g.arc(tx, ty, 19, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = '#fff0ad';
+      g.font = '700 14px sans-serif';
+      g.textAlign = 'center';
+      g.fillText('เป้าหมายที่ติดตาม', tx, ty - 25);
+      g.restore();
+    }
 
     // Fog of war on top of everything that lives on the land.
     g.save();
