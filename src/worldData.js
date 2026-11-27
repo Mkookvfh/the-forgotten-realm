@@ -8,11 +8,11 @@ export const WORLD_BOUNDS = {
 export const REGIONS = [
   {
     id: 'wasteland',
-    name: 'ทุ่งรกร้างโบราณ',
+    name: 'ทุ่งรุ่งอรุณ',
     center: { x: 0, z: 0 },
     radius: 96,
-    color: '#c9a86a',
-    description: 'ซากปราสาท หลุมศพ และแม่น้ำลาวาที่ไหลผ่านใจกลางดินแดน'
+    color: '#a8d96b',
+    description: 'ทุ่งหญ้าสีเขียวที่มีทางเดินคดเคี้ยว ลำธารใส เนินเขา และจุดชมวิวแรกของนักเดินทาง'
   },
   {
     id: 'ravenhold',
@@ -28,7 +28,7 @@ export const REGIONS = [
     center: { x: -165, z: -155 },
     radius: 110,
     color: '#7aa6f0',
-    description: 'ป่าต้นไม้ตาย วงหินโบราณ และซากอารามที่ถูกลืม'
+    description: 'ป่าสนและป่าไม้หลากสี มีแสงแดดลอดผ่านยอดไม้ ลานดอกไม้ และเส้นทางเดินสู่ซากโบราณ'
   },
   {
     id: 'varnhal',
@@ -44,7 +44,7 @@ export const REGIONS = [
     center: { x: 160, z: -177 },
     radius: 112,
     color: '#ff7a4d',
-    description: 'ยอดเขาแหลมคม ถ้ำถ่านไฟ และทะเลลาวาที่พุ่งขึ้นจากเดือด'
+    description: 'เทือกเขาสูงและหน้าผาหิน มีเส้นทางปีนเขา จุดชมพระอาทิตย์ขึ้น และถ้ำภูเขา'
   },
   {
     id: 'mirefall',
@@ -52,7 +52,7 @@ export const REGIONS = [
     center: { x: -170, z: 160 },
     radius: 112,
     color: '#7fd4e8',
-    description: 'ทะเลสาบต้องสาป หมู่บ้านหนองน้ำ และถ้ำใต้รากหิน'
+    description: 'ทะเลสาบสีฟ้าใส มีหมู่บ้านริมฝั่ง ทุ่งดอกไม้ และถ้ำธรรมชาติใต้หน้าผา'
   },
   {
     id: 'frostwatch',
@@ -60,7 +60,7 @@ export const REGIONS = [
     center: { x: 245, z: -65 },
     radius: 58,
     color: '#a9d7e8',
-    description: 'ป้อมชายแดนบนเนินลมหนาว เฝ้าทางผ่านสู่ดินแดนหิมะ'
+    description: 'ป้อมบนเนินเขาหิมะ มองเห็นหุบเขาขาวโพลนและทะเลเมฆในวันที่อากาศแจ่มใส'
   },
   {
     id: 'sunken-cathedral',
@@ -84,7 +84,7 @@ export const REGIONS = [
     center: { x: -245, z: -235 },
     radius: 58,
     color: '#7fc5d5',
-    description: 'ชายฝั่งหมอกและซากเรือที่ถูกแสงดาวนำทาง'
+    description: 'ชายฝั่งสีฟ้าอมเขียว หาดทราย โขดหิน และซากเรือเก่าที่กลายเป็นจุดถ่ายภาพ'
   },
 ];
 
