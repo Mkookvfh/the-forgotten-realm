@@ -8,14 +8,14 @@ const BOSS_REWARDS = {
     title: 'เจ้าแห่งซากปรัก',
     gold: 250,
     crystals: 8,
-    items: { bossRelic: 2, darkShard: 3 }
+    items: { bossRelic: 2, darkShard: 3, ruinCore: 1 }
   },
   warlord: {
     key: 'unique-boss-reward-ash-warlord',
     title: 'หัวหน้าโจร',
     gold: 140,
     crystals: 4,
-    items: { bossRelic: 1, stoneHeart: 1 }
+    items: { bossRelic: 1, stoneHeart: 1, ashHeart: 1 }
   }
 };
 
