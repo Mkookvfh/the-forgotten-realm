@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { createProceduralMonster } from './procedural-monsters.js';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup, isValidSaveRaw } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
 import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
@@ -1590,7 +1591,11 @@ function spawnEnemy(type, x, z) {
   const enemy = new THREE.Group();
 
   const sprite = createCharacterSprite(getEnemyTexture(type));
+  // Keep the existing sprite animation as a compatibility fallback, while showing an original 3D model.
+  sprite.visible = false;
   enemy.add(sprite);
+  const model3d = createProceduralMonster(type);
+  enemy.add(model3d);
 
   const enemyShadow = new THREE.Mesh(
     new THREE.CircleGeometry(.48, 16),
