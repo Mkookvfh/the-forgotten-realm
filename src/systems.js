@@ -5,6 +5,7 @@ import {
   updateCharacterAnimation
 } from './pixelSprites.js';
 import { SECRETS, WORLD_BOUNDS } from './worldData.js';
+import { claimSecretRegionReward } from './secret-region-rewards.js';
 
 export const RARITY = {
   common: { name: 'ธรรมดา', color: '#c9c9c9' },
@@ -1787,6 +1788,14 @@ export function createSystems(ctx) {
     if (loot.xp) gainXp(loot.xp);
     for (const [item, amount] of Object.entries(loot.items || {})) {
       addItem(item, amount);
+    }
+
+    const regionReward = claimSecretRegionReward(state, data.id);
+    if (regionReward) {
+      state.gold += regionReward.gold;
+      state.crystals += regionReward.crystals;
+      gainXp(regionReward.xp);
+      toast(`สำรวจความลับใน ${regionReward.region} ครบ ${regionReward.count} จุด · โบนัสทอง +${regionReward.gold} · ผลึก +${regionReward.crystals}`);
     }
 
     makeBurst(secret.position, secret.userData.color);
