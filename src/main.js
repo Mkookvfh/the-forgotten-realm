@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
 import { createMultiplayerUI } from './multiplayer/ui.js';
@@ -2110,7 +2111,8 @@ function saveGame(showMessage = true, slot = currentSlot) {
   currentSlot = slot;
 
   const payload = {
-    version: 11,
+    version: CURRENT_SAVE_VERSION,
+    savedAt: new Date().toISOString(),
     slot,
     dungeonActive,
     player: [
@@ -2172,23 +2174,11 @@ function loadGame(slot = currentSlot) {
       (slot === 1 ? localStorage.getItem('forgotten-realm-save-v1') : null);
     if (!raw) return toast(`ยังไม่มีข้อมูลบันทึกช่อง ${slot}`);
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (parseError) {
-      const backupRaw = localStorage.getItem(`${getSaveKey(slot)}-backup`);
-      if (!backupRaw) throw parseError;
-      data = JSON.parse(backupRaw);
+    const backupRaw = localStorage.getItem(`${getSaveKey(slot)}-backup`);
+    const parsedSave = parseSaveWithBackup(raw, backupRaw);
+    const data = parsedSave.data;
+    if (parsedSave.recovered) {
       toast(`กู้คืนเซฟสำรองของช่อง ${slot} แล้ว`);
-    }
-
-    if (
-      !Array.isArray(data.player) ||
-      data.player.length !== 3 ||
-      !data.state ||
-      !data.player.every(Number.isFinite)
-    ) {
-      throw new Error('Invalid save format');
     }
 
     currentSlot = slot;
