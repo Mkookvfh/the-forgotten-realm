@@ -1868,6 +1868,7 @@ const input = {
   run: false,
   jumpPressed: false,
   attackPressed: false,
+  starforgedSkillPressed: false,
   interactPressed: false,
   dodgePressed: false
 };
@@ -1880,6 +1881,7 @@ function clearInputs() {
   input.run = false;
   input.jumpPressed = false;
   input.attackPressed = false;
+  input.starforgedSkillPressed = false;
   input.interactPressed = false;
   input.dodgePressed = false;
 
@@ -1926,6 +1928,7 @@ addEventListener('keydown', (e) => {
 
     if (e.code === 'Space') input.jumpPressed = true;
     if (e.code === 'KeyF') input.attackPressed = true;
+    if (e.code === 'KeyT' && state.weapon === 'starforged') input.starforgedSkillPressed = true;
     if (e.code === 'KeyE') input.interactPressed = true;
     if (e.code === 'KeyQ') usePotion();
     if (e.code === 'KeyC') input.dodgePressed = true;
@@ -2018,6 +2021,10 @@ bindHold('#jump', () => {
 
 bindHold('#attack', () => {
   input.attackPressed = true;
+});
+
+bindHold('#starforged-skill', () => {
+  input.starforgedSkillPressed = true;
 });
 
 bindHold('#interact', () => {
@@ -2134,6 +2141,7 @@ let verticalVelocity = 0;
 let playerAnimTime = 0;
 let grounded = true;
 let attackCooldown = 0;
+let starforgedSkillCooldown = 0;
 let dodgeCooldown = 0;
 let dodgeTimer = 0;
 let invulnerabilityTimer = 0;
@@ -3481,6 +3489,62 @@ function campCook() {
   toast('ปรุงสตูว์ป่า · ได้ยาฟื้นฟู 2');
 }
 
+function castStarforgedSkill() {
+  if (state.weapon !== 'starforged') {
+    toast('ต้องสวมดาบดาวหลอมก่อน');
+    return;
+  }
+  if (starforgedSkillCooldown > 0) {
+    toast(`สกิลดาวหลอมพร้อมใน ${Math.ceil(starforgedSkillCooldown)} วินาที`);
+    return;
+  }
+
+  starforgedSkillCooldown = 12;
+  const radius = 5.4;
+  const skillDamage = (weaponStats.starforged.damage + state.attackBonus) *
+    weaponDamageMultiplier() * 1.65;
+
+  // A single expanding rune ring, capped and cleaned up like normal slash waves.
+  if (starforgedWaves.length >= MAX_STARFORGED_WAVES) {
+    const oldest = starforgedWaves.shift();
+    scene.remove(oldest.mesh);
+    oldest.mesh.geometry.dispose();
+    oldest.mesh.material.dispose();
+  }
+  const burst = new THREE.Mesh(
+    new THREE.TorusGeometry(1.1, .11, 8, 36),
+    new THREE.MeshBasicMaterial({
+      color: 0xffdf8a, transparent: true, opacity: .95,
+      depthWrite: false, side: THREE.DoubleSide
+    })
+  );
+  burst.rotation.x = Math.PI / 2;
+  burst.position.set(player.position.x, player.position.y + .18, player.position.z);
+  scene.add(burst);
+  starforgedWaves.push({
+    mesh: burst, life: .72, maxLife: .72,
+    vx: 0, vz: 0, expanding: true
+  });
+
+  let hitCount = 0;
+  for (const enemy of enemies) {
+    if (!enemy.userData.alive) continue;
+    const distance = Math.hypot(
+      enemy.position.x - player.position.x,
+      enemy.position.z - player.position.z
+    );
+    if (distance <= radius) {
+      damageEnemy(enemy, skillDamage, { element: 'arcane', slow: .35 });
+      hitCount++;
+    }
+  }
+  audio.play('attack');
+  toast(hitCount
+    ? `ดาวพิฆาต! โจมตีศัตรู ${hitCount} ตัว · คูลดาวน์ 12 วินาที`
+    : 'ดาวพิฆาต! ไม่มีศัตรูในวงโจมตี · คูลดาวน์ 12 วินาที');
+  updateHud();
+}
+
 function attack() {
   if (attackCooldown > 0) return;
 
@@ -4230,10 +4294,15 @@ function update(dt) {
   for (let i = starforgedWaves.length - 1; i >= 0; i--) {
     const wave = starforgedWaves[i];
     wave.life -= dt;
-    wave.mesh.position.x += wave.vx * dt;
-    wave.mesh.position.z += wave.vz * dt;
-    const progress = 1 - Math.max(0, wave.life) / wave.maxLife;
-    wave.mesh.scale.setScalar(1.15 + progress * 1.8);
+    if (wave.expanding) {
+      const progress = 1 - Math.max(0, wave.life) / wave.maxLife;
+      wave.mesh.scale.setScalar(1.1 + progress * 5.2);
+    } else {
+      wave.mesh.position.x += wave.vx * dt;
+      wave.mesh.position.z += wave.vz * dt;
+      const progress = 1 - Math.max(0, wave.life) / wave.maxLife;
+      wave.mesh.scale.setScalar(1.15 + progress * 1.8);
+    }
     wave.mesh.material.opacity = Math.max(0, wave.life / wave.maxLife) * .88;
     if (wave.life <= 0) {
       scene.remove(wave.mesh);
@@ -4513,12 +4582,18 @@ body.rotation.x = -attackGlow * .22;
     input.attackPressed = false;
   }
 
+  if (input.starforgedSkillPressed) {
+    castStarforgedSkill();
+    input.starforgedSkillPressed = false;
+  }
+
   if (input.interactPressed || keys.KeyE) {
     interact();
     input.interactPressed = false;
   }
 
   attackCooldown = Math.max(0, attackCooldown - dt);
+  starforgedSkillCooldown = Math.max(0, starforgedSkillCooldown - dt);
 
   cameraTarget.set(
     player.position.x,
