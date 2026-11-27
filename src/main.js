@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
+import { DUNGEON_LAYOUTS, createDungeonProgression } from './dungeon-progression.js';
 import { installLandscapePrompt } from './mobile-orientation.js';
 import { createMultiplayerSession } from './multiplayer/session.js';
 import { createMultiplayerUI } from './multiplayer/ui.js';
@@ -154,6 +155,7 @@ const state = {
   explored: [],
   cartographer: 0,
   dungeonCleared: false,
+  dungeons: {},
   respawnPoint: null,
   comboBest: 0,
   companion: null,
@@ -2202,6 +2204,9 @@ function loadGame(slot = currentSlot) {
     }
 
     state.dungeonCleared = Boolean(data.state.dungeonCleared);
+    state.dungeons = data.state.dungeons && typeof data.state.dungeons === 'object'
+      ? { ...data.state.dungeons }
+      : {};
 
     // Carry inventory, skills, spells and quests through the save before
     // restoreState() sanitises them (previously these were silently reset).
@@ -2977,16 +2982,33 @@ function completeDungeonIfReady() {
   dungeonActive = false;
   state.dungeonCleared = true;
   state.crystals += 6;
-  state.gold += 180;
-  gainXp(250);
+
+  // Persist the cleared room chain and award the dungeon's unique loot once.
+  const dungeon = createDungeonProgression('forgottenCrypt', state);
+  dungeon.progress.roomIndex = dungeon.layout.rooms.length - 1;
+  dungeon.progress.completed = dungeon.layout.rooms.map(room => room.id);
+  dungeon.progress.puzzleSolved = dungeon.layout.rooms
+    .filter(room => room.kind === 'puzzle')
+    .map(room => room.id);
+  dungeon.progress.bossHpRatio = 0;
+  const reward = dungeon.claimReward();
+
+  if (reward.ok) {
+    state.gold += 180;
+    gainXp(250);
+    for (const [itemId, amount] of Object.entries(reward.reward.items)) {
+      systems.addItem(itemId, amount);
+    }
+    toast('ถ้ำต้องสาปสงบแล้ว · ผลึก 6 · ทอง 180 · ได้รับของรางวัลดันเจี้ยน');
+  } else {
+    toast('ถ้ำต้องสาปสงบแล้ว · ได้ผลึก 6 · รางวัลดันเจี้ยนนี้รับไปแล้ว');
+  }
 
   const exitY = getTerrainHeight(-24, -70, 0) ?? 0;
   player.position.set(-24, exitY, -70);
   audio.play('quest');
-  toast('ถ้ำต้องสาปสงบแล้ว · ได้ผลึก 6 · ทอง 180');
   updateHud();
 }
-
 function respawnEnemy(enemy) {
   const data = enemy.userData;
   const terrainY = getTerrainHeight(data.homeX, data.homeZ, data.baseY) ?? data.baseY;
