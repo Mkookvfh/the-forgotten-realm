@@ -127,7 +127,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     const homeZ=city.z+Math.sin(angle)*radius;
     group.position.set(homeX,groundY(homeX,homeZ),homeZ);
     (city.root || root).add(group);
-    residents.push({mesh:group,city,homeX,homeZ,phase:index*1.7,speed:.45+(index%3)*.12,body,goalX:homeX,goalZ:homeZ,wait:1+index%4});
+    residents.push({id:`${city.id}:${index}`,mesh:group,city,homeX,homeZ,phase:index*1.7,speed:.45+(index%3)*.12,body,goalX:homeX,goalZ:homeZ,wait:1+index%4});
   }
   function makeLamp(city, lx,lz) {
     const x=city.x+lx*city.size,z=city.z+lz*city.size,y=groundY(x,z);
@@ -196,6 +196,37 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
         }
       }
       return false;
+    },
+    serializeWorld() {
+      return residents.map(npc => ({
+        id: npc.id,
+        position: [npc.mesh.position.x, npc.mesh.position.y, npc.mesh.position.z],
+        rotation: npc.mesh.rotation.y,
+        goal: [npc.goalX, npc.goalZ],
+        phase: npc.phase,
+        wait: npc.wait
+      }));
+    },
+    restoreWorld(saved) {
+      if (!Array.isArray(saved)) return 0;
+      const byId = new Map(saved.filter(entry => entry && typeof entry.id === 'string').map(entry => [entry.id, entry]));
+      let restored = 0;
+      for (const npc of residents) {
+        const entry = byId.get(npc.id);
+        if (!entry) continue;
+        if (Array.isArray(entry.position) && entry.position.length === 3 && entry.position.every(Number.isFinite)) {
+          npc.mesh.position.set(entry.position[0], groundY(entry.position[0], entry.position[2]), entry.position[2]);
+        }
+        if (Number.isFinite(entry.rotation)) npc.mesh.rotation.y = entry.rotation;
+        if (Array.isArray(entry.goal) && entry.goal.length === 2 && entry.goal.every(Number.isFinite)) {
+          npc.goalX = entry.goal[0];
+          npc.goalZ = entry.goal[1];
+        }
+        if (Number.isFinite(entry.phase)) npc.phase = entry.phase;
+        if (Number.isFinite(entry.wait)) npc.wait = THREE.MathUtils.clamp(entry.wait, 0, 30);
+        restored++;
+      }
+      return restored;
     },
     update(dt, playerX=0, playerZ=0) {
       const activeRange = mobile ? 155 : 220;
