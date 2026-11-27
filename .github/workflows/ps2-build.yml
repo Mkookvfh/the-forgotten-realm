@@ -26,7 +26,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/src" \
             -w /src/ports/ps2 \
             ghcr.io/ps2dev/ps2dev:latest \
-            sh -lc 'set -e; apk add --no-cache make git cmake; export PS2DEV=/usr/local/ps2dev; export PS2SDK=$PS2DEV/ps2sdk; export GSKIT=$PS2DEV/gsKit; export PATH=$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin; echo "PS2SDK=$PS2SDK"; command -v mips64r5900el-ps2-elf-gcc; git clone --depth 1 https://github.com/ps2dev/gsKit.git "$GSKIT"; make -C "$GSKIT"; make -C "$GSKIT" install; test -f "$PS2SDK/ports/include/gsKit.h"; make clean; make; test -s tfr_ps2.elf'
+            sh -lc 'set -e; apk add --no-cache make git cmake; export PS2DEV=/usr/local/ps2dev; export PS2SDK=$PS2DEV/ps2sdk; export GSKIT=$PS2DEV/gsKit; export PATH=$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin; echo "PS2SDK=$PS2SDK"; command -v mips64r5900el-ps2-elf-gcc; if [ ! -d "$GSKIT" ] || [ ! -f "$GSKIT/Makefile" ]; then rm -rf "$GSKIT"; git clone --depth 1 https://github.com/ps2dev/gsKit.git "$GSKIT"; fi; make -C "$GSKIT" clean; make -C "$GSKIT"; make -C "$GSKIT" install; test -f "$PS2SDK/ports/include/gsKit.h"; make clean; make; test -s tfr_ps2.elf'
 
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
