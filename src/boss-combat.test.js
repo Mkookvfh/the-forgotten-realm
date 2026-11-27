@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getBossAttackPattern, getBossOpeningMultiplier, getBossPhaseCombatProfile } from './boss-combat.js';
+import { getBossAttackPattern, getBossCombo, getBossOpeningMultiplier, getBossPhaseCombatProfile } from './boss-combat.js';
 
 test('boss phase profile escalates damage and counter window', () => {
   const p1=getBossPhaseCombatProfile(1), p2=getBossPhaseCombatProfile(2), p3=getBossPhaseCombatProfile(3);
@@ -39,4 +39,15 @@ test('charge attacks expose movement speed and remain dodgeable by target-lock',
   assert.ok(phase2.chargeSpeed>phase1.chargeSpeed);
   assert.equal(phase3.behavior,'charge');
   assert.ok(phase3.chargeSpeed>phase2.chargeSpeed);
+});
+
+test('boss combos grow by phase and use valid phase attack patterns', () => {
+  const c1 = getBossCombo(1, 0), c2 = getBossCombo(2, 0), c3 = getBossCombo(3, 1);
+  assert.equal(c1.length, 2);
+  assert.equal(c2.length, 3);
+  assert.equal(c3.length, 3);
+  for (const [phase, combo] of [[1, c1], [2, c2], [3, c3]]) {
+    for (const index of combo) assert.equal(getBossAttackPattern(phase, index).phase, phase);
+  }
+  assert.deepEqual(getBossCombo(1, 0), getBossCombo(1, 2));
 });
