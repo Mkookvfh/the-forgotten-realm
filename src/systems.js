@@ -89,6 +89,12 @@ export const SIDE_QUESTS = {
     desc: 'กำจัดผู้พิทักษ์ 3 ตัว',
     target: 3,
     reward: { ore: 3, xp: 100 }
+  },
+  wraith: {
+    title: 'เงาที่หลงเหลือ',
+    desc: 'กำจัดผีร้าย 3 ตัวให้ผู้เฝ้าศาลเจ้า',
+    target: 3,
+    reward: { crystals: 4, xp: 150 }
   }
 };
 
@@ -228,6 +234,7 @@ const NPC_DATA = [
     position: [5.5, 0, 1],
     color: 0x7486b8,
     quest: 'herb',
+    questChain: ['herb', 'wraith'],
     schedule: [
       { from: 0, to: 0.45, position: [5.5, 0, 1] },
       { from: 0.45, to: 0.75, position: [1.5, 0, -43] },
@@ -2004,6 +2011,7 @@ export function createSystems(ctx) {
 
       if (reward.potions) state.potions += reward.potions;
       if (reward.ore) addItem('ore', reward.ore);
+      if (reward.crystals) state.crystals += reward.crystals;
       if (reward.xp) gainXp(reward.xp);
 
       if (audio) audio.play('quest');
@@ -2034,6 +2042,7 @@ export function createSystems(ctx) {
     }
 
     if (type === 'guardian') advanceQuest('hunt', 1);
+    if (type === 'wraith') advanceQuest('wraith', 1);
     advanceBounties(type);
   }
 
@@ -2295,9 +2304,24 @@ export function createSystems(ctx) {
     refreshQuestUI();
   }
 
+  function npcQuestId(npc) {
+    const chain = Array.isArray(npc.questChain)
+      ? npc.questChain
+      : (npc.quest ? [npc.quest] : []);
+
+    for (const id of chain) {
+      const progress = state.quests[id];
+      if (!progress || progress.status === 'locked' || progress.status === 'active') {
+        return id;
+      }
+    }
+    return null;
+  }
+
   function questAvailable(npc) {
-    if (!npc.quest) return false;
-    const progress = state.quests[npc.quest];
+    const id = npcQuestId(npc);
+    if (!id) return false;
+    const progress = state.quests[id];
     return !progress || progress.status === 'locked';
   }
 
@@ -2509,12 +2533,13 @@ export function createSystems(ctx) {
         choicesEl.appendChild(back);
       } else {
         if (questAvailable(npc)) {
+          const questId = npcQuestId(npc);
           const accept = document.createElement('button');
           accept.type = 'button';
           accept.className = 'dialogue-topic quest';
-          accept.innerHTML = `<span>✦ รับภารกิจ: ${SIDE_QUESTS[npc.quest].title}</span>`;
+          accept.textContent = `✦ รับภารกิจ: ${SIDE_QUESTS[questId].title}`;
           accept.addEventListener('click', () => {
-            acceptQuest(npc.quest);
+            acceptQuest(questId);
             backToTopics();
           });
           choicesEl.appendChild(accept);
@@ -3186,8 +3211,9 @@ export function createSystems(ctx) {
 
     for (const npc of npcs) {
       const data = NPC_DATA.find((entry) => entry.id === npc.userData.npcId);
-      if (!data || !data.quest) continue;
-      const progress = state.quests[data.quest];
+      if (!data || !npcQuestId(data)) continue;
+      const questId = npcQuestId(data);
+      const progress = state.quests[questId];
       const active = progress && progress.status === 'active';
       const available = !progress || progress.status === 'locked';
       if (!active && !available) continue;
@@ -4001,7 +4027,7 @@ export function createSystems(ctx) {
       if (!dialogue) return;
 
       const npc = dialogue.npc;
-      if (questAvailable(npc)) acceptQuest(npc.quest);
+      if (questAvailable(npc)) acceptQuest(npcQuestId(npc));
       closeDialogue();
       if (npc.shop) openShop();
     });
