@@ -1091,6 +1091,30 @@ scene.add(dungeonPortal);
 
 // ---------- Pixel Art Player ----------
 const player = new THREE.Group();
+
+// Legendary Voidwarden aura: lightweight attached meshes, no particle emitter.
+const voidwardenAura = new THREE.Group();
+const voidwardenRing = new THREE.Mesh(
+  new THREE.TorusGeometry(1.05, .045, 6, 32),
+  new THREE.MeshBasicMaterial({ color: 0x8c55ff, transparent: true, opacity: .42, depthWrite: false })
+);
+voidwardenRing.rotation.x = Math.PI / 2;
+voidwardenAura.add(voidwardenRing);
+const voidwardenHalo = new THREE.Mesh(
+  new THREE.TorusGeometry(.72, .025, 6, 24),
+  new THREE.MeshBasicMaterial({ color: 0x56d9ff, transparent: true, opacity: .28, depthWrite: false })
+);
+voidwardenHalo.rotation.x = Math.PI / 2;
+voidwardenHalo.position.y = .12;
+voidwardenAura.add(voidwardenHalo);
+voidwardenAura.position.y = .12;
+voidwardenAura.visible = false;
+player.add(voidwardenAura);
+
+// Starforged slash waves are capped and disposed after their short lifetime.
+const starforgedWaves = [];
+const MAX_STARFORGED_WAVES = 3;
+
 const cutsceneDirector = createCutsceneDirector({ camera, player, mount });
 const body = new THREE.Group();
 player.add(body);
@@ -3488,6 +3512,35 @@ function attack() {
 
   const forwardX = Math.sin(player.rotation.y);
   const forwardZ = Math.cos(player.rotation.y);
+
+  if (state.weapon === 'starforged') {
+    if (starforgedWaves.length >= MAX_STARFORGED_WAVES) {
+      const oldest = starforgedWaves.shift();
+      scene.remove(oldest.mesh);
+      oldest.mesh.geometry.dispose();
+      oldest.mesh.material.dispose();
+    }
+    const wave = new THREE.Mesh(
+      new THREE.TorusGeometry(.82, .075, 8, 28),
+      new THREE.MeshBasicMaterial({
+        color: 0x8ceaff, emissive: 0x246dff,
+        transparent: true, opacity: .88, depthWrite: false
+      })
+    );
+    wave.rotation.y = player.rotation.y;
+    wave.position.set(
+      player.position.x + forwardX * 1.35,
+      player.position.y + 1.05,
+      player.position.z + forwardZ * 1.35
+    );
+    wave.scale.set(1.15, 1.15, 1.15);
+    scene.add(wave);
+    starforgedWaves.push({
+      mesh: wave, life: .48, maxLife: .48,
+      vx: forwardX * 12.5, vz: forwardZ * 12.5
+    });
+  }
+
   const damage = (weapon.damage + state.attackBonus) *
     weaponDamageMultiplier() *
     (cls.melee || 1);
@@ -4163,6 +4216,33 @@ function applySettings() {
 
 // ---------- Main Update ----------
 function update(dt) {
+  // Keep the Voidwarden visual passive tied to the equipped armor.
+  const hasVoidwarden = state.armor === 'voidwarden';
+  voidwardenAura.visible = hasVoidwarden;
+  if (hasVoidwarden) {
+    const pulse = performance.now() * .001;
+    voidwardenRing.material.opacity = .32 + Math.sin(pulse * 2.4) * .12;
+    voidwardenRing.rotation.z += dt * .72;
+    voidwardenHalo.material.opacity = .22 + Math.sin(pulse * 3.1 + 1) * .1;
+    voidwardenHalo.rotation.z -= dt * .95;
+  }
+
+  for (let i = starforgedWaves.length - 1; i >= 0; i--) {
+    const wave = starforgedWaves[i];
+    wave.life -= dt;
+    wave.mesh.position.x += wave.vx * dt;
+    wave.mesh.position.z += wave.vz * dt;
+    const progress = 1 - Math.max(0, wave.life) / wave.maxLife;
+    wave.mesh.scale.setScalar(1.15 + progress * 1.8);
+    wave.mesh.material.opacity = Math.max(0, wave.life / wave.maxLife) * .88;
+    if (wave.life <= 0) {
+      scene.remove(wave.mesh);
+      wave.mesh.geometry.dispose();
+      wave.mesh.material.dispose();
+      starforgedWaves.splice(i, 1);
+    }
+  }
+
   if (cutsceneDirector.active) {
     cutsceneDirector.update(dt);
     return;
