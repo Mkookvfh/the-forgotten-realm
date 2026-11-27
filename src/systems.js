@@ -82,7 +82,9 @@ export const SIDE_QUESTS = {
     title: 'สมุนไพรเพื่อชีวิต',
     desc: 'เก็บสมุนไพร 5 ชิ้นให้นักพรต',
     target: 5,
-    reward: { potions: 2, xp: 50 }
+    reward: { potions: 2, xp: 50 },
+    acceptedLine: 'สมุนไพรเหล่านี้ช่วยประคองชีวิตผู้บาดเจ็บได้ จงเก็บมาให้ครบ แล้วรีบกลับก่อนเงามืดจะกลืนป่า',
+    completedLine: 'กลิ่นสมุนไพรกลับมาที่ศาลเจ้าอีกครั้ง ขอบใจที่ช่วยชีวิตผู้คนไว้'
   },
   hunt: {
     title: 'ล่าผู้พิทักษ์',
@@ -94,7 +96,9 @@ export const SIDE_QUESTS = {
     title: 'เงาที่หลงเหลือ',
     desc: 'กำจัดผีร้าย 3 ตัวให้ผู้เฝ้าศาลเจ้า',
     target: 3,
-    reward: { crystals: 4, xp: 150 }
+    reward: { crystals: 4, xp: 150 },
+    acceptedLine: 'วิญญาณที่หลงเหลือกำลังวนเวียนใกล้ศาลเจ้า จงปลดปล่อยพวกเขา แล้วนำความสงบกลับคืนมา',
+    completedLine: 'เสียงกระซิบเงียบลงในที่สุด เจ้าช่วยปลดปล่อยวิญญาณเหล่านั้นแล้ว'
   }
 };
 
@@ -2015,7 +2019,10 @@ export function createSystems(ctx) {
       if (reward.xp) gainXp(reward.xp);
 
       if (audio) audio.play('quest');
-      toast(`ภารกิจรอบสำเร็จ: ${quest.title}`);
+      toast(`ภารกิจสำเร็จ: ${quest.title}`);
+      if (typeof onQuestCutscene === 'function') {
+        onQuestCutscene({ title: `ภารกิจสำเร็จ · ${quest.title}` });
+      }
       updateHud();
     }
 
@@ -2294,14 +2301,18 @@ export function createSystems(ctx) {
 
   function acceptQuest(id) {
     const quest = SIDE_QUESTS[id];
-    if (!quest) return;
+    if (!quest) return false;
 
     const progress = state.quests[id];
-    if (progress && progress.status !== 'locked') return;
+    if (progress && progress.status !== 'locked') return false;
 
     state.quests[id] = { status: 'active', count: 0 };
     toast(`รับภารกิจ: ${quest.title}`);
+    if (typeof onQuestCutscene === 'function') {
+      onQuestCutscene({ title: `ภารกิจใหม่ · ${quest.title}` });
+    }
     refreshQuestUI();
+    return true;
   }
 
   function npcQuestId(npc) {
@@ -2336,6 +2347,7 @@ export function createSystems(ctx) {
       tier: tier.tone,
       label: tier.label,
       flags: state.flags,
+      quests: state.quests,
       questStage: state.questStage
     };
   }
@@ -2539,8 +2551,11 @@ export function createSystems(ctx) {
           accept.className = 'dialogue-topic quest';
           accept.textContent = `✦ รับภารกิจ: ${SIDE_QUESTS[questId].title}`;
           accept.addEventListener('click', () => {
-            acceptQuest(questId);
-            backToTopics();
+            if (acceptQuest(questId)) {
+              dialogue.mode = 'reply';
+              dialogue.text = SIDE_QUESTS[questId].acceptedLine || `จงทำภารกิจ ${SIDE_QUESTS[questId].title} ให้สำเร็จ แล้วกลับมาหาข้า`;
+              renderDialogue();
+            }
           });
           choicesEl.appendChild(accept);
         }
@@ -4027,7 +4042,15 @@ export function createSystems(ctx) {
       if (!dialogue) return;
 
       const npc = dialogue.npc;
-      if (questAvailable(npc)) acceptQuest(npcQuestId(npc));
+      if (questAvailable(npc)) {
+        const questId = npcQuestId(npc);
+        if (acceptQuest(questId)) {
+          dialogue.mode = 'reply';
+          dialogue.text = SIDE_QUESTS[questId].acceptedLine || `จงทำภารกิจ ${SIDE_QUESTS[questId].title} ให้สำเร็จ แล้วกลับมาหาข้า`;
+          renderDialogue();
+          return;
+        }
+      }
       closeDialogue();
       if (npc.shop) openShop();
     });
