@@ -2592,7 +2592,9 @@ export function createSystems(ctx) {
     const askInput = $('#dialogue-ask');
     if (askInput) askInput.value = '';
 
-    nextEl.textContent = questAvailable(npc) ? 'รับภารกิจ' : 'จบการสนทนา';
+    nextEl.textContent = dialogue.mode === 'topics' && questAvailable(npc)
+      ? 'รับภารกิจ'
+      : 'จบการสนทนา';
   }
 
   function closeDialogue() {
@@ -4051,7 +4053,7 @@ export function createSystems(ctx) {
       if (!dialogue) return;
 
       const npc = dialogue.npc;
-      if (questAvailable(npc)) {
+      if (dialogue.mode === 'topics' && questAvailable(npc)) {
         const questId = npcQuestId(npc);
         if (acceptQuest(questId)) {
           dialogue.mode = 'reply';
