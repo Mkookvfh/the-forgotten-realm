@@ -46,7 +46,10 @@ export function createDungeonProgression(dungeonId, saveState = {}) {
   progress.roomIndex = Math.max(0, Math.min(layout.rooms.length - 1, Math.floor(Number(progress.roomIndex) || 0)));
   if (!Array.isArray(progress.completed)) progress.completed = [];
   if (!Array.isArray(progress.puzzleSolved)) progress.puzzleSolved = [];
-  progress.bossHpRatio = Math.max(0, Math.min(1, Number(progress.bossHpRatio) || 0));
+  const savedBossHpRatio = Number(progress.bossHpRatio);
+  progress.bossHpRatio = Number.isFinite(savedBossHpRatio)
+    ? Math.max(0, Math.min(1, savedBossHpRatio))
+    : 1;
   progress.claimed = Boolean(progress.claimed);
 
   const room = () => layout.rooms[progress.roomIndex] || null;
