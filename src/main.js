@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { CURRENT_SAVE_VERSION, parseSaveWithBackup } from './single-player-save.js';
 import { createDungeonProgression } from './dungeon-progression.js';
-import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern } from './boss-combat.js';
+import { getBossPhaseCombatProfile, getBossOpeningMultiplier, getBossAttackPattern, getBossCombo } from './boss-combat.js';
 import { createTownEventSystem } from './town-events.js';
 import { createWorldEventSystem } from './world-events.js';
 import { getExplorationJournal, explorationTotals } from './exploration-journal.js';
