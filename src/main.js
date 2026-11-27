@@ -1744,6 +1744,83 @@ const enemySpawns = [
 
 for (const [type, x, z] of enemySpawns) spawnEnemy(type, x, z);
 
+// Mobile target lock: cycle through nearby living enemies and show a clear marker.
+let lockedTarget = null;
+const targetLockRing = new THREE.Mesh(
+  new THREE.TorusGeometry(1.15, .075, 8, 28),
+  new THREE.MeshBasicMaterial({ color: 0xffdf73, transparent: true, opacity: .9, depthWrite: false })
+);
+targetLockRing.rotation.x = -Math.PI / 2;
+targetLockRing.visible = false;
+targetLockRing.renderOrder = 12;
+scene.add(targetLockRing);
+
+function cycleTargetLock() {
+  const candidates = enemies
+    .filter(enemy => enemy.userData.alive && !enemy.userData.dungeon)
+    .map(enemy => ({
+      enemy,
+      distance: Math.hypot(enemy.position.x - player.position.x, enemy.position.z - player.position.z)
+    }))
+    .filter(entry => entry.distance <= 32)
+    .sort((a, b) => a.distance - b.distance);
+  if (!candidates.length) {
+    lockedTarget = null;
+    targetLockRing.visible = false;
+    const button = $('#target-lock');
+    if (button) button.textContent = '🎯 ล็อก';
+    toast('ไม่มีศัตรูใกล้พอให้ล็อกเป้าหมาย');
+    return;
+  }
+  const currentIndex = candidates.findIndex(entry => entry.enemy === lockedTarget);
+  lockedTarget = candidates[(currentIndex + 1) % candidates.length].enemy;
+  const button = $('#target-lock');
+  if (button) button.textContent = '🎯 ปลดล็อก';
+  toast(`ล็อกเป้าหมาย: ${lockedTarget.userData.name}`);
+}
+
+
+
+function updateQuestGuide() {
+  const guide = $('#quest-guide');
+  if (!guide) return;
+  const arrow = guide.querySelector('.quest-guide-arrow');
+  const name = guide.querySelector('.quest-guide-name');
+  const distanceLabel = guide.querySelector('.quest-guide-distance');
+  let target = null;
+  let targetName = '';
+
+  if (state.questStage === 0) {
+    target = shrine.position;
+    targetName = 'จุดเริ่มภารกิจ';
+  } else if (state.questStage === 1) {
+    const nextGuardian = enemies
+      .filter(enemy => enemy.userData.alive && enemy.userData.type === 'guardian' && !enemy.userData.dungeon)
+      .sort((left, right) =>
+        Math.hypot(left.position.x - player.position.x, left.position.z - player.position.z) -
+        Math.hypot(right.position.x - player.position.x, right.position.z - player.position.z)
+      )[0];
+    if (nextGuardian) {
+      target = nextGuardian.position;
+      targetName = nextGuardian.userData.name;
+    }
+  }
+
+  if (!target || state.questStage >= 2) {
+    guide.classList.add('hidden');
+    return;
+  }
+  guide.classList.remove('hidden');
+  const dx = target.x - player.position.x;
+  const dz = target.z - player.position.z;
+  const distance = Math.hypot(dx, dz);
+  if (arrow) arrow.style.transform = `rotate(${Math.atan2(dx, dz) - yaw}rad)`;
+  if (name) name.textContent = targetName;
+  if (distanceLabel) distanceLabel.textContent = distance < 3
+    ? 'ถึงเป้าหมายแล้ว · กดใช้ / คุย'
+    : `ระยะ ${Math.round(distance)} ม. · เดินตามลูกศร`;
+}
+
 const dungeonSpawns = [
   ['wraith', -32, -83],
   ['wraith', -24, -83],
@@ -2104,6 +2181,8 @@ bindHold('#dodge', () => {
 bindHold('#cast', () => {
   systems.castSpell();
 });
+
+$('#target-lock')?.addEventListener('click', cycleTargetLock);
 
 // ---------- Camera ----------
 let yaw = 0;
@@ -3651,6 +3730,12 @@ function attack() {
 
   const weapon = weaponStats[state.weapon] || weaponStats.sword;
   const cls = classDefs[state.classId] || {};
+  if (lockedTarget?.userData.alive) {
+    player.rotation.y = Math.atan2(
+      lockedTarget.position.x - player.position.x,
+      lockedTarget.position.z - player.position.z
+    );
+  }
 
   if (weapon.kind === 'ranged') {
     if (weapon.stamina && state.stamina < weapon.stamina) {
@@ -3727,6 +3812,14 @@ function attack() {
       targetDistance = distance;
       target = enemy;
     }
+  }
+
+  if (lockedTarget?.userData.alive) {
+    const lockDistance = Math.hypot(
+      lockedTarget.position.x - player.position.x,
+      lockedTarget.position.z - player.position.z
+    );
+    if (lockDistance <= weapon.range) target = lockedTarget;
   }
 
   if (target) {
@@ -4074,6 +4167,21 @@ function updateWorld(dt, yaw) {
   portalRing.rotation.z += dt * .35;
   portalCore.material.opacity = .72 + Math.sin(clock.elapsedTime * 2) * .12;
   shrine.rotation.y += dt * .4;
+
+  if (lockedTarget && !lockedTarget.userData.alive) {
+    lockedTarget = null;
+    const button = $('#target-lock');
+    if (button) button.textContent = '🎯 ล็อก';
+  }
+  if (lockedTarget && lockedTarget.userData.alive) {
+    const targetGround = getTerrainHeight(lockedTarget.position.x, lockedTarget.position.z, lockedTarget.position.y) ?? lockedTarget.position.y;
+    targetLockRing.visible = true;
+    targetLockRing.position.set(lockedTarget.position.x, targetGround + .09, lockedTarget.position.z);
+    targetLockRing.scale.setScalar(Math.max(.75, lockedTarget.userData.baseScale || 1));
+    targetLockRing.rotation.z += dt * .65;
+  } else {
+    targetLockRing.visible = false;
+  }
 
   for (const crystal of collectibles) {
     if (!crystal.visible) continue;
@@ -4882,6 +4990,7 @@ body.rotation.x = -attackGlow * .22;
   }
 
   updateWorld(dt, yaw);
+  updateQuestGuide();
   updateCompanion(dt, yaw);
   systems.update(dt, yaw);
 
