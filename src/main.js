@@ -1647,6 +1647,7 @@ function spawnEnemy(type, x, z) {
     animTime: 0,
     hurtTimer: 0,
     attackTimer: 0,
+    packAlertTimer: 0,
     telegraphTimer: 0,
     recoveryTimer: 0,
     bossAttackIndex: 0,
@@ -4261,7 +4262,7 @@ function updateWorld(dt, yaw) {
     data.healthFill.scale.x = hpRatio;
     data.healthFill.position.x = -(1 - hpRatio) * 0.46;
 
-    const showBar = distance < stats.aggro + 2;
+    const showBar = distance < stats.aggro + 2 || (data.type === 'wolf' && data.packAlertTimer > 0 && distance < 18);
     data.healthBar.visible = showBar;
     if (showBar && isBoss && !data.weaknessHintShown) {
       data.weaknessHintShown = true;
@@ -4273,6 +4274,20 @@ function updateWorld(dt, yaw) {
       data.healthBar.quaternion.copy(barWorldRotation);
     }
     data.cooldown = Math.max(0, data.cooldown - dt);
+    data.packAlertTimer = Math.max(0, (data.packAlertTimer || 0) - dt);
+
+    // A wolf that spots the player alerts nearby wolves, creating a small pack response.
+    if (data.type === 'wolf' && distance < stats.aggro && data.packAlertTimer <= 0) {
+      data.packAlertTimer = 6;
+      for (const packMate of enemies) {
+        const mate = packMate.userData;
+        if (packMate === enemy || !mate.alive || mate.type !== 'wolf' || mate.dungeon !== data.dungeon) continue;
+        if (packMate.position.distanceToSquared(enemy.position) < 18 * 18) {
+          mate.packAlertTimer = Math.max(mate.packAlertTimer || 0, 5);
+        }
+      }
+    }
+    const wolfPackAggro = data.type === 'wolf' && data.packAlertTimer > 0 && distance < 18;
 
     if (data.stunTimer > 0) {
       data.moving = false;
@@ -4294,7 +4309,7 @@ function updateWorld(dt, yaw) {
         const wanderZ = data.homeZ + Math.cos(t * .7) * 1.2;
         if (!worldStreamer.blocked(wanderX,wanderZ,.42) && !frontierWorld?.blocked(wanderX,wanderZ,.42) && !cityWorld?.blocked(wanderX,wanderZ,.42)) { enemy.position.x=wanderX; enemy.position.z=wanderZ; }
       }
-    } else if (!isBoss && distance > stats.aggro + 8 && Math.hypot(enemy.position.x - data.homeX, enemy.position.z - data.homeZ) > 5) {
+    } else if (!isBoss && !wolfPackAggro && distance > stats.aggro + 8 && Math.hypot(enemy.position.x - data.homeX, enemy.position.z - data.homeZ) > 5) {
       // Enemies stop chasing after a long pursuit and return to their own camp.
       // This prevents patrols from dragging across the whole open world.
       const homeX = data.homeX - enemy.position.x;
@@ -4307,7 +4322,7 @@ function updateWorld(dt, yaw) {
         moveEnemySafely(enemy, homeDirection.x * homeStep, homeDirection.z * homeStep);
         data.moving = true;
       }
-    } else if (distance < stats.aggro) {
+    } else if (distance < stats.aggro || wolfPackAggro) {
       const direction = new THREE.Vector3(dx, 0, dz).normalize();
       enemy.rotation.y = Math.atan2(direction.x, direction.z);
 
