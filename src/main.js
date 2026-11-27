@@ -3116,18 +3116,18 @@ function defeatEnemy(enemy) {
   // Open-world boss rewards are unique per save slot, even after respawn.
   const uniqueBossReward = !data.dungeon ? claimBossReward(state.flags, type) : null;
   if (uniqueBossReward) {
-    state.gold += uniqueBossReward.gold;
-    state.crystals += uniqueBossReward.crystals;
-    for (const [itemId, amount] of Object.entries(uniqueBossReward.items)) {
-      systems.addItem(itemId, amount);
-    }
+    systems.createBossChest(
+      `unique-boss-reward-${type}-slot-${currentSlot}`,
+      { x: enemy.position.x + 2.2, z: enemy.position.z + 1.2 },
+      uniqueBossReward
+    );
   }
 
   gainXp(enemy.userData.stats.xp);
   systems.onEnemyKilled(enemy);
   audio.play(type === 'boss' || type === 'dungeonBoss' ? 'boss' : 'hit');
   const rewardText = uniqueBossReward
-    ? ` · โบนัสพิเศษ: ทอง +${uniqueBossReward.gold} · ผลึก +${uniqueBossReward.crystals} · เศษโบราณ +${uniqueBossReward.items.bossRelic || 0}`
+    ? ' · หีบรางวัลพิเศษปรากฏใกล้ๆ'
     : '';
   toast(
     `${enemy.userData.name}พ่ายแพ้ · ได้ผลึก ${crystals} · ทอง ${gold}${rewardText}`
