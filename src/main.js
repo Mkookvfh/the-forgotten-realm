@@ -1677,6 +1677,7 @@ const systems = createSystems({
   updateHud,
   refreshEquipmentUI,
   defeatEnemy,
+  applyEnemyDamage: damageEnemy,
   hireCompanion,
   getCompanionId: () => state.companion,
   companionInfo: (id) => {
