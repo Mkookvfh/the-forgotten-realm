@@ -33,6 +33,23 @@ test('boss phases trigger at health thresholds and reward can only be claimed on
   assert.deepEqual(dungeon.claimReward(), { ok: false, reason: 'already-claimed' });
 });
 
+test('incomplete legacy progress defaults boss health safely and preserves claimed rewards', () => {
+  const save = {
+    dungeons: {
+      forgottenCrypt: {
+        roomIndex: 2,
+        completed: ['guardian-sanctum'],
+        puzzleSolved: []
+      }
+    }
+  };
+  const dungeon = createDungeonProgression('forgottenCrypt', save);
+  assert.equal(dungeon.progress.bossHpRatio, 1);
+  assert.equal(dungeon.claimReward().ok, true);
+  const restored = createDungeonProgression('forgottenCrypt', save);
+  assert.equal(restored.claimReward().ok, false);
+});
+
 test('unknown dungeon id is rejected', () => {
   assert.throws(() => createDungeonProgression('missing', {}), /Unknown dungeon/);
 });
