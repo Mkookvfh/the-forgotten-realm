@@ -2126,7 +2126,19 @@ function saveGame(showMessage = true, slot = currentSlot) {
 
   try {
     const serialized = JSON.stringify(payload);
-    localStorage.setItem(getSaveKey(slot), serialized);
+    const saveKey = getSaveKey(slot);
+    const previousSave = localStorage.getItem(saveKey);
+
+    // Keep the previous successful save as a recovery copy before replacing it.
+    if (previousSave) {
+      try {
+        localStorage.setItem(`${saveKey}-backup`, previousSave);
+      } catch (backupError) {
+        console.warn('Could not refresh save backup:', backupError);
+      }
+    }
+
+    localStorage.setItem(saveKey, serialized);
     if (slot === 1) localStorage.setItem('forgotten-realm-save-v1', serialized);
     if (showMessage) toast(`บันทึกความคืบหน้าช่อง ${slot} แล้ว`);
   } catch (error) {
@@ -2141,7 +2153,15 @@ function loadGame(slot = currentSlot) {
       (slot === 1 ? localStorage.getItem('forgotten-realm-save-v1') : null);
     if (!raw) return toast(`ยังไม่มีข้อมูลบันทึกช่อง ${slot}`);
 
-    const data = JSON.parse(raw);
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (parseError) {
+      const backupRaw = localStorage.getItem(`${getSaveKey(slot)}-backup`);
+      if (!backupRaw) throw parseError;
+      data = JSON.parse(backupRaw);
+      toast(`กู้คืนเซฟสำรองของช่อง ${slot} แล้ว`);
+    }
 
     if (
       !Array.isArray(data.player) ||
