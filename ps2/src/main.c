@@ -97,22 +97,34 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick)
     rect(gs, 0, 0, w, h, sky);
     rect(gs, w * 0.76f, h * 0.13f, 40, 40, color(255, 226, 151));
 
-    /* Parallax mountain silhouettes. */
-    for (int i = -1; i < 4; ++i) {
+    /* Far clouds drift slowly; their screen movement is a parallax layer. */
+    for (int i = 0; i < 6; ++i) {
+        float cloud_world = i * 230.0f + 45.0f;
+        float x = cloud_world - camera * 0.06f;
+        x = fmodf(x, w + 120.0f);
+        if (x < -60.0f) x += w + 120.0f;
+        rect(gs, x, h * (0.12f + (i % 3) * 0.08f), 54, 8,
+             color(218, 235, 238));
+        rect(gs, x + 12, h * (0.12f + (i % 3) * 0.08f) - 6, 28, 8,
+             color(218, 235, 238));
+    }
+
+    /* Two distant mountain layers move at different speeds. */
+    for (int i = -1; i < 5; ++i) {
         float x = i * 270.0f - fmodf(camera * 0.12f, 270.0f);
         triangle(gs, x, h * 0.65f, x + 145, h * 0.29f,
-                x + 300, h * 0.65f, color(101, 145, 165));
-        x = i * 340.0f - fmodf(camera * 0.22f, 340.0f);
+                x + 300, h * 0.65f, color(139, 177, 190));
+        x = i * 340.0f - fmodf(camera * 0.24f, 340.0f);
         triangle(gs, x, h * 0.72f, x + 180, h * 0.44f,
-                x + 360, h * 0.72f, color(61, 112, 121));
+                x + 360, h * 0.72f, color(77, 129, 139));
     }
 
     rect(gs, 0, ground, w, h - ground, meadow);
 
-    /* The path gently bends across the landscape. */
-    for (int i = -1; i < 7; ++i) {
+    /* World objects use world-camera coordinates; the player stays near hero_x. */
+    for (int i = -1; i < 8; ++i) {
         float world = i * 180.0f;
-        float x = world - camera + hero_x;
+        float x = world - camera;
         float curve = 8.0f * sinf((world + camera) * 0.004f);
         rect(gs, x, ground + 22.0f + curve, 190, 38, path);
     }
@@ -128,17 +140,34 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick)
 
     for (int i = 0; i < 12; ++i) {
         float world = i * 315.0f + 90.0f;
-        float x = world - camera + hero_x;
+        float x = world - camera;
         if (x > -110 && x < w + 110)
             tree(gs, x, ground + 20, 0.65f + (i % 3) * 0.18f);
     }
 
-    /* Temporary traveler silhouette; custom sprite animation comes next. */
-    float bob = sinf(tick * 0.18f) * 2.0f;
-    rect(gs, hero_x - 8, ground - 42 + bob, 16, 17, color(45, 47, 55));
-    rect(gs, hero_x - 11, ground - 25 + bob, 22, 25, color(83, 83, 112));
-    rect(gs, hero_x - 10, ground - 2 + bob, 8, 14, color(45, 47, 55));
-    rect(gs, hero_x + 2, ground - 2 + bob, 8, 14, color(45, 47, 55));
+    /* Animated blockout traveler. Replace with authored pixel-art sprite sheets later. */
+    {
+        int moving = (tick > 0.0f);
+        float phase = moving ? sinf(tick * 0.55f) : 0.0f;
+        float bob = moving ? fabsf(phase) * 1.5f : 0.0f;
+        float leg_a = phase * 4.0f;
+        float leg_b = -phase * 4.0f;
+        rect(gs, hero_x - 8, ground - 42 + bob, 16, 17, color(45, 47, 55));
+        rect(gs, hero_x - 11, ground - 25 + bob, 22, 25, color(83, 83, 112));
+        rect(gs, hero_x - 10 + leg_a, ground - 2 + bob, 7, 14, color(45, 47, 55));
+        rect(gs, hero_x + 3 + leg_b, ground - 2 + bob, 7, 14, color(45, 47, 55));
+    }
+
+    /* Foreground grass moves faster than the camera for depth. */
+    for (int i = 0; i < 18; ++i) {
+        float world = i * 92.0f + 25.0f;
+        float x = fmodf(world - camera * 1.22f, w + 80.0f);
+        if (x < -40.0f) x += w + 80.0f;
+        rect(gs, x, ground + 48.0f + (i % 3) * 3.0f, 3, 10,
+             color(54, 119, 67));
+        rect(gs, x + 5, ground + 52.0f + (i % 2) * 3.0f, 2, 7,
+             color(70, 139, 76));
+    }
 }
 
 int main(void)
