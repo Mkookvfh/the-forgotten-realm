@@ -151,6 +151,7 @@ const state = {
   inventory: { sword: 1, leather: 1 },
   mana: 100, spells: [], activeSpell: null,
   quests: {},
+  trackedQuestId: 'main',
   upgrades: {},
   bounties: [],
   dayTime: 0.72, weatherTime: 0,
