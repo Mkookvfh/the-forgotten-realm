@@ -28,3 +28,15 @@ test('only bosses during recovery receive counterattack damage bonus',()=>{
   assert.equal(getBossOpeningMultiplier(true,1,1),1.25);
   assert.equal(getBossOpeningMultiplier(true,1,3),1.45);
 });
+
+test('charge attacks expose movement speed and remain dodgeable by target-lock',()=>{
+  const phase1=getBossAttackPattern(1,1);
+  const phase2=getBossAttackPattern(2,1);
+  const phase3=getBossAttackPattern(3,1);
+  assert.equal(phase1.behavior,'charge');
+  assert.ok(phase1.chargeSpeed>0);
+  assert.equal(phase2.behavior,'charge');
+  assert.ok(phase2.chargeSpeed>phase1.chargeSpeed);
+  assert.equal(phase3.behavior,'charge');
+  assert.ok(phase3.chargeSpeed>phase2.chargeSpeed);
+});
