@@ -12,6 +12,15 @@
 
 /* Surface zones are provisional until the full level map is authored. */
 enum Surface { SURFACE_GRASS, SURFACE_WOOD, SURFACE_WATER, SURFACE_FOREST, SURFACE_SNOW };
+enum Region { REGION_VALLEY, REGION_GLOWWOOD, REGION_LAKE, REGION_SUMMIT };
+
+static enum Region region_at(float world_x)
+{
+    if (world_x < 900.0f) return REGION_VALLEY;
+    if (world_x < 1800.0f) return REGION_GLOWWOOD;
+    if (world_x < 2700.0f) return REGION_LAKE;
+    return REGION_SUMMIT;
+}
 
 static unsigned char pad_buffer[256] __attribute__((aligned(64)));
 static int rumble_ready = 0;
@@ -90,9 +99,33 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick, i
     float h = (float)gs->Height;
     float ground = h * 0.78f;
     float hero_x = w * 0.34f;
+    enum Region region = region_at(player_x);
     u64 sky = color(151, 205, 224);
     u64 meadow = color(91, 150, 91);
     u64 path = color(190, 166, 126);
+    u64 distant = color(139, 177, 190);
+    u64 near_mountains = color(77, 129, 139);
+
+    /* Each region has its own restrained palette and landmark treatment. */
+    if (region == REGION_GLOWWOOD) {
+        sky = color(22, 39, 62);
+        meadow = color(31, 68, 61);
+        path = color(72, 83, 79);
+        distant = color(49, 77, 105);
+        near_mountains = color(35, 60, 81);
+    } else if (region == REGION_LAKE) {
+        sky = color(170, 202, 213);
+        meadow = color(94, 135, 126);
+        path = color(157, 153, 132);
+        distant = color(130, 164, 176);
+        near_mountains = color(83, 122, 139);
+    } else if (region == REGION_SUMMIT) {
+        sky = color(190, 216, 232);
+        meadow = color(116, 139, 137);
+        path = color(173, 174, 169);
+        distant = color(162, 189, 207);
+        near_mountains = color(103, 140, 163);
+    }
 
     rect(gs, 0, 0, w, h, sky);
     rect(gs, w * 0.76f, h * 0.13f, 40, 40, color(255, 226, 151));
@@ -113,13 +146,33 @@ static void draw_scene(GSGLOBAL *gs, float camera, float player_x, float tick, i
     for (int i = -1; i < 5; ++i) {
         float x = i * 270.0f - fmodf(camera * 0.12f, 270.0f);
         triangle(gs, x, h * 0.65f, x + 145, h * 0.29f,
-                x + 300, h * 0.65f, color(139, 177, 190));
+                x + 300, h * 0.65f, distant);
         x = i * 340.0f - fmodf(camera * 0.24f, 340.0f);
         triangle(gs, x, h * 0.72f, x + 180, h * 0.44f,
-                x + 360, h * 0.72f, color(77, 129, 139));
+                x + 360, h * 0.72f, near_mountains);
     }
 
     rect(gs, 0, ground, w, h - ground, meadow);
+
+    /* Region landmarks: old valley stones, lakeside ruins, snowy summit ridges. */
+    if (region == REGION_VALLEY) {
+        for (int i = 0; i < 4; ++i) {
+            float rx = 250.0f + i * 210.0f - camera * 0.72f;
+            rect(gs, rx, ground - 38.0f, 13.0f, 38.0f, color(118, 126, 112));
+            rect(gs, rx - 5.0f, ground - 42.0f, 23.0f, 6.0f, color(139, 145, 127));
+        }
+    } else if (region == REGION_LAKE) {
+        for (int i = 0; i < 3; ++i) {
+            float rx = w * 0.57f + i * 74.0f;
+            rect(gs, rx, ground - 68.0f, 12.0f, 68.0f, color(103, 112, 112));
+            rect(gs, rx - 7.0f, ground - 74.0f, 26.0f, 8.0f, color(133, 143, 138));
+        }
+    } else if (region == REGION_SUMMIT) {
+        triangle(gs, w * 0.48f, ground, w * 0.69f, ground - 155.0f,
+                 w * 0.91f, ground, color(220, 231, 234));
+        triangle(gs, w * 0.65f, ground - 125.0f, w * 0.69f, ground - 155.0f,
+                 w * 0.75f, ground - 112.0f, color(245, 248, 247));
+    }
 
     /* World objects use world-camera coordinates; the player stays near hero_x. */
     for (int i = -1; i < 8; ++i) {
