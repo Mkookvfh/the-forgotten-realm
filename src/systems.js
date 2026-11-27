@@ -2025,6 +2025,15 @@ export function createSystems(ctx) {
       if (reward.potions) state.potions += reward.potions;
       if (reward.ore) addItem('ore', reward.ore);
       if (reward.crystals) state.crystals += reward.crystals;
+      if (id === 'wraith') {
+        if (state.flags['sage-story-choice'] === 'free-spirits') {
+          state.crystals += 2;
+          addReputation('outcasts', 5, 'ปลดปล่อยวิญญาณ');
+        } else if (state.flags['sage-story-choice'] === 'seal-spirits') {
+          state.potions += 1;
+          addReputation('church', 5, 'ผนึกวิญญาณ');
+        }
+      }
       if (reward.xp) gainXp(reward.xp);
 
       if (audio) audio.play('quest');
@@ -2306,6 +2315,36 @@ export function createSystems(ctx) {
     }
 
     renderRep();
+  }
+
+  function questAcceptedLine(id) {
+    if (id === 'wraith') {
+      if (state.flags['sage-story-choice'] === 'free-spirits') return 'ข้าจะไม่ผนึกพวกเขาอีก จงช่วยวิญญาณที่หลงเหลือให้เป็นอิสระ แล้วกลับมาบอกข้า';
+      if (state.flags['sage-story-choice'] === 'seal-spirits') return 'จงผนึกวิญญาณที่หลงเหลือไว้ก่อนที่เงาจะลุกลาม ข้าจะเตรียมยาฟื้นฟูให้เจ้า';
+    }
+    return SIDE_QUESTS[id]?.acceptedLine || `จงทำภารกิจ ${SIDE_QUESTS[id]?.title || ''} ให้สำเร็จ แล้วกลับมาหาข้า`;
+  }
+
+  function chooseStoryChoice(choiceId) {
+    if (!dialogue || dialogue.npc.id !== 'sage') return;
+    if (state.quests.herb?.status !== 'done' || state.flags['sage-story-choice']) return;
+    const choices = {
+      'free-spirits': { flag: 'free-spirits', text: 'ข้าจะช่วยปลดปล่อยวิญญาณ ไม่ใช่กักขังพวกเขาอีกต่อไป', faction: 'outcasts', rep: 3 },
+      'seal-spirits': { flag: 'seal-spirits', text: 'ข้าจะช่วยศาสนจักรผนึกวิญญาณ เพื่อปกป้องผู้คนจากเงามืด', faction: 'church', rep: 3 }
+    };
+    const choice = choices[choiceId];
+    if (!choice) return;
+    state.flags['sage-story-choice'] = choice.flag;
+    addReputation(choice.faction, choice.rep, 'การตัดสินใจที่ศาลเจ้า');
+    dialogue.mode = 'reply';
+    dialogue.text = choice.text + (choiceId === 'free-spirits'
+      ? '\\n\\nเมื่อภารกิจสำเร็จ วิญญาณจะมอบผลึกเพิ่มเติมให้เจ้า'
+      : '\\n\\nเมื่อภารกิจสำเร็จ ศาสนจักรจะมอบยาฟื้นฟูเพิ่มเติมให้เจ้า');
+    if (typeof onQuestCutscene === 'function') {
+      onQuestCutscene({ title: choiceId === 'free-spirits' ? 'คำสัตย์ · ปลดปล่อยวิญญาณ' : 'คำสัตย์ · ผนึกวิญญาณ' });
+    }
+    toast(choiceId === 'free-spirits' ? 'เลือกปลดปล่อยวิญญาณ · ผู้ถูกเนรเทศ +3' : 'เลือกผนึกวิญญาณ · ศาสนจักร +3');
+    renderDialogue();
   }
 
   function acceptQuest(id) {
