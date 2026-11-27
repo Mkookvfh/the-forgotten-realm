@@ -497,8 +497,8 @@ function refreshSkillUI() {
 const scene = new THREE.Scene();
 const combatFeedback = createCombatFeedback(scene, { mobile: isTouch });
 const cameraShake = createCameraShake({ mobile: isTouch });
-scene.background = new THREE.Color(0x080d18);
-scene.fog = new THREE.FogExp2(0x1b2634, 0.0032);
+scene.background = new THREE.Color(0x8fc8f4);
+scene.fog = new THREE.FogExp2(0x9bcff2, 0.0018);
 
 const camera = new THREE.PerspectiveCamera(
   62, innerWidth / innerHeight, 0.1, 800
@@ -566,16 +566,16 @@ const sky = new THREE.Mesh(
     vec3 d = normalize(vDir);
     float h = d.y;
 
-    vec3 nightHorizon = vec3(.075,.095,.17);
-    vec3 nightZenith  = vec3(.010,.015,.040);
-    vec3 dayHorizon   = vec3(.38,.47,.60);
-    vec3 dayZenith    = vec3(.06,.145,.34);
+    vec3 nightHorizon = vec3(.16,.22,.34);
+    vec3 nightZenith  = vec3(.025,.045,.12);
+    vec3 dayHorizon   = vec3(.68,.82,.96);
+    vec3 dayZenith    = vec3(.24,.48,.82);
 
     float dusk = max(0.0, 1.0 - abs(uSun - 0.18) * 3.2);
 
     vec3 horizon = mix(nightHorizon, dayHorizon, uSun);
     vec3 zenith  = mix(nightZenith,  dayZenith,  uSun);
-    horizon = mix(horizon, vec3(.78,.40,.22), dusk * .55);
+    horizon = mix(horizon, vec3(1.0,.58,.48), dusk * .42);
 
     vec3 col = mix(horizon, zenith, smoothstep(-.05, .78, h));
 
@@ -623,10 +623,10 @@ sky.renderOrder = -1;
 scene.add(sky);
 
 // ---------- Lighting ----------
-const hemi = new THREE.HemisphereLight(0xa9c0dd, 0x2b251d, 1.2);
+const hemi = new THREE.HemisphereLight(0xc7e6ff, 0x5f8050, 1.35);
 scene.add(hemi);
 
-const ambient = new THREE.AmbientLight(0x9fb2cc, 0.55);
+const ambient = new THREE.AmbientLight(0xfff3df, 0.62);
 scene.add(ambient);
 
 const moon = new THREE.DirectionalLight(0xbfd4ff, 1.8);
@@ -641,7 +641,7 @@ moon.shadow.normalBias = 0.045;
 scene.add(moon);
 scene.add(moon.target);
 
-const sunLight = new THREE.DirectionalLight(0xffd9a8, 2.2);
+const sunLight = new THREE.DirectionalLight(0xfff0cf, 2.45);
 sunLight.position.set(-24, 40, 30);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
@@ -664,7 +664,7 @@ const moonGlow = new THREE.PointLight(0x9bb5ed, 1.0, 65);
 moonGlow.position.set(-16, 12, -18);
 scene.add(moonGlow);
 
-const CAVE_FOG_COLOR = new THREE.Color(0x100c12);
+const CAVE_FOG_COLOR = new THREE.Color(0x233b52);
 
 // ---------- Ground and world streaming ----------
 const fallbackWorld = new THREE.Group();
@@ -673,7 +673,7 @@ scene.add(fallbackWorld);
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(180, 180),
-  new THREE.MeshStandardMaterial({ color: 0x343a32, roughness: 1 })
+  new THREE.MeshStandardMaterial({ color: 0x79ad55, roughness: 1 })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
@@ -731,15 +731,15 @@ worldStreamer.init().then((ok) => {
   toast('เมือง 9 แห่งเปิดแล้ว · ชาวเมืองเดินทางในเมือง');
 });
 
-const groundDayColor = new THREE.Color(0x4c5543);
-const groundNightColor = new THREE.Color(0x5d6956);
+const groundDayColor = new THREE.Color(0x79ad55);
+const groundNightColor = new THREE.Color(0x456b4b);
 
 
 const mats = {
-  stone: new THREE.MeshStandardMaterial({ color: 0x454747, roughness: 1 }),
-  bark: new THREE.MeshStandardMaterial({ color: 0x33251c, roughness: 1 }),
-  leaves: new THREE.MeshStandardMaterial({ color: 0x263b2b, roughness: 1 }),
-  ruin: new THREE.MeshStandardMaterial({ color: 0x55565a, roughness: 1 })
+  stone: new THREE.MeshStandardMaterial({ color: 0x9aabb8, roughness: .92 }),
+  bark: new THREE.MeshStandardMaterial({ color: 0x76503a, roughness: 1 }),
+  leaves: new THREE.MeshStandardMaterial({ color: 0x4f9d45, roughness: .95 }),
+  ruin: new THREE.MeshStandardMaterial({ color: 0x9a9ba8, roughness: .95 })
 };
 
 // ---------- Environment ----------
@@ -3913,12 +3913,12 @@ lastSun = sun;
   
 
 
-  const daylight = new THREE.Color(0x111a2b).lerp(
-  new THREE.Color(0x7d93ad),
+  const daylight = new THREE.Color(0x4a709f).lerp(
+  new THREE.Color(0x9ed5f5),
   sun
 );
   const duskTint = Math.max(0, 1 - Math.abs(sun - 0.18) * 3.4);
-  daylight.lerp(new THREE.Color(0xe88a5a), duskTint * 0.30);
+  daylight.lerp(new THREE.Color(0xffa77f), duskTint * 0.24);
 
 sky.visible = true;
 sky.material.uniforms.uSun.value = sun;
@@ -3933,8 +3933,8 @@ moteMaterial.opacity =
 // Dynamic Dark Fantasy Fog
 const nightFog = 1 - sun;
 const outdoorFogDensity = THREE.MathUtils.lerp(
-  0.0026,
-  0.0042,
+  0.00125,
+  0.0027,
   nightFog
 );
 scene.fog.density = THREE.MathUtils.lerp(outdoorFogDensity, .034, caveBlend);
