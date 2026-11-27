@@ -4557,7 +4557,7 @@ function update(dt) {
     cutsceneDirector.update(dt);
     return;
   }
-  cityWorld?.update(dt, player.position.x, player.position.z);
+  cityWorld?.update(dt, player.position.x, player.position.z, state.dayTime);
   townEventSystem.update(dt, player.position.x, player.position.z);
   worldEventSystem.update(player.position.x, player.position.z);
     autoSaveTimer += dt;
