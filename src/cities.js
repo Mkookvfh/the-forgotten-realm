@@ -127,7 +127,7 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
     const homeZ=city.z+Math.sin(angle)*radius;
     group.position.set(homeX,groundY(homeX,homeZ),homeZ);
     (city.root || root).add(group);
-    residents.push({id:`${city.id}:${index}`,mesh:group,city,homeX,homeZ,phase:index*1.7,speed:.45+(index%3)*.12,body,goalX:homeX,goalZ:homeZ,wait:1+index%4});
+    residents.push({id:`${city.id}:${index}`,mesh:group,city,homeX,homeZ,scheduleX:homeX,scheduleZ:homeZ,scheduleMode:'home',phase:index*1.7,speed:.45+(index%3)*.12,body,goalX:homeX,goalZ:homeZ,wait:1+index%4,index});
   }
   function makeLamp(city, lx,lz) {
     const x=city.x+lx*city.size,z=city.z+lz*city.size,y=groundY(x,z);
@@ -228,24 +228,47 @@ export function createCityWorld({ scene, getHeight = () => 0, mobile = false }) 
       }
       return restored;
     },
-    update(dt, playerX=0, playerZ=0) {
+    update(dt, playerX=0, playerZ=0, dayTime=.5) {
       const activeRange = mobile ? 155 : 220;
+      const t = ((Number.isFinite(dayTime) ? dayTime : .5) % 1 + 1) % 1;
+      const scheduleMode = t >= .20 && t < .35 ? 'morning' : t >= .35 && t < .68 ? 'day' : t >= .68 && t < .82 ? 'evening' : 'night';
       for (const entry of cityRoots) {
         const dx=entry.city.x-playerX,dz=entry.city.z-playerZ;
         entry.group.visible = dx*dx+dz*dz < activeRange*activeRange;
       }
       for (const npc of residents) {
         if (!npc.city.root.visible) continue;
+        if (npc.scheduleMode !== scheduleMode) {
+          npc.scheduleMode = scheduleMode;
+          const size = npc.city.size;
+          if (scheduleMode === 'night') {
+            npc.scheduleX = npc.homeX; npc.scheduleZ = npc.homeZ;
+          } else if (scheduleMode === 'morning') {
+            npc.scheduleX = npc.city.x + Math.cos(npc.index * 2.1) * 8 * size;
+            npc.scheduleZ = npc.city.z + Math.sin(npc.index * 2.1) * 8 * size;
+          } else if (scheduleMode === 'day') {
+            npc.scheduleX = npc.city.x + ((npc.index % 3) - 1) * 5.2 * size;
+            npc.scheduleZ = npc.city.z + 12 * size + (Math.floor(npc.index / 3) % 2) * 3 * size;
+          } else {
+            npc.scheduleX = npc.city.x + Math.cos(npc.index * 1.8) * 10 * size;
+            npc.scheduleZ = npc.city.z + Math.sin(npc.index * 1.8) * 10 * size;
+          }
+          npc.goalX = npc.scheduleX; npc.goalZ = npc.scheduleZ; npc.wait = 0;
+        }
         npc.wait-=dt;
         const dx=npc.goalX-npc.mesh.position.x,dz=npc.goalZ-npc.mesh.position.z;
         const dist=Math.hypot(dx,dz);
         if (dist<.6 || npc.wait<=0) {
           npc.wait=2.5+((Math.sin(npc.phase*3)+1)*1.5);
           npc.phase+=1.3;
-          const a=npc.phase*1.71;
-          const radius=npc.city.size*(4.5+(npc.phase%3)*1.8);
-          npc.goalX=npc.homeX+Math.cos(a)*radius;
-          npc.goalZ=npc.homeZ+Math.sin(a)*radius;
+          if (scheduleMode === 'night') {
+            npc.goalX = npc.homeX; npc.goalZ = npc.homeZ; npc.wait = 8 + (npc.index % 5);
+          } else {
+            const a=npc.phase*1.71;
+            const radius=npc.city.size*(scheduleMode === 'day' ? 2.2 : 3.2);
+            npc.goalX=npc.scheduleX+Math.cos(a)*radius;
+            npc.goalZ=npc.scheduleZ+Math.sin(a)*radius;
+          }
         } else if (dist>.01) {
           const step=Math.min(dist,npc.speed*dt);
           const nx=npc.mesh.position.x+dx/dist*step;
