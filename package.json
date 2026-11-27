@@ -10,7 +10,8 @@
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
     "android:release": "npm run android:sync && cd android && sh gradlew assembleRelease",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "test": "node --test"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
