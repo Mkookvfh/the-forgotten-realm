@@ -1,0 +1,37 @@
+name: PS2 Port Build
+
+on:
+  push:
+    branches:
+      - port/ps2-foundation
+    paths:
+      - "ports/ps2/**"
+      - ".github/workflows/ps2-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ps2:
+    name: Build PS2 ELF (PS2SDK)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build with official ps2dev toolchain container
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src" \
+            -w /src/ports/ps2 \
+            ghcr.io/ps2dev/ps2dev:latest \
+            sh -lc 'make clean && make'
+
+      - name: Upload ELF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: the-forgotten-realm-ps2-elf
+          path: ports/ps2/tfr_ps2.elf
+          if-no-files-found: error
+          retention-days: 14
