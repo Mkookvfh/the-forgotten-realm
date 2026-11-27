@@ -57,15 +57,15 @@ export function createPerformanceMonitor(renderer, { enabled = false } = {}) {
     const height = Math.round(canvas.height / Math.max(.1, renderer.getPixelRatio()));
     const limit = fpsLimit === 'auto' ? 'Auto' : String(fpsLimit);
     panel.textContent =
-      'THE FORGOTTEN REALM · PERF\\n' +
-      'FPS       ' + fps.toFixed(1) + ' / ' + limit + '\\n' +
-      'FRAME     ' + frameMs.toFixed(1) + ' ms\\n' +
-      'MIN / MAX ' + (frameMin === Infinity ? '—' : frameMin.toFixed(1)) + ' / ' + frameMax.toFixed(1) + ' ms\\n' +
-      'QUALITY   ' + String(quality).toUpperCase() + '\\n' +
-      'RES       ' + width + ' × ' + height + '\\n' +
-      'DPR       ' + renderer.getPixelRatio().toFixed(2) + ' (adaptive ' + Number(adaptiveRatio).toFixed(2) + ')\\n' +
-      'DRAW CALL ' + calls + '\\n' +
-      'TRIANGLES ' + triangles.toLocaleString() + '\\n' +
+      'THE FORGOTTEN REALM · PERF\n' +
+      'FPS       ' + fps.toFixed(1) + ' / ' + limit + '\n' +
+      'FRAME     ' + frameMs.toFixed(1) + ' ms\n' +
+      'MIN / MAX ' + (frameMin === Infinity ? '—' : frameMin.toFixed(1)) + ' / ' + frameMax.toFixed(1) + ' ms\n' +
+      'QUALITY   ' + String(quality).toUpperCase() + '\n' +
+      'RES       ' + width + ' × ' + height + '\n' +
+      'DPR       ' + renderer.getPixelRatio().toFixed(2) + ' (adaptive ' + Number(adaptiveRatio).toFixed(2) + ')\n' +
+      'DRAW CALL ' + calls + '\n' +
+      'TRIANGLES ' + triangles.toLocaleString() + '\n' +
       'GPU ASSET ' + geometries + ' geo / ' + textures + ' tex';
     lastSample = now;
     frameCount = 0;
