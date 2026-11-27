@@ -41,3 +41,17 @@ export function getBossOpeningMultiplier(isBoss, recoveryTimer, phase) {
   if (!isBoss || !(Number(recoveryTimer) > 0)) return 1;
   return getBossPhaseCombatProfile(phase).openingMultiplier;
 }
+
+// Phase-based attack sequences; indexes refer to ATTACK_PATTERNS for each phase.
+const BOSS_COMBOS = {
+  1: [[1, 0], [0, 1]],
+  2: [[1, 0, 2], [0, 1, 2]],
+  3: [[1, 0, 2], [1, 2, 3]]
+};
+
+export function getBossCombo(phase, comboIndex = 0) {
+  const safePhase = Math.max(1, Math.min(3, Math.floor(Number(phase) || 1)));
+  const combos = BOSS_COMBOS[safePhase];
+  const index = Math.abs(Math.floor(Number(comboIndex) || 0)) % combos.length;
+  return combos[index].slice();
+}
